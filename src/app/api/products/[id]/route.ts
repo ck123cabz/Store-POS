@@ -21,7 +21,7 @@ export async function GET(
       name: product.name,
       price: Number(product.price),
       categoryId: product.categoryId,
-      categoryName: product.category.name,
+      categoryName: product.category?.name ?? null,
       quantity: product.quantity,
       trackStock: product.trackStock,
       image: product.image,
