@@ -203,7 +203,7 @@ export default function POSPage() {
     changeAmount: number
     paymentType: string
     paymentInfo: string
-  }) => {
+  }): Promise<number | null> => {
     try {
       const response = await fetch("/api/transactions", {
         method: "POST",
@@ -227,14 +227,20 @@ export default function POSPage() {
 
       if (!response.ok) throw new Error("Failed to process payment")
 
-      setPaymentModalOpen(false)
+      const transaction = await response.json()
+
+      // Don't close modal - it will show receipt options
+      // Modal will close when user clicks Done
       clearCart()
       setCurrentOrderId(null)
       fetchData()
       fetchHoldOrders()
       toast.success("Payment successful!")
+
+      return transaction.id
     } catch {
       toast.error("Failed to process payment")
+      return null
     }
   }
 
