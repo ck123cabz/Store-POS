@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 import bcrypt from "bcryptjs"
 
 export async function GET(
@@ -9,6 +10,13 @@ export async function GET(
   const { id } = await params
 
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (!session.user.permUsers) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 })
+    }
     const user = await prisma.user.findUnique({
       where: { id: parseInt(id) },
       select: {
@@ -41,6 +49,14 @@ export async function PUT(
   const { id } = await params
 
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (!session.user.permUsers) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 })
+    }
+
     const body = await request.json()
 
     // Validate required fields
@@ -110,6 +126,14 @@ export async function DELETE(
   const userId = parseInt(id)
 
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (!session.user.permUsers) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 })
+    }
+
     // Prevent deleting admin user (id: 1)
     if (userId === 1) {
       return NextResponse.json({ error: "Cannot delete the admin user" }, { status: 400 })
