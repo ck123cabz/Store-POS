@@ -30,10 +30,15 @@ export async function PUT(
   const { id } = await params
   const body = await request.json()
 
+  const name = typeof body.name === "string" ? body.name.trim() : ""
+  if (!name) {
+    return NextResponse.json({ error: "Name is required" }, { status: 400 })
+  }
+
   try {
     const category = await prisma.category.update({
       where: { id: parseInt(id) },
-      data: { name: body.name },
+      data: { name },
     })
 
     return NextResponse.json(category)

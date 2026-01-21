@@ -99,11 +99,14 @@ export default function CategoriesPage() {
     setDeleting(true)
     try {
       const res = await fetch(`/api/categories/${deleteId}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed")
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to delete category")
+      }
       toast.success("Category deleted")
       fetchCategories()
-    } catch {
-      toast.error("Failed to delete category")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete category")
     } finally {
       setDeleting(false)
       setDeleteId(null)
@@ -186,7 +189,7 @@ export default function CategoriesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Category?</AlertDialogTitle>
             <AlertDialogDescription>
-              Products in this category will become uncategorized.
+              This action cannot be undone. You cannot delete a category that has products assigned to it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
