@@ -17,22 +17,42 @@ export async function GET(request: Request) {
     const status = searchParams.get("status")
     const onHold = searchParams.get("onHold")
     const customerOrders = searchParams.get("customerOrders")
+    const userId = searchParams.get("userId")
+    const dateFrom = searchParams.get("dateFrom")
+    const dateTo = searchParams.get("dateTo")
+    const till = searchParams.get("till")
 
-    let where: Prisma.TransactionWhereInput = {}
+    const where: Prisma.TransactionWhereInput = {}
 
     if (onHold === "true") {
-      where = {
-        status: 0,
-        refNumber: { not: "" },
-      }
+      where.status = 0
+      where.refNumber = { not: "" }
     } else if (customerOrders === "true") {
-      where = {
-        status: 0,
-        customerId: { not: null },
-        refNumber: "",
-      }
-    } else if (status !== null) {
+      where.status = 0
+      where.customerId = { not: null }
+      where.refNumber = ""
+    } else if (status !== null && status !== "") {
       where.status = parseInt(status)
+    }
+
+    // Additional filters for transaction history
+    if (userId) {
+      where.userId = parseInt(userId)
+    }
+
+    if (till) {
+      where.tillNumber = parseInt(till)
+    }
+
+    if (dateFrom || dateTo) {
+      where.createdAt = {}
+      if (dateFrom) {
+        where.createdAt.gte = new Date(dateFrom)
+      }
+      if (dateTo) {
+        // Include the entire end day
+        where.createdAt.lte = new Date(dateTo + "T23:59:59.999Z")
+      }
     }
 
     const transactions = await prisma.transaction.findMany({
@@ -43,6 +63,7 @@ export async function GET(request: Request) {
         user: true,
       },
       orderBy: { createdAt: "desc" },
+      take: 100,
     })
 
     return NextResponse.json(transactions)
