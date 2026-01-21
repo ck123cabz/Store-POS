@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               Int           @id @default(autoincrement())
+  username         String        @unique
+  password         String
+  fullname         String
+  permProducts     Boolean       @default(false) @map("perm_products")
+  permCategories   Boolean       @default(false) @map("perm_categories")
+  permTransactions Boolean       @default(false) @map("perm_transactions")
+  permUsers        Boolean       @default(false) @map("perm_users")
+  permSettings     Boolean       @default(false) @map("perm_settings")
+  status           String        @default("")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  transactions     Transaction[]
+
+  @@map("users")
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id         Int      @id @default(autoincrement())
+  name       String
+  price      Decimal  @db.Decimal(10, 2)
+  categoryId Int      @map("category_id")
+  quantity   Int      @default(0)
+  trackStock Boolean  @default(false) @map("track_stock")
+  image      String   @default("")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  @@map("products")
+}
+
+model Customer {
+  id           Int           @id @default(autoincrement())
+  name         String
+  phone        String        @default("")
+  email        String        @default("")
+  address      String        @default("")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  transactions Transaction[]
+
+  @@map("customers")
+}
+
+model Transaction {
+  id            Int               @id @default(autoincrement())
+  orderNumber   Int               @unique @map("order_number")
+  refNumber     String            @default("") @map("ref_number")
+  discount      Decimal           @default(0) @db.Decimal(10, 2)
+  customerId    Int?              @map("customer_id")
+  userId        Int               @map("user_id")
+  status        Int               @default(0)
+  subtotal      Decimal           @db.Decimal(10, 2)
+  taxAmount     Decimal           @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  total         Decimal           @db.Decimal(10, 2)
+  paidAmount    Decimal?          @map("paid_amount") @db.Decimal(10, 2)
+  changeAmount  Decimal?          @map("change_amount") @db.Decimal(10, 2)
+  paymentType   String            @default("") @map("payment_type")
+  paymentInfo   String            @default("") @map("payment_info")
+  tillNumber    Int               @default(1) @map("till_number")
+  macAddress    String            @default("") @map("mac_address")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  customer      Customer?         @relation(fields: [customerId], references: [id])
+  user          User              @relation(fields: [userId], references: [id])
+  items         TransactionItem[]
+
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            Int         @id @default(autoincrement())
+  transactionId Int         @map("transaction_id")
+  productId     Int         @map("product_id")
+  productName   String      @map("product_name")
+  sku           String      @default("")
+  price         Decimal     @db.Decimal(10, 2)
+  quantity      Int
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("transaction_items")
+}
+
+model Settings {
+  id             Int      @id @default(1)
+  appMode        String   @default("Point of Sale") @map("app_mode")
+  storeName      String   @default("") @map("store_name")
+  addressLine1   String   @default("") @map("address_line_1")
+  addressLine2   String   @default("") @map("address_line_2")
+  phone          String   @default("")
+  taxNumber      String   @default("") @map("tax_number")
+  currencySymbol String   @default("$") @map("currency_symbol")
+  taxPercentage  Decimal  @default(0) @map("tax_percentage") @db.Decimal(5, 2)
+  chargeTax      Boolean  @default(false) @map("charge_tax")
+  receiptFooter  String   @default("") @map("receipt_footer")
+  logo           String   @default("")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
