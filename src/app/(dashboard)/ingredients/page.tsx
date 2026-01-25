@@ -36,7 +36,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Pencil, Trash2, RefreshCw, Package } from "lucide-react"
+import { Plus, Pencil, Trash2, RefreshCw, Package, ClipboardList } from "lucide-react"
+import Link from "next/link"
 import { toast } from "sonner"
 
 interface Ingredient {
@@ -246,9 +247,17 @@ export default function IngredientsPage() {
           <h1 className="text-2xl font-bold">Ingredients</h1>
           <p className="text-muted-foreground">Manage recipe ingredients and costs</p>
         </div>
-        <Button onClick={() => openForm()}>
-          <Plus className="h-4 w-4 mr-2" /> Add Ingredient
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/ingredients/count">
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Start Count
+            </Link>
+          </Button>
+          <Button onClick={() => openForm()}>
+            <Plus className="h-4 w-4 mr-2" /> Add Ingredient
+          </Button>
+        </div>
       </div>
 
       <Table>
