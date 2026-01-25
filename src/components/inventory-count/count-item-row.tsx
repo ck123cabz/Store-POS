@@ -4,7 +4,7 @@ import { Check, AlertTriangle, Edit2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import type { CountItem, CountEntry, DiscrepancyReason } from "@/types/inventory-count"
+import type { CountItem, CountEntry } from "@/types/inventory-count"
 import { DISCREPANCY_REASONS } from "@/types/inventory-count"
 
 interface CountItemRowProps {
