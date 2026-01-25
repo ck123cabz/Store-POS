@@ -138,12 +138,24 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    await prisma.ingredient.delete({
-      where: { id: parseInt(id) },
+    const ingredientId = parseInt(id)
+
+    // Soft delete - set isActive to false
+    const ingredient = await prisma.ingredient.update({
+      where: { id: ingredientId },
+      data: {
+        isActive: false,
+        updatedAt: new Date(),
+      },
     })
 
-    return NextResponse.json({ success: true })
-  } catch {
+    if (!ingredient) {
+      return NextResponse.json({ error: "Ingredient not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true, message: `${ingredient.name} has been deactivated` })
+  } catch (error) {
+    console.error("Failed to delete ingredient:", error)
     return NextResponse.json({ error: "Failed to delete ingredient" }, { status: 500 })
   }
 }
