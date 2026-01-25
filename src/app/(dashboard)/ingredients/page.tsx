@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react"
+import { Plus, Pencil, Trash2, RefreshCw, Package } from "lucide-react"
 import { toast } from "sonner"
 
 interface Ingredient {
@@ -84,6 +84,12 @@ export default function IngredientsPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  // Restock state
+  const [restockIngredient, setRestockIngredient] = useState<Ingredient | null>(null)
+  const [restockQuantity, setRestockQuantity] = useState("")
+  const [restockCost, setRestockCost] = useState("")
+  const [restocking, setRestocking] = useState(false)
 
   // Form state
   const [name, setName] = useState("")
@@ -198,6 +204,33 @@ export default function IngredientsPage() {
     }
   }
 
+  async function handleRestock() {
+    if (!restockIngredient || !restockQuantity) return
+    setRestocking(true)
+    try {
+      const res = await fetch(`/api/ingredients/${restockIngredient.id}/restock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quantity: parseFloat(restockQuantity),
+          costPerUnit: restockCost ? parseFloat(restockCost) : undefined,
+          userId: 1, // TODO: Get from session
+          userName: "Admin", // TODO: Get from session
+        }),
+      })
+      if (!res.ok) throw new Error("Failed")
+      toast.success(`Restocked ${restockQuantity} ${restockIngredient.unit} of ${restockIngredient.name}`)
+      setRestockIngredient(null)
+      setRestockQuantity("")
+      setRestockCost("")
+      fetchData()
+    } catch {
+      toast.error("Failed to restock ingredient")
+    } finally {
+      setRestocking(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -262,6 +295,17 @@ export default function IngredientsPage() {
               </TableCell>
               <TableCell>
                 <div className="flex gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      setRestockIngredient(ingredient)
+                      setRestockCost(ingredient.costPerUnit.toString())
+                    }}
+                    title="Restock"
+                  >
+                    <Package className="h-4 w-4" />
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => openForm(ingredient)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -424,6 +468,53 @@ export default function IngredientsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Restock Dialog */}
+      <Dialog open={!!restockIngredient} onOpenChange={() => setRestockIngredient(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Restock {restockIngredient?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              Current: {restockIngredient?.quantity} {restockIngredient?.unit}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="restockQty">Quantity to Add *</Label>
+              <Input
+                id="restockQty"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={restockQuantity}
+                onChange={(e) => setRestockQuantity(e.target.value)}
+                placeholder={`Enter ${restockIngredient?.unit}`}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="restockCost">New Cost per Unit (₱)</Label>
+              <Input
+                id="restockCost"
+                type="number"
+                step="0.01"
+                min="0"
+                value={restockCost}
+                onChange={(e) => setRestockCost(e.target.value)}
+                placeholder="Leave blank to keep current"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRestockIngredient(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleRestock} disabled={restocking || !restockQuantity}>
+                {restocking ? "Restocking..." : "Restock"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
