@@ -258,12 +258,53 @@ model Ingredient {
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
+  // NEW: Stock tracking
+  quantity          Decimal   @default(0) @db.Decimal(10, 2)
+  lastRestockDate   DateTime? @map("last_restock_date")
+
+  // NEW: Soft delete
+  isActive          Boolean   @default(true) @map("is_active")
+
+  // NEW: Barcode support
+  barcode           String?   @unique
+
   // Relations
   vendor      Vendor?       @relation(fields: [vendorId], references: [id])
   recipeItems RecipeItem[]
   wasteLogs   WasteLog[]
+  history     IngredientHistory[]
 
   @@map("ingredients")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INGREDIENT HISTORY - Audit trail for stock & cost changes
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model IngredientHistory {
+  id              Int        @id @default(autoincrement())
+  ingredientId    Int        @map("ingredient_id")
+  ingredientName  String     @map("ingredient_name")
+  changeId        String     @map("change_id")
+
+  field           String                              // quantity, costPerUnit
+  oldValue        String     @map("old_value")
+  newValue        String     @map("new_value")
+
+  source          String                              // manual_edit, sale, inventory_count, restock
+  reason          String?                             // waste, breakage, theft, miscount, etc.
+  reasonNote      String?    @map("reason_note")
+
+  userId          Int        @map("user_id")
+  userName        String     @map("user_name")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  ingredient      Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@index([ingredientId])
+  @@index([createdAt])
+  @@index([changeId])
+  @@map("ingredient_history")
 }
 
 model RecipeItem {
