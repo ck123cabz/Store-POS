@@ -140,18 +140,23 @@ export async function DELETE(
     const { id } = await params
     const ingredientId = parseInt(id)
 
+    // Check existence before update
+    const ingredient = await prisma.ingredient.findUnique({
+      where: { id: ingredientId },
+    })
+
+    if (!ingredient) {
+      return NextResponse.json({ error: "Ingredient not found" }, { status: 404 })
+    }
+
     // Soft delete - set isActive to false
-    const ingredient = await prisma.ingredient.update({
+    await prisma.ingredient.update({
       where: { id: ingredientId },
       data: {
         isActive: false,
         updatedAt: new Date(),
       },
     })
-
-    if (!ingredient) {
-      return NextResponse.json({ error: "Ingredient not found" }, { status: 404 })
-    }
 
     return NextResponse.json({ success: true, message: `${ingredient.name} has been deactivated` })
   } catch (error) {

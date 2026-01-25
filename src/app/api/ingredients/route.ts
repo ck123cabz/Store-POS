@@ -49,6 +49,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
+    // Validate required fields
+    if (!body.name || !body.category || !body.unit || body.costPerUnit === undefined) {
+      return NextResponse.json(
+        { error: "Missing required fields: name, category, unit, costPerUnit" },
+        { status: 400 }
+      )
+    }
+
     const ingredient = await prisma.ingredient.create({
       data: {
         name: body.name,
