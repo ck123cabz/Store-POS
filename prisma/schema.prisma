@@ -82,9 +82,14 @@ model Product {
   menuDecision       String?  @map("menu_decision")                          // Star, Workhorse, Puzzle, Dog
   weeklyUnitsSold    Int      @default(0) @map("weekly_units_sold")
 
+  // Phase 4: POS-Ingredient Integration
+  linkedIngredientId  Int?      @unique @map("linked_ingredient_id")
+  needsPricing        Boolean   @default(false) @map("needs_pricing")
+
   // Relations
-  category    Category     @relation(fields: [categoryId], references: [id])
-  recipeItems RecipeItem[]
+  category         Category     @relation(fields: [categoryId], references: [id])
+  recipeItems      RecipeItem[]
+  linkedIngredient Ingredient?  @relation("ProductIngredient", fields: [linkedIngredientId], references: [id])
 
   @@map("products")
 }
