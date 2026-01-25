@@ -15,6 +15,7 @@ import {
   BarChart3,
   Carrot,
   Trash2,
+  ClipboardList,
 } from "lucide-react"
 
 const navItems = [
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/categories", label: "Categories", icon: FolderTree, permission: "permCategories" },
   { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts" },
   { href: "/waste", label: "Waste Log", icon: Trash2, permission: null },
+  { href: "/employee", label: "My Tasks", icon: ClipboardList, permission: null },
   { href: "/customers", label: "Customers", icon: UserCircle, permission: null },
   { href: "/users", label: "Users", icon: Users, permission: "permUsers" },
   { href: "/settings", label: "Settings", icon: Settings, permission: "permSettings" },
