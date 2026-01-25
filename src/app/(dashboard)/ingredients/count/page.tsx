@@ -29,7 +29,6 @@ export default function InventoryCountPage() {
   const [entries, setEntries] = useState<Map<number, CountEntry>>(new Map())
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [hasDraft, setHasDraft] = useState(false)
 
   // UI state
   const [discrepancyItem, setDiscrepancyItem] = useState<CountItem | null>(null)
@@ -60,7 +59,7 @@ export default function InventoryCountPage() {
           restoredEntries.set(entry.ingredientId, entry)
         }
         setEntries(restoredEntries)
-        setHasDraft(true)
+        // Draft restored from server
         toast.info("Resumed from saved draft")
       }
     } catch (error) {
@@ -148,7 +147,7 @@ export default function InventoryCountPage() {
 
       if (!res.ok) throw new Error("Failed to save")
 
-      setHasDraft(true)
+      // Draft restored from server
       toast.success("Draft saved")
     } catch (error) {
       console.error("Failed to save draft:", error)
@@ -161,7 +160,7 @@ export default function InventoryCountPage() {
     try {
       await fetch("/api/inventory-count/draft", { method: "DELETE" })
       setEntries(new Map())
-      setHasDraft(false)
+      // Draft discarded
       setShowDiscardDialog(false)
       toast.success("Count discarded")
     } catch (error) {
