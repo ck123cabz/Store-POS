@@ -46,9 +46,14 @@ interface Ingredient {
   unit: string
   costPerUnit: number
   parLevel: number
+  quantity: number
+  stockStatus: "ok" | "low" | "critical" | "out"
+  stockRatio: number | null
   vendorId: number | null
   vendorName: string | null
+  lastRestockDate: string | null
   lastUpdated: string
+  barcode: string | null
 }
 
 interface Vendor {
@@ -86,6 +91,7 @@ export default function IngredientsPage() {
   const [unit, setUnit] = useState("")
   const [costPerUnit, setCostPerUnit] = useState("")
   const [parLevel, setParLevel] = useState("")
+  const [quantity, setQuantity] = useState("")
   const [vendorId, setVendorId] = useState<string>("")
 
   const fetchData = useCallback(async () => {
@@ -116,6 +122,7 @@ export default function IngredientsPage() {
     setUnit(ingredient?.unit || "")
     setCostPerUnit(ingredient?.costPerUnit?.toString() || "")
     setParLevel(ingredient?.parLevel?.toString() || "0")
+    setQuantity(ingredient?.quantity?.toString() || "0")
     setVendorId(ingredient?.vendorId?.toString() || "")
     setFormOpen(true)
   }
@@ -128,6 +135,7 @@ export default function IngredientsPage() {
     setUnit("")
     setCostPerUnit("")
     setParLevel("0")
+    setQuantity("0")
     setVendorId("")
   }
 
@@ -154,6 +162,7 @@ export default function IngredientsPage() {
           unit,
           costPerUnit: parseFloat(costPerUnit),
           parLevel: parseInt(parLevel) || 0,
+          quantity: parseFloat(quantity) || 0,
           vendorId: vendorId ? parseInt(vendorId) : null,
         }),
       })
@@ -214,10 +223,11 @@ export default function IngredientsPage() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Category</TableHead>
+            <TableHead className="text-right">Quantity</TableHead>
+            <TableHead className="text-right">PAR Level</TableHead>
             <TableHead className="text-right">Cost/Unit</TableHead>
             <TableHead>Unit</TableHead>
             <TableHead>Vendor</TableHead>
-            <TableHead className="text-right">PAR Level</TableHead>
             <TableHead className="w-24">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -229,13 +239,27 @@ export default function IngredientsPage() {
                 <Badge variant="outline">{ingredient.category}</Badge>
               </TableCell>
               <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-2">
+                  <span>{ingredient.quantity} {ingredient.unit}</span>
+                  {ingredient.stockStatus === "critical" && (
+                    <Badge variant="destructive">Critical</Badge>
+                  )}
+                  {ingredient.stockStatus === "low" && (
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">Low</Badge>
+                  )}
+                  {ingredient.stockStatus === "out" && (
+                    <Badge variant="destructive">Out</Badge>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell className="text-right">{ingredient.parLevel}</TableCell>
+              <TableCell className="text-right">
                 ₱{ingredient.costPerUnit.toFixed(2)}
               </TableCell>
               <TableCell>{ingredient.unit}</TableCell>
               <TableCell className="text-muted-foreground">
                 {ingredient.vendorName || "—"}
               </TableCell>
-              <TableCell className="text-right">{ingredient.parLevel}</TableCell>
               <TableCell>
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openForm(ingredient)}>
@@ -250,7 +274,7 @@ export default function IngredientsPage() {
           ))}
           {ingredients.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                 No ingredients found. Add your first ingredient to start building recipes.
               </TableCell>
             </TableRow>
@@ -328,16 +352,29 @@ export default function IngredientsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="parLevel">PAR Level</Label>
+                <Label htmlFor="quantity">Current Quantity</Label>
                 <Input
-                  id="parLevel"
+                  id="quantity"
                   type="number"
+                  step="0.01"
                   min="0"
-                  value={parLevel}
-                  onChange={(e) => setParLevel(e.target.value)}
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
                   placeholder="0"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parLevel">PAR Level</Label>
+              <Input
+                id="parLevel"
+                type="number"
+                min="0"
+                value={parLevel}
+                onChange={(e) => setParLevel(e.target.value)}
+                placeholder="0"
+              />
             </div>
 
             <div className="space-y-2">
