@@ -12,13 +12,19 @@ import {
   Receipt,
   Settings,
   UserCircle,
+  BarChart3,
+  Carrot,
+  Trash2,
 } from "lucide-react"
 
 const navItems = [
   { href: "/pos", label: "POS", icon: ShoppingCart, permission: null },
   { href: "/transactions", label: "Transactions", icon: Receipt, permission: "permTransactions" },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, permission: null },
   { href: "/products", label: "Products", icon: Package, permission: "permProducts" },
   { href: "/categories", label: "Categories", icon: FolderTree, permission: "permCategories" },
+  { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts" },
+  { href: "/waste", label: "Waste Log", icon: Trash2, permission: null },
   { href: "/customers", label: "Customers", icon: UserCircle, permission: null },
   { href: "/users", label: "Users", icon: Users, permission: "permUsers" },
   { href: "/settings", label: "Settings", icon: Settings, permission: "permSettings" },

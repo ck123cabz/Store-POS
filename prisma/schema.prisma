@@ -7,6 +7,10 @@ datasource db {
   provider = "postgresql"
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// USER - Enhanced for Lever 8 (Labor Leverage)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 model User {
   id               Int           @id @default(autoincrement())
   username         String        @unique
@@ -20,10 +24,23 @@ model User {
   status           String        @default("")
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  // LEVER 8: Labor Leverage
+  position         String?       // Kitchen Manager, Line Cook, Server, etc.
+  hourlyRate       Decimal?      @map("hourly_rate") @db.Decimal(10, 2)
+  startDate        DateTime?     @map("start_date")
+  employmentStatus String        @default("Active") @map("employment_status")
+
+  // Relations
   transactions     Transaction[]
+  laborLogs        LaborLog[]
 
   @@map("users")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CATEGORY
+// ═══════════════════════════════════════════════════════════════════════════════
 
 model Category {
   id        Int       @id @default(autoincrement())
@@ -35,6 +52,10 @@ model Category {
   @@map("categories")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRODUCT - Enhanced for Lever 1 (Unit Economics) & Lever 4 (Menu Focus)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 model Product {
   id         Int      @id @default(autoincrement())
   name       String
@@ -45,10 +66,32 @@ model Product {
   image      String   @default("")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
-  category   Category @relation(fields: [categoryId], references: [id])
+
+  // LEVER 1: Unit Economics - True Cost Calculation
+  prepTime           Int?     @map("prep_time")                              // minutes of staff time
+  laborCost          Decimal? @map("labor_cost") @db.Decimal(10, 2)          // prepTime × hourlyRate/60
+  overheadAllocation Decimal? @map("overhead_allocation") @db.Decimal(10, 2) // gas, packaging, etc.
+  trueCost           Decimal? @map("true_cost") @db.Decimal(10, 2)           // food + labor + overhead
+  trueMargin         Decimal? @map("true_margin") @db.Decimal(10, 2)         // price - trueCost
+  trueMarginPercent  Decimal? @map("true_margin_percent") @db.Decimal(5, 2)  // (price - trueCost) / price
+
+  // LEVER 4: Menu Focus
+  isHeroItem         Boolean  @default(false) @map("is_hero_item")           // highest margin item to push
+  speedRating        String?  @map("speed_rating")                           // Instant, Fast, Medium, Slow, Very Slow
+  ingredientSharing  String?  @map("ingredient_sharing")                     // High, Medium, Low overlap
+  menuDecision       String?  @map("menu_decision")                          // Star, Workhorse, Puzzle, Dog
+  weeklyUnitsSold    Int      @default(0) @map("weekly_units_sold")
+
+  // Relations
+  category    Category     @relation(fields: [categoryId], references: [id])
+  recipeItems RecipeItem[]
 
   @@map("products")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CUSTOMER - Enhanced for Lever 2 (Traffic Source) & Lever 7 (Repeat Rate)
+// ═══════════════════════════════════════════════════════════════════════════════
 
 model Customer {
   id           Int           @id @default(autoincrement())
@@ -58,10 +101,30 @@ model Customer {
   address      String        @default("")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  // LEVER 2: Traffic Source Clarity
+  customerType  String?      @map("customer_type")   // Pickleball Player, Companion, Walk-in, Destination, Referral
+  trafficSource String?      @map("traffic_source")  // How did they hear about us?
+
+  // LEVER 7: Repeat Rate
+  firstVisit    DateTime?    @map("first_visit")
+  lastVisit     DateTime?    @map("last_visit")
+  visitCount    Int          @default(0) @map("visit_count")
+  lifetimeSpend Decimal      @default(0) @map("lifetime_spend") @db.Decimal(10, 2)
+  avgTicket     Decimal?     @map("avg_ticket") @db.Decimal(10, 2)  // lifetimeSpend / visitCount
+  usualOrder    String?      @map("usual_order")                    // their go-to order
+  isRegular     Boolean      @default(false) @map("is_regular")     // 5+ visits
+  notes         String?                                              // preferences, allergies, etc.
+
+  // Relations
   transactions Transaction[]
 
   @@map("customers")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRANSACTION - Enhanced for Lever 2, 3, 5
+// ═══════════════════════════════════════════════════════════════════════════════
 
 model Transaction {
   id            Int               @id @default(autoincrement())
@@ -82,6 +145,22 @@ model Transaction {
   macAddress    String            @default("") @map("mac_address")
   createdAt     DateTime          @default(now()) @map("created_at")
   updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  // LEVER 2: Traffic Context
+  weather       String?           // Sunny, Cloudy, Rainy, Hot, Cool
+  courtStatus   String?           @map("court_status")  // Normal, Tournament, League Night, Private Event, Slow Day, Closed
+  dayType       String?           @map("day_type")      // Weekday, Weekend, Holiday
+
+  // LEVER 3: Ticket Size Analysis
+  itemCount       Int             @default(0) @map("item_count")
+  isDrinkOnly     Boolean         @default(false) @map("is_drink_only")
+  hasFoodAttached Boolean         @default(false) @map("has_food_attached")
+  isGroupOrder    Boolean         @default(false) @map("is_group_order")  // 3+ items or ₱250+
+
+  // LEVER 5: Daypart Economics
+  daypart       String?           // Morning, Midday, Afternoon, Evening
+
+  // Relations
   customer      Customer?         @relation(fields: [customerId], references: [id])
   user          User              @relation(fields: [userId], references: [id])
   items         TransactionItem[]
@@ -102,6 +181,10 @@ model TransactionItem {
   @@map("transaction_items")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SETTINGS - Enhanced with Business Setup & Benchmarks
+// ═══════════════════════════════════════════════════════════════════════════════
+
 model Settings {
   id             Int      @id @default(1)
   appMode        String   @default("Point of Sale") @map("app_mode")
@@ -118,5 +201,228 @@ model Settings {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  // Business Setup
+  cuisineType          String?  @map("cuisine_type")           // American, Asian, Italian, etc.
+  serviceStyle         String?  @map("service_style")          // Full-Service, Fast-Casual, Counter Service
+  seats                Int?
+  operatingDaysPerWeek Int?     @map("operating_days_per_week")
+  monthlyRent          Decimal? @map("monthly_rent") @db.Decimal(10, 2)
+
+  // Target Benchmarks (10-Lever targets)
+  targetFoodCostPercent    Decimal? @map("target_food_cost_percent") @db.Decimal(5, 2)     // Target: 28-35%
+  targetLaborCostPercent   Decimal? @map("target_labor_cost_percent") @db.Decimal(5, 2)   // Target: 25-35%
+  targetNetProfitPercent   Decimal? @map("target_net_profit_percent") @db.Decimal(5, 2)   // Target: 10-15%
+  avgHourlyLaborCost       Decimal? @map("avg_hourly_labor_cost") @db.Decimal(10, 2)      // Average wage
+  targetTicketSize         Decimal? @map("target_ticket_size") @db.Decimal(10, 2)         // Lever 3 goal
+  targetRevPerLaborHour    Decimal? @map("target_rev_per_labor_hour") @db.Decimal(10, 2)  // Lever 8: ₱300+
+  targetRepeatRate         Decimal? @map("target_repeat_rate") @db.Decimal(5, 2)          // Lever 7: 40%+
+  targetDestinationPercent Decimal? @map("target_destination_percent") @db.Decimal(5, 2) // Lever 2: 25%+
+  targetTrueMarginPercent  Decimal? @map("target_true_margin_percent") @db.Decimal(5, 2) // Lever 1: 65%+
+
   @@map("settings")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEVER 1: UNIT ECONOMICS - Ingredients & Recipe Costing
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Vendor {
+  id           Int          @id @default(autoincrement())
+  name         String
+  category     String                                          // Food - Protein, Produce, Dairy, Beverage, Supplies, etc.
+  contactName  String?      @map("contact_name")
+  phone        String?
+  email        String?
+  paymentTerms String?      @map("payment_terms")              // COD, Net 7, Net 15, Net 30
+  accountNumber String?     @map("account_number")
+  notes        String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  ingredients  Ingredient[]
+  purchases    Purchase[]
+
+  @@map("vendors")
+}
+
+model Ingredient {
+  id          Int           @id @default(autoincrement())
+  name        String
+  category    String                                            // Protein, Produce, Dairy, Dry Goods, Frozen, Beverage, Condiments
+  unit        String                                            // lb, oz, each, case, gallon, quart, bunch, bag
+  costPerUnit Decimal       @map("cost_per_unit") @db.Decimal(10, 2)
+  parLevel    Int           @default(0) @map("par_level")       // minimum stock level
+  lastUpdated DateTime?     @map("last_updated")
+  vendorId    Int?          @map("vendor_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  vendor      Vendor?       @relation(fields: [vendorId], references: [id])
+  recipeItems RecipeItem[]
+  wasteLogs   WasteLog[]
+
+  @@map("ingredients")
+}
+
+model RecipeItem {
+  id           Int        @id @default(autoincrement())
+  productId    Int        @map("product_id")
+  ingredientId Int        @map("ingredient_id")
+  quantity     Decimal    @db.Decimal(10, 3)                    // amount of ingredient used
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([productId, ingredientId])
+  @@map("recipe_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEVER 6: CASH CONVERSION - Waste & Purchase Tracking
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model WasteLog {
+  id            Int        @id @default(autoincrement())
+  date          DateTime
+  ingredientId  Int        @map("ingredient_id")
+  quantity      Decimal    @db.Decimal(10, 2)
+  reason        String                                          // Expired, Overproduction, Spoiled, Damaged, Over-portioning, Customer Return, Staff Meal, Other
+  estimatedCost Decimal    @map("estimated_cost") @db.Decimal(10, 2)
+  preventable   Boolean    @default(false)
+  notes         String?
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@map("waste_logs")
+}
+
+model Purchase {
+  id            Int       @id @default(autoincrement())
+  date          DateTime
+  vendorId      Int?      @map("vendor_id")
+  category      String                                          // Food, Beverage, Alcohol, Supplies, Equipment
+  description   String
+  amount        Decimal   @db.Decimal(10, 2)
+  paymentMethod String?   @map("payment_method")                // Cash, Check, Credit Card, Account
+  paymentStatus String    @default("Paid") @map("payment_status") // Paid, Pending, Due
+  dueDate       DateTime? @map("due_date")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  vendor        Vendor?   @relation(fields: [vendorId], references: [id])
+
+  @@map("purchases")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEVER 8: LABOR LEVERAGE - Time Tracking
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model LaborLog {
+  id          Int      @id @default(autoincrement())
+  date        DateTime
+  userId      Int      @map("user_id")
+  hoursWorked Decimal  @map("hours_worked") @db.Decimal(4, 2)
+  otHours     Decimal  @default(0) @map("ot_hours") @db.Decimal(4, 2)
+  hourlyRate  Decimal  @map("hourly_rate") @db.Decimal(10, 2)
+  tips        Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("labor_logs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEVER 10: SEQUENCING - Daily Pulse & Weekly Scorecard
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model DailyPulse {
+  id               Int      @id @default(autoincrement())
+  date             DateTime @unique
+  revenue          Decimal  @db.Decimal(10, 2)
+  transactions     Int
+  avgTicket        Decimal  @map("avg_ticket") @db.Decimal(10, 2)
+  upsellsAttempted Int      @default(0) @map("upsells_attempted")
+  upsellsConverted Int      @default(0) @map("upsells_converted")
+  weather          String?                                        // Sunny, Cloudy, Rainy
+  courtStatus      String?  @map("court_status")                  // Normal, Tournament, League Night, etc.
+  bestSeller       String?  @map("best_seller")
+  waste            String?                                        // Quick note on what was wasted
+  vibe             String?                                        // Crushed it, Good, Meh, Rough
+  oneThing         String?  @map("one_thing")                     // One thing to do differently tomorrow
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("daily_pulse")
+}
+
+model WeeklyScorecard {
+  id                 Int      @id @default(autoincrement())
+  weekStarting       DateTime @unique @map("week_starting")       // Monday of the week
+
+  // LEVER 1: Unit Economics
+  totalRevenue       Decimal  @map("total_revenue") @db.Decimal(10, 2)
+  foodCostPercent    Decimal? @map("food_cost_percent") @db.Decimal(5, 2)
+
+  // LEVER 3: Ticket Size
+  totalTransactions  Int      @map("total_transactions")
+  avgTicket          Decimal  @map("avg_ticket") @db.Decimal(10, 2)
+
+  // LEVER 5: Daypart Economics
+  bestDaypart        String?  @map("best_daypart")                // Morning, Midday, Afternoon, Evening
+  worstDaypart       String?  @map("worst_daypart")
+
+  // LEVER 6: Cash Conversion
+  wasteCost          Decimal? @map("waste_cost") @db.Decimal(10, 2)
+  spoilagePercent    Decimal? @map("spoilage_percent") @db.Decimal(5, 2)
+
+  // LEVER 7: Repeat Rate
+  repeatCustomers    Int?     @map("repeat_customers")
+  repeatRatePercent  Decimal? @map("repeat_rate_percent") @db.Decimal(5, 2)
+
+  // LEVER 8: Labor Leverage
+  laborHours         Decimal? @map("labor_hours") @db.Decimal(6, 2)
+  revPerLaborHour    Decimal? @map("rev_per_labor_hour") @db.Decimal(10, 2)
+
+  // LEVER 2: Traffic Source (Destination %)
+  destinationPercent Decimal? @map("destination_percent") @db.Decimal(5, 2)
+
+  // LEVER 3: Upsell Tracking
+  upsellAttempts     Int?     @map("upsell_attempts")
+  upsellConversions  Int?     @map("upsell_conversions")
+  upsellRatePercent  Decimal? @map("upsell_rate_percent") @db.Decimal(5, 2)
+
+  // LEVER 10: Sequencing & Focus
+  weekFocus          String?  @map("week_focus")                  // Which lever are you focusing on this week?
+  heroItemPushed     String?  @map("hero_item_pushed")            // Which item did you actively promote?
+  winOfWeek          String?  @map("win_of_week")
+  problemToSolve     String?  @map("problem_to_solve")
+  overallHealth      String?  @map("overall_health")              // Great, Okay, Struggling
+
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@map("weekly_scorecards")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BENCHMARKS - Industry reference data
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Benchmark {
+  id          Int      @id @default(autoincrement())
+  metric      String   @unique                                    // Food Cost %, Labor Cost %, etc.
+  lowGood     Decimal? @map("low_good") @db.Decimal(5, 2)
+  target      Decimal? @db.Decimal(5, 2)
+  highWarning Decimal? @map("high_warning") @db.Decimal(5, 2)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("benchmarks")
 }

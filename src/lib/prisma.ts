@@ -1,20 +1,11 @@
 import { PrismaClient } from "@prisma/client"
+import { PrismaPg } from "@prisma/adapter-pg"
+import { Pool } from "pg"
 
 const createPrismaClient = () => {
-  const databaseUrl = process.env.DATABASE_URL || ""
-
-  // If using prisma+postgres protocol (local Prisma query compiler), use accelerateUrl
-  if (databaseUrl.startsWith("prisma+postgres://")) {
-    return new PrismaClient({
-      accelerateUrl: databaseUrl,
-      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    })
-  }
-
-  // Standard PostgreSQL connection
-  return new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  })
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+  const adapter = new PrismaPg(pool)
+  return new PrismaClient({ adapter })
 }
 
 const globalForPrisma = globalThis as unknown as {

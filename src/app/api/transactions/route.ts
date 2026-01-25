@@ -9,7 +9,27 @@ interface TransactionItem {
   sku?: string
   price: number
   quantity: number
+  categoryId?: number
 }
+
+// Determine daypart based on hour
+function getDaypart(date: Date): string {
+  const hour = date.getHours()
+  if (hour >= 6 && hour < 10) return "Morning"
+  if (hour >= 10 && hour < 14) return "Midday"
+  if (hour >= 14 && hour < 18) return "Afternoon"
+  return "Evening"
+}
+
+// Determine day type
+function getDayType(date: Date): string {
+  const day = date.getDay()
+  if (day === 0 || day === 6) return "Weekend"
+  return "Weekday"
+}
+
+// Check if category is beverage (categoryId 2 in our seed data)
+const BEVERAGE_CATEGORY_ID = 2
 
 export async function GET(request: Request) {
   try {
@@ -21,6 +41,7 @@ export async function GET(request: Request) {
     const dateFrom = searchParams.get("dateFrom")
     const dateTo = searchParams.get("dateTo")
     const till = searchParams.get("till")
+    const daypart = searchParams.get("daypart")
 
     const where: Prisma.TransactionWhereInput = {}
 
@@ -42,6 +63,10 @@ export async function GET(request: Request) {
 
     if (till) {
       where.tillNumber = parseInt(till)
+    }
+
+    if (daypart) {
+      where.daypart = daypart
     }
 
     if (dateFrom || dateTo) {
@@ -81,6 +106,43 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const orderNumber = Math.floor(Date.now() / 1000)
+    const now = new Date()
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 10-LEVER ENHANCEMENTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // LEVER 5: Daypart Economics - Determine daypart
+    const daypart = body.daypart || getDaypart(now)
+    const dayType = body.dayType || getDayType(now)
+
+    // Get product categories for ticket analysis
+    const productIds = body.items.map((item: TransactionItem) => item.id)
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, categoryId: true },
+    })
+    const productCategoryMap = new Map(products.map((p) => [p.id, p.categoryId]))
+
+    // LEVER 3: Ticket Size Analysis
+    const itemCount = body.items.reduce((sum: number, item: TransactionItem) => sum + item.quantity, 0)
+
+    // Check if all items are beverages (drink-only)
+    const isDrinkOnly = body.items.every((item: TransactionItem) => {
+      const categoryId = item.categoryId || productCategoryMap.get(item.id)
+      return categoryId === BEVERAGE_CATEGORY_ID
+    })
+
+    // Check if any item is food
+    const hasFoodAttached = body.items.some((item: TransactionItem) => {
+      const categoryId = item.categoryId || productCategoryMap.get(item.id)
+      return categoryId !== BEVERAGE_CATEGORY_ID
+    })
+
+    // Group order: 3+ items or total >= 250
+    const isGroupOrder = itemCount >= 3 || Number(body.total) >= 250
+
+    // ═══════════════════════════════════════════════════════════════════════════
 
     const transaction = await prisma.transaction.create({
       data: {
@@ -99,6 +161,15 @@ export async function POST(request: Request) {
         paymentInfo: body.paymentInfo || "",
         tillNumber: body.tillNumber || 1,
         macAddress: body.macAddress || "",
+        // 10-Lever fields
+        weather: body.weather || null,
+        courtStatus: body.courtStatus || null,
+        dayType,
+        itemCount,
+        isDrinkOnly,
+        hasFoodAttached,
+        isGroupOrder,
+        daypart,
         items: {
           create: body.items.map((item: TransactionItem) => ({
             productId: item.id,
@@ -125,6 +196,35 @@ export async function POST(request: Request) {
             where: { id: item.id },
             data: {
               quantity: { decrement: item.quantity },
+              // Also increment weekly units sold
+              weeklyUnitsSold: { increment: item.quantity },
+            },
+          })
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // LEVER 7: Repeat Rate - Update customer metrics on paid transaction
+      // ═══════════════════════════════════════════════════════════════════════════
+      if (body.customerId) {
+        const customer = await prisma.customer.findUnique({
+          where: { id: body.customerId },
+        })
+
+        if (customer) {
+          const newVisitCount = customer.visitCount + 1
+          const newLifetimeSpend = Number(customer.lifetimeSpend) + Number(body.total)
+          const newAvgTicket = newLifetimeSpend / newVisitCount
+
+          await prisma.customer.update({
+            where: { id: body.customerId },
+            data: {
+              visitCount: newVisitCount,
+              lifetimeSpend: newLifetimeSpend,
+              avgTicket: Math.round(newAvgTicket * 100) / 100,
+              lastVisit: now,
+              firstVisit: customer.firstVisit || now,
+              isRegular: newVisitCount >= 5,
             },
           })
         }
