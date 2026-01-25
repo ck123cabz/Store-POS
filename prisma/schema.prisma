@@ -34,6 +34,7 @@ model User {
   // Relations
   transactions     Transaction[]
   laborLogs        LaborLog[]
+  countDrafts      InventoryCountDraft[]
 
   @@map("users")
 }
@@ -305,6 +306,27 @@ model IngredientHistory {
   @@index([createdAt])
   @@index([changeId])
   @@map("ingredient_history")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INVENTORY COUNT DRAFT - Persist in-progress counts for resume
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model InventoryCountDraft {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @map("user_id")
+  userName        String    @map("user_name")
+
+  // Draft data stored as JSON array
+  // [{ingredientId, expected, actual, confirmed, reason, reasonNote}]
+  counts          Json      @default("[]")
+
+  startedAt       DateTime  @default(now()) @map("started_at")
+  lastUpdatedAt   DateTime  @updatedAt @map("last_updated_at")
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_count_drafts")
 }
 
 model RecipeItem {
