@@ -25,6 +25,7 @@ export async function GET() {
       chargeTax: settings.chargeTax,
       receiptFooter: settings.receiptFooter,
       logo: settings.logo,
+      targetTrueMarginPercent: settings.targetTrueMarginPercent ? Number(settings.targetTrueMarginPercent) : null,
     })
   } catch {
     return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 })

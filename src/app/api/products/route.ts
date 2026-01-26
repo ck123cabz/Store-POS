@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const includeCosting = searchParams.get("includeCosting") === "true"
+
     const products = await prisma.product.findMany({
       include: { category: true },
       orderBy: { name: "asc" },
@@ -17,6 +20,11 @@ export async function GET() {
       quantity: p.quantity,
       trackStock: p.trackStock,
       image: p.image,
+      ...(includeCosting && {
+        trueCost: p.trueCost ? Number(p.trueCost) : null,
+        trueMargin: p.trueMargin ? Number(p.trueMargin) : null,
+        trueMarginPercent: p.trueMarginPercent ? Number(p.trueMarginPercent) : null,
+      }),
     }))
 
     return NextResponse.json(formatted)
