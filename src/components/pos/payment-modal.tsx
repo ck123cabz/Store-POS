@@ -149,7 +149,7 @@ export function PaymentModal({
               <p className="text-xl font-bold text-green-600 mb-2">
                 Payment Successful!
               </p>
-              <p className="text-gray-500">
+              <p className="text-muted-foreground">
                 Order #{lastTransactionId} completed
               </p>
               <p className="text-2xl font-bold mt-2">
@@ -225,8 +225,8 @@ export function PaymentModal({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="text-center py-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-500">Total Amount</p>
+            <div className="text-center py-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="text-3xl font-bold text-green-600">
                 {currencySymbol}{total.toFixed(2)}
               </p>
@@ -298,7 +298,7 @@ export function PaymentModal({
 
             {paid > 0 && (
               <div className="text-center py-2 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-500">Change</p>
+                <p className="text-sm text-muted-foreground">Change</p>
                 <p className={`text-2xl font-bold ${change >= 0 ? "text-blue-600" : "text-red-600"}`}>
                   {currencySymbol}{Math.abs(change).toFixed(2)}
                 </p>

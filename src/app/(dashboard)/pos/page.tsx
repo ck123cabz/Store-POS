@@ -405,11 +405,11 @@ export default function POSPage() {
             {holdOrders.map((order) => (
               <div
                 key={order.id}
-                className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50"
+                className="border rounded-lg p-4 cursor-pointer hover:bg-accent"
                 onClick={() => handleLoadOrder(order)}
               >
                 <p className="font-medium">Ref: {order.refNumber}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   {order.items.length} items
                 </p>
                 <p className="text-green-600 font-bold">
@@ -418,7 +418,7 @@ export default function POSPage() {
               </div>
             ))}
             {holdOrders.length === 0 && (
-              <p className="col-span-2 text-center text-gray-500 py-8">
+              <p className="col-span-2 text-center text-muted-foreground py-8">
                 No hold orders
               </p>
             )}
@@ -436,11 +436,11 @@ export default function POSPage() {
             {customerOrders.map((order) => (
               <div
                 key={order.id}
-                className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50"
+                className="border rounded-lg p-4 cursor-pointer hover:bg-accent"
                 onClick={() => handleLoadOrder(order)}
               >
                 <p className="font-medium">{order.customer?.name}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   {order.items.length} items
                 </p>
                 <p className="text-green-600 font-bold">
@@ -449,7 +449,7 @@ export default function POSPage() {
               </div>
             ))}
             {customerOrders.length === 0 && (
-              <p className="col-span-2 text-center text-gray-500 py-8">
+              <p className="col-span-2 text-center text-muted-foreground py-8">
                 No customer orders
               </p>
             )}

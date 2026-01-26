@@ -19,7 +19,7 @@ export function Header() {
       <div className="font-semibold text-lg">Store POS</div>
 
       <div className="flex items-center gap-4">
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-muted-foreground">
           {session?.user?.name}
         </span>
 

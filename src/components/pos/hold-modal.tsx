@@ -81,7 +81,7 @@ export function HoldModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Enter a reference number or select a customer to hold this order.
           </p>
 
@@ -95,7 +95,7 @@ export function HoldModal({
             />
           </div>
 
-          <div className="text-center text-sm text-gray-400">OR</div>
+          <div className="text-center text-sm text-muted-foreground">OR</div>
 
           <div>
             <Label>Customer</Label>

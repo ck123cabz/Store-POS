@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { formatBadgeCount, shouldShowBadge } from "@/lib/format-utils"
 import {
   ShoppingCart,
   Package,
@@ -26,29 +28,163 @@ import {
   ChefHat,
 } from "lucide-react"
 
-const navItems = [
+// T044: Badge configuration per nav item
+type BadgeKey = "ingredients" | "pricing" | "employee"
+
+const navItems: Array<{
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  permission: string | null
+  badgeKey?: BadgeKey
+}> = [
   { href: "/pos", label: "POS", icon: ShoppingCart, permission: null },
   { href: "/transactions", label: "Transactions", icon: Receipt, permission: "permTransactions" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, permission: null },
   { href: "/calendar", label: "Calendar", icon: Calendar, permission: null },
   { href: "/products", label: "Products", icon: Package, permission: "permProducts" },
   { href: "/recipes", label: "Recipes", icon: ChefHat, permission: "permProducts" },
-  { href: "/pricing", label: "Pricing", icon: Calculator, permission: "permProducts" },
+  { href: "/pricing", label: "Pricing", icon: Calculator, permission: "permProducts", badgeKey: "pricing" },
   { href: "/categories", label: "Categories", icon: FolderTree, permission: "permCategories" },
-  { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts" },
+  { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts", badgeKey: "ingredients" },
   { href: "/ingredients/count", label: "Inventory Count", icon: ClipboardList, permission: "permProducts" },
   { href: "/audit-log", label: "Audit Log", icon: History, permission: "permProducts" },
   { href: "/waste", label: "Waste Log", icon: Trash2, permission: null },
-  { href: "/employee", label: "My Tasks", icon: ClipboardList, permission: null },
+  { href: "/employee", label: "My Tasks", icon: ClipboardList, permission: null, badgeKey: "employee" },
   { href: "/customers", label: "Customers", icon: UserCircle, permission: null },
   { href: "/users", label: "Users", icon: Users, permission: "permUsers" },
   { href: "/settings", label: "Settings", icon: Settings, permission: "permSettings" },
 ]
 
+interface SidebarBadges {
+  lowStockIngredients: number
+  needsPricingProducts: number
+  taskProgress: {
+    completed: number
+    total: number
+  }
+}
+
+// T049: Max consecutive failures before stopping polling (NFR-E02)
+const MAX_CONSECUTIVE_FAILURES = 3
+
 export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [isOpen, setIsOpen] = useState(false)
+  const [badges, setBadges] = useState<SidebarBadges | null>(null)
+
+  // T048: AbortController ref for canceling in-flight requests (NFR-P06, EC-11)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  // T049: Track consecutive failures (NFR-E02)
+  const consecutiveFailuresRef = useRef(0)
+  // T047: Track if polling is paused due to visibility (NFR-P02, NFR-P03)
+  const isPollingPausedRef = useRef(false)
+
+  // T045, T046: Fetch badge counts with abort support
+  const fetchBadges = useCallback(async () => {
+    // T049: Stop polling after max consecutive failures
+    if (consecutiveFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
+      return
+    }
+
+    // T048: Cancel any existing in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    abortControllerRef.current = new AbortController()
+
+    try {
+      const res = await fetch("/api/sidebar-badges", {
+        signal: abortControllerRef.current.signal,
+      })
+      if (res.ok) {
+        setBadges(await res.json())
+        // Reset failure count on success
+        consecutiveFailuresRef.current = 0
+      } else {
+        // T051: Keep last known count on failure (EC-10)
+        consecutiveFailuresRef.current++
+      }
+    } catch (error) {
+      // Ignore abort errors (expected when canceling)
+      if (error instanceof Error && error.name === "AbortError") {
+        return
+      }
+      // T050, T051: Log error but keep last known badges (EC-09, EC-10)
+      console.error("Failed to fetch sidebar badges:", error)
+      consecutiveFailuresRef.current++
+    }
+  }, [])
+
+  useEffect(() => {
+    // Initial fetch (T045: non-blocking, NFR-P05)
+    fetchBadges()
+
+    // T046: Poll every 30 seconds for updates (FR-017)
+    const interval = setInterval(() => {
+      // T047: Skip fetch if polling is paused (NFR-P02)
+      if (!isPollingPausedRef.current) {
+        fetchBadges()
+      }
+    }, 30000)
+
+    // T047: Visibility-based polling pause/resume (NFR-P02, NFR-P03)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        isPollingPausedRef.current = true
+      } else {
+        isPollingPausedRef.current = false
+        // Resume with an immediate fetch when becoming visible
+        fetchBadges()
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      // T048: Cancel any in-flight request on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchBadges])
+
+  // T049: Get badge count for a nav item
+  const getBadgeCount = (badgeKey: BadgeKey | undefined): number => {
+    if (!badges || !badgeKey) return 0
+
+    switch (badgeKey) {
+      case "ingredients":
+        return badges.lowStockIngredients
+      case "pricing":
+        return badges.needsPricingProducts
+      case "employee":
+        // For employee tasks, show remaining tasks
+        return badges.taskProgress.total - badges.taskProgress.completed
+      default:
+        return 0
+    }
+  }
+
+  // T053: Get badge color class based on badge type (Visual Design Specifications)
+  // Warning (orange) for actionable items, destructive stays for critical
+  const getBadgeColorClass = (badgeKey: BadgeKey | undefined): string => {
+    switch (badgeKey) {
+      case "ingredients":
+        // Low stock = warning (orange)
+        return "bg-orange-500 hover:bg-orange-500/80 text-white"
+      case "pricing":
+        // Needs pricing = warning (orange)
+        return "bg-orange-500 hover:bg-orange-500/80 text-white"
+      case "employee":
+        // Remaining tasks = informational (blue)
+        return "bg-blue-500 hover:bg-blue-500/80 text-white"
+      default:
+        return ""
+    }
+  }
 
   const toggleSidebar = () => setIsOpen(!isOpen)
   const closeSidebar = () => setIsOpen(false)
@@ -83,7 +219,7 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed md:static z-40 w-56 border-r bg-gray-50 min-h-[calc(100vh-3.5rem)] transition-transform duration-200 ease-in-out",
+          "fixed md:static z-40 w-56 border-r bg-muted min-h-[calc(100vh-3.5rem)] transition-transform duration-200 ease-in-out",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
@@ -95,6 +231,9 @@ export function Sidebar() {
               if (!hasPermission) return null
             }
 
+            const badgeCount = getBadgeCount(item.badgeKey)
+            const badgeColorClass = getBadgeColorClass(item.badgeKey)
+
             return (
               <Link
                 key={item.href}
@@ -103,12 +242,27 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                   isActive(item.href)
-                    ? "bg-gray-200 text-gray-900"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >
                 <item.icon className="h-5 w-5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {/* T050, EC-07, EC-08: Show badge if count > 0, format 99+ */}
+                {/* T052: aria-label and aria-live for screen readers (NFR-A05, NFR-A06) */}
+                {/* T053: Color-coded badges per Visual Design Specifications */}
+                {shouldShowBadge(badgeCount) && (
+                  <Badge
+                    className={cn(
+                      "h-5 min-w-[1.25rem] px-1.5 text-xs font-semibold",
+                      badgeColorClass
+                    )}
+                    aria-label={`${badgeCount} items need attention`}
+                    aria-live="polite"
+                  >
+                    {formatBadgeCount(badgeCount)}
+                  </Badge>
+                )}
               </Link>
             )
           })}

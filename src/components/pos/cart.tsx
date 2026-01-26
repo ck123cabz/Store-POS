@@ -18,7 +18,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Minus, Plus, X } from "lucide-react"
+import { Minus, Plus, X, AlertTriangle } from "lucide-react"
+import { cn } from "@/lib/utils"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { Cart as CartType } from "@/hooks/use-cart"
 
 interface Customer {
@@ -82,7 +89,7 @@ export function Cart({
       {/* Cart Items */}
       <div className="flex-1 overflow-auto p-4">
         {cart.items.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">Cart is empty</p>
+          <p className="text-muted-foreground text-center py-8">Cart is empty</p>
         ) : (
           <Table>
             <TableHeader>
@@ -96,9 +103,26 @@ export function Cart({
             </TableHeader>
             <TableBody>
               {cart.items.map((item, index) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className={cn(item.stockChanged && "bg-orange-50")}>
                   <TableCell>{index + 1}</TableCell>
-                  <TableCell className="font-medium">{item.productName}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1">
+                      {item.productName}
+                      {/* EC-05: Stock changed warning */}
+                      {item.stockChanged && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Stock changed</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button
