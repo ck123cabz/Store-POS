@@ -48,6 +48,9 @@ export async function PUT(
         quantity: body.quantity,
         trackStock: body.trackStock,
         ...(body.image && { image: body.image }),
+        // Phase 4: Support needsPricing and linkedIngredientId
+        ...(body.needsPricing !== undefined && { needsPricing: body.needsPricing }),
+        ...(body.linkedIngredientId !== undefined && { linkedIngredientId: body.linkedIngredientId }),
       },
     })
 
@@ -59,6 +62,8 @@ export async function PUT(
       quantity: product.quantity,
       trackStock: product.trackStock,
       image: product.image,
+      needsPricing: product.needsPricing,
+      linkedIngredientId: product.linkedIngredientId,
     })
   } catch {
     return NextResponse.json({ error: "Failed to update product" }, { status: 500 })
