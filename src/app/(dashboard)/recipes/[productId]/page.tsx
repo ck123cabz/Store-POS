@@ -73,8 +73,10 @@ export default function RecipeBuilderPage() {
   const [prepTime, setPrepTime] = useState<string>("")
   const [overhead, setOverhead] = useState<string>("")
 
-  // Settings for margin warning
+  // Settings for margin warning and display
   const [targetMarginPercent, setTargetMarginPercent] = useState<number>(65)
+  const [currencySymbol, setCurrencySymbol] = useState<string>("₱")
+  const [hourlyRate, setHourlyRate] = useState<number>(75)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -97,6 +99,8 @@ export default function RecipeBuilderPage() {
       setPrepTime(recipeData.prepTime?.toString() || "")
       setOverhead(recipeData.overheadAllocation?.toString() || "0")
       setTargetMarginPercent(settingsData.targetTrueMarginPercent || 65)
+      setCurrencySymbol(settingsData.currencySymbol || "₱")
+      setHourlyRate(settingsData.avgHourlyLaborCost || 75)
     } catch (error) {
       console.error(error)
       toast.error("Failed to load recipe data")
@@ -114,7 +118,7 @@ export default function RecipeBuilderPage() {
     if (!recipe) return null
 
     const foodCost = recipeItems.reduce((sum, item) => sum + item.lineCost, 0)
-    const laborCost = prepTime ? (parseFloat(prepTime) / 60) * 75 : 0 // Default hourly rate
+    const laborCost = prepTime ? (parseFloat(prepTime) / 60) * hourlyRate : 0
     const overheadCost = parseFloat(overhead) || 0
     const trueCost = foodCost + laborCost + overheadCost
     const price = recipe.price
@@ -129,7 +133,7 @@ export default function RecipeBuilderPage() {
       trueMargin: Math.round(trueMargin * 100) / 100,
       trueMarginPercent: Math.round(trueMarginPercent * 10) / 10,
     }
-  }, [recipe, recipeItems, prepTime, overhead])
+  }, [recipe, recipeItems, prepTime, overhead, hourlyRate])
 
   const costs = calculateCosts()
   const isBelowTarget = costs && costs.trueMarginPercent < targetMarginPercent
@@ -243,7 +247,7 @@ export default function RecipeBuilderPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-lg font-semibold">
-            Price: ${recipe.price.toFixed(2)}
+            Price: {currencySymbol}{recipe.price.toFixed(2)}
           </span>
           <Button onClick={handleSave} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
@@ -296,10 +300,10 @@ export default function RecipeBuilderPage() {
                         />
                       </TableCell>
                       <TableCell className="text-right">
-                        ${item.costPerUnit.toFixed(2)}
+                        {currencySymbol}{item.costPerUnit.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        ${item.lineCost.toFixed(2)}
+                        {currencySymbol}{item.lineCost.toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -346,7 +350,7 @@ export default function RecipeBuilderPage() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="overhead">Overhead Allocation ($)</Label>
+                  <Label htmlFor="overhead">Overhead Allocation ({currencySymbol})</Label>
                   <Input
                     id="overhead"
                     type="number"
@@ -385,29 +389,29 @@ export default function RecipeBuilderPage() {
             <CardContent className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span>Food Cost</span>
-                <span>${costs?.foodCost.toFixed(2) || "0.00"}</span>
+                <span>{currencySymbol}{costs?.foodCost.toFixed(2) || "0.00"}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Labor Cost</span>
-                <span>${costs?.laborCost.toFixed(2) || "0.00"}</span>
+                <span>{currencySymbol}{costs?.laborCost.toFixed(2) || "0.00"}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Overhead</span>
-                <span>${costs?.overheadCost.toFixed(2) || "0.00"}</span>
+                <span>{currencySymbol}{costs?.overheadCost.toFixed(2) || "0.00"}</span>
               </div>
               <div className="border-t pt-2 flex justify-between font-semibold">
                 <span>True Cost</span>
-                <span>${costs?.trueCost.toFixed(2) || "0.00"}</span>
+                <span>{currencySymbol}{costs?.trueCost.toFixed(2) || "0.00"}</span>
               </div>
               <div className="border-t pt-2">
                 <div className="flex justify-between">
                   <span>Selling Price</span>
-                  <span>${recipe.price.toFixed(2)}</span>
+                  <span>{currencySymbol}{recipe.price.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-lg mt-1">
                   <span>Margin</span>
                   <span className={isBelowTarget ? "text-orange-600" : "text-green-600"}>
-                    ${costs?.trueMargin.toFixed(2) || "0.00"} ({costs?.trueMarginPercent.toFixed(1) || "0"}%)
+                    {currencySymbol}{costs?.trueMargin.toFixed(2) || "0.00"} ({costs?.trueMarginPercent.toFixed(1) || "0"}%)
                   </span>
                 </div>
               </div>
@@ -433,7 +437,7 @@ export default function RecipeBuilderPage() {
                   >
                     <span>{ingredient.name}</span>
                     <span className="text-muted-foreground text-xs">
-                      ${ingredient.costPerUnit.toFixed(2)}/{ingredient.unit}
+                      {currencySymbol}{ingredient.costPerUnit.toFixed(2)}/{ingredient.unit}
                     </span>
                   </Button>
                 ))}
