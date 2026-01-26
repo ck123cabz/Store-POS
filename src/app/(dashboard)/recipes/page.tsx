@@ -30,6 +30,7 @@ export default function RecipesPage() {
   const [products, setProducts] = useState<ProductWithRecipe[]>([])
   const [loading, setLoading] = useState(true)
   const [targetMargin, setTargetMargin] = useState(65)
+  const [currencySymbol, setCurrencySymbol] = useState("₱")
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -41,6 +42,7 @@ export default function RecipesPage() {
       setProducts(await productsRes.json())
       const settings = await settingsRes.json()
       setTargetMargin(settings.targetTrueMarginPercent || 65)
+      setCurrencySymbol(settings.currencySymbol || "₱")
     } catch {
       toast.error("Failed to load recipes")
     } finally {
@@ -103,13 +105,13 @@ export default function RecipesPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   {product.trueCost !== null ? (
-                    `P${product.trueCost.toFixed(2)}`
+                    `${currencySymbol}${product.trueCost.toFixed(2)}`
                   ) : (
                     <span className="text-muted-foreground">-</span>
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  P{product.price.toFixed(2)}
+                  {currencySymbol}{product.price.toFixed(2)}
                 </TableCell>
                 <TableCell className="text-right">
                   {product.trueMarginPercent !== null ? (

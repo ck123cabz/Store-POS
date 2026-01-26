@@ -26,6 +26,7 @@ export async function GET() {
       receiptFooter: settings.receiptFooter,
       logo: settings.logo,
       targetTrueMarginPercent: settings.targetTrueMarginPercent ? Number(settings.targetTrueMarginPercent) : null,
+      avgHourlyLaborCost: settings.avgHourlyLaborCost ? Number(settings.avgHourlyLaborCost) : 75,
     })
   } catch {
     return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 })
