@@ -16,6 +16,7 @@ import {
   Carrot,
   Trash2,
   Calendar,
+  History,
 } from "lucide-react"
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/products", label: "Products", icon: Package, permission: "permProducts" },
   { href: "/categories", label: "Categories", icon: FolderTree, permission: "permCategories" },
   { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts" },
+  { href: "/audit-log", label: "Audit Log", icon: History, permission: "permProducts" },
   { href: "/waste", label: "Waste Log", icon: Trash2, permission: null },
   { href: "/customers", label: "Customers", icon: UserCircle, permission: null },
   { href: "/users", label: "Users", icon: Users, permission: "permUsers" },
