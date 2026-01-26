@@ -15,12 +15,14 @@ import {
   BarChart3,
   Carrot,
   Trash2,
+  Calendar,
 } from "lucide-react"
 
 const navItems = [
   { href: "/pos", label: "POS", icon: ShoppingCart, permission: null },
   { href: "/transactions", label: "Transactions", icon: Receipt, permission: "permTransactions" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, permission: null },
+  { href: "/calendar", label: "Calendar", icon: Calendar, permission: null },
   { href: "/products", label: "Products", icon: Package, permission: "permProducts" },
   { href: "/categories", label: "Categories", icon: FolderTree, permission: "permCategories" },
   { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts" },
