@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, TrendingUp, TrendingDown, Users, Clock, DollarSign, Package, BarChart3, Target, Utensils } from "lucide-react"
+import { RefreshCw, TrendingUp, Users, Clock, DollarSign, Package, BarChart3, Utensils } from "lucide-react"
 import Link from "next/link"
 
 interface DashboardData {

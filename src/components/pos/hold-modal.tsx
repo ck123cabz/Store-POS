@@ -47,8 +47,10 @@ export function HoldModal({
     currentCustomerId?.toString() || "0"
   )
 
+  // Reset form state when modal opens - intentional synchronous setState
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRefNumber("")
       setCustomerId(currentCustomerId?.toString() || "0")
     }

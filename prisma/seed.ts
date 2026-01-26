@@ -17,7 +17,7 @@ async function main() {
 
   const hashedPassword = await bcrypt.hash('admin', 10)
 
-  const admin = await prisma.user.upsert({
+  const _admin = await prisma.user.upsert({
     where: { id: 1 },
     update: {},
     create: {
@@ -44,7 +44,7 @@ async function main() {
   // SETTINGS - Enhanced with 10-Lever benchmark targets
   // ═══════════════════════════════════════════════════════════════════════════════
 
-  const settings = await prisma.settings.upsert({
+  const _settings = await prisma.settings.upsert({
     where: { id: 1 },
     update: {},
     create: {
@@ -184,13 +184,13 @@ async function main() {
   // CATEGORIES - Food & Beverages
   // ═══════════════════════════════════════════════════════════════════════════════
 
-  const foodCategory = await prisma.category.upsert({
+  const _foodCategory = await prisma.category.upsert({
     where: { id: 1 },
     update: {},
     create: { id: 1, name: 'Food' },
   })
 
-  const beverageCategory = await prisma.category.upsert({
+  const _beverageCategory = await prisma.category.upsert({
     where: { id: 2 },
     update: {},
     create: { id: 2, name: 'Beverages' },

@@ -41,12 +41,20 @@ interface Settings {
   chargeTax: boolean
 }
 
+interface HoldOrderItem {
+  productId: number
+  productName: string
+  sku: string
+  price: string | number
+  quantity: number
+}
+
 interface HoldOrder {
   id: number
   orderNumber: number
   refNumber: string
   total: number
-  items: any[]
+  items: HoldOrderItem[]
   customer: { id: number; name: string } | null
 }
 
@@ -79,7 +87,7 @@ export default function POSPage() {
   const [holdModalOpen, setHoldModalOpen] = useState(false)
   const [holdOrdersModalOpen, setHoldOrdersModalOpen] = useState(false)
   const [customerOrdersModalOpen, setCustomerOrdersModalOpen] = useState(false)
-  const [currentOrderId, setCurrentOrderId] = useState<number | null>(null)
+  const [_currentOrderId, setCurrentOrderId] = useState<number | null>(null)
 
   const taxAmount = settings.chargeTax
     ? discountedSubtotal * (settings.taxPercentage / 100)
@@ -246,7 +254,7 @@ export default function POSPage() {
 
   const handleLoadOrder = (order: HoldOrder) => {
     loadOrder({
-      items: order.items.map((item: any) => ({
+      items: order.items.map((item) => ({
         id: item.productId,
         productName: item.productName,
         sku: item.sku,
@@ -254,7 +262,7 @@ export default function POSPage() {
         quantity: item.quantity,
         maxQuantity: null,
       })),
-      discount: Number(order.total) - order.items.reduce((sum: number, item: any) =>
+      discount: Number(order.total) - order.items.reduce((sum, item) =>
         sum + Number(item.price) * item.quantity, 0),
       customerId: order.customer?.id || null,
       customerName: order.customer?.name || "Walk in customer",
