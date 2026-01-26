@@ -64,66 +64,68 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
 
   return (
     <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-16">Image</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right">Stock</TableHead>
-            <TableHead className="w-24">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {products.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell>
-                {product.image ? (
-                  <Image
-                    src={`/uploads/${product.image}`}
-                    alt={product.name}
-                    width={40}
-                    height={40}
-                    className="rounded object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 bg-muted rounded" />
-                )}
-              </TableCell>
-              <TableCell className="font-medium">{product.name}</TableCell>
-              <TableCell>{product.categoryName || "—"}</TableCell>
-              <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
-              <TableCell className="text-right">
-                {product.trackStock ? (
-                  <Badge variant={product.quantity > 0 ? "default" : "destructive"}>
-                    {product.quantity}
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">N/A</Badge>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => onEdit(product)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(product.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {products.length === 0 && (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                No products found
-              </TableCell>
+              <TableHead className="w-16 hidden sm:table-cell">Image</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead className="hidden md:table-cell">Category</TableHead>
+              <TableHead className="text-right">Price</TableHead>
+              <TableHead className="text-right hidden sm:table-cell">Stock</TableHead>
+              <TableHead className="w-24">Actions</TableHead>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {products.map((product) => (
+              <TableRow key={product.id}>
+                <TableCell className="hidden sm:table-cell">
+                  {product.image ? (
+                    <Image
+                      src={`/uploads/${product.image}`}
+                      alt={product.name}
+                      width={40}
+                      height={40}
+                      className="rounded object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-muted rounded" />
+                  )}
+                </TableCell>
+                <TableCell className="font-medium">{product.name}</TableCell>
+                <TableCell className="hidden md:table-cell">{product.categoryName || "—"}</TableCell>
+                <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
+                <TableCell className="text-right hidden sm:table-cell">
+                  {product.trackStock ? (
+                    <Badge variant={product.quantity > 0 ? "default" : "destructive"}>
+                      {product.quantity}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">N/A</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => onEdit(product)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(product.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            {products.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  No products found
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>

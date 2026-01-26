@@ -233,34 +233,35 @@ export default function IngredientsPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
         <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Ingredients</h1>
-          <p className="text-muted-foreground">Manage recipe ingredients and costs</p>
+          <h1 className="text-xl md:text-2xl font-bold">Ingredients</h1>
+          <p className="text-muted-foreground text-sm">Manage recipe ingredients and costs</p>
         </div>
         <Button onClick={() => openForm()}>
           <Plus className="h-4 w-4 mr-2" /> Add Ingredient
         </Button>
       </div>
 
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Category</TableHead>
+            <TableHead className="hidden sm:table-cell">Category</TableHead>
             <TableHead className="text-right">Quantity</TableHead>
-            <TableHead className="text-right">PAR Level</TableHead>
-            <TableHead className="text-right">Cost/Unit</TableHead>
-            <TableHead>Unit</TableHead>
-            <TableHead>Vendor</TableHead>
+            <TableHead className="text-right hidden md:table-cell">PAR Level</TableHead>
+            <TableHead className="text-right hidden md:table-cell">Cost/Unit</TableHead>
+            <TableHead className="hidden sm:table-cell">Unit</TableHead>
+            <TableHead className="hidden lg:table-cell">Vendor</TableHead>
             <TableHead className="w-24">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -268,12 +269,12 @@ export default function IngredientsPage() {
           {ingredients.map((ingredient) => (
             <TableRow key={ingredient.id}>
               <TableCell className="font-medium">{ingredient.name}</TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <Badge variant="outline">{ingredient.category}</Badge>
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
-                  <span>{ingredient.quantity} {ingredient.unit}</span>
+                  <span>{ingredient.quantity} <span className="hidden sm:inline">{ingredient.unit}</span></span>
                   {ingredient.stockStatus === "critical" && (
                     <Badge variant="destructive">Critical</Badge>
                   )}
@@ -285,12 +286,12 @@ export default function IngredientsPage() {
                   )}
                 </div>
               </TableCell>
-              <TableCell className="text-right">{ingredient.parLevel}</TableCell>
-              <TableCell className="text-right">
+              <TableCell className="text-right hidden md:table-cell">{ingredient.parLevel}</TableCell>
+              <TableCell className="text-right hidden md:table-cell">
                 ₱{ingredient.costPerUnit.toFixed(2)}
               </TableCell>
-              <TableCell>{ingredient.unit}</TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden sm:table-cell">{ingredient.unit}</TableCell>
+              <TableCell className="text-muted-foreground hidden lg:table-cell">
                 {ingredient.vendorName || "—"}
               </TableCell>
               <TableCell>
@@ -325,6 +326,7 @@ export default function IngredientsPage() {
           )}
         </TableBody>
       </Table>
+      </div>
 
       {/* Add/Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={closeForm}>
