@@ -14,6 +14,19 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -21,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ArrowLeft, Trash2, RefreshCw, AlertTriangle, Save } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, RefreshCw, AlertTriangle, Save } from "lucide-react"
 import { toast } from "sonner"
 
 interface RecipeIngredient {
@@ -77,6 +90,20 @@ export default function RecipeBuilderPage() {
   const [targetMarginPercent, setTargetMarginPercent] = useState<number>(65)
   const [currencySymbol, setCurrencySymbol] = useState<string>("₱")
   const [hourlyRate, setHourlyRate] = useState<number>(75)
+
+  // Inline ingredient creation
+  const [newIngredientOpen, setNewIngredientOpen] = useState(false)
+  const [newIngName, setNewIngName] = useState("")
+  const [newIngCategory, setNewIngCategory] = useState("")
+  const [newIngUnit, setNewIngUnit] = useState("")
+  const [newIngCost, setNewIngCost] = useState("")
+  const [creatingIngredient, setCreatingIngredient] = useState(false)
+
+  const INGREDIENT_CATEGORIES = [
+    "Protein", "Produce", "Dairy", "Dry Goods", "Beverages",
+    "Condiments", "Spices", "Packaging", "Other",
+  ]
+  const UNITS = ["kg", "g", "L", "mL", "pcs", "pack", "bottle", "can", "box"]
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -202,6 +229,67 @@ export default function RecipeBuilderPage() {
         lineCost: ingredient.costPerUnit,
       },
     ])
+  }
+
+  async function handleCreateIngredient(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newIngName.trim() || !newIngCategory || !newIngUnit || !newIngCost) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    setCreatingIngredient(true)
+    try {
+      const res = await fetch("/api/ingredients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newIngName,
+          category: newIngCategory,
+          unit: newIngUnit,
+          costPerUnit: parseFloat(newIngCost),
+          parLevel: 0,
+          quantity: 0,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to create")
+
+      const newIngredient = await res.json()
+
+      // Add to local ingredients list
+      setIngredients((prev) => [...prev, {
+        id: newIngredient.id,
+        name: newIngredient.name,
+        unit: newIngredient.unit,
+        costPerUnit: newIngredient.costPerUnit,
+        quantity: 0,
+        stockStatus: "ok",
+      }])
+
+      // Auto-add to recipe
+      addIngredient({
+        id: newIngredient.id,
+        name: newIngredient.name,
+        unit: newIngredient.unit,
+        costPerUnit: newIngredient.costPerUnit,
+        quantity: 0,
+        stockStatus: "ok",
+      })
+
+      // Reset form
+      setNewIngredientOpen(false)
+      setNewIngName("")
+      setNewIngCategory("")
+      setNewIngUnit("")
+      setNewIngCost("")
+
+      toast.success(`Created "${newIngredient.name}" and added to recipe`)
+    } catch {
+      toast.error("Failed to create ingredient")
+    } finally {
+      setCreatingIngredient(false)
+    }
   }
 
   if (loading) {
@@ -421,10 +509,15 @@ export default function RecipeBuilderPage() {
           {/* Ingredient Picker */}
           <Card>
             <CardHeader>
-              <CardTitle>Add Ingredient</CardTitle>
-              <CardDescription>
-                Click to add to recipe
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Add Ingredient</CardTitle>
+                  <CardDescription>Click to add to recipe</CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setNewIngredientOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> New
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -449,6 +542,80 @@ export default function RecipeBuilderPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* New Ingredient Dialog */}
+          <Dialog open={newIngredientOpen} onOpenChange={setNewIngredientOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create New Ingredient</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateIngredient} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newIngName">Name *</Label>
+                  <Input
+                    id="newIngName"
+                    value={newIngName}
+                    onChange={(e) => setNewIngName(e.target.value)}
+                    placeholder="e.g., Chicken Breast"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Category *</Label>
+                    <Select value={newIngCategory} onValueChange={setNewIngCategory}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INGREDIENT_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Unit *</Label>
+                    <Select value={newIngUnit} onValueChange={setNewIngUnit}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {UNITS.map((u) => (
+                          <SelectItem key={u} value={u}>{u}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="newIngCost">Cost per Unit ({currencySymbol}) *</Label>
+                  <Input
+                    id="newIngCost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newIngCost}
+                    onChange={(e) => setNewIngCost(e.target.value)}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setNewIngredientOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={creatingIngredient}>
+                    {creatingIngredient ? "Creating..." : "Create & Add"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>
