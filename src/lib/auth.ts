@@ -47,6 +47,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           permTransactions: user.permTransactions,
           permUsers: user.permUsers,
           permSettings: user.permSettings,
+          permReports: user.permReports,
+          permAuditLog: user.permAuditLog,
         }
       },
     }),
@@ -61,6 +63,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.permTransactions = user.permTransactions
         token.permUsers = user.permUsers
         token.permSettings = user.permSettings
+        token.permReports = user.permReports
+        token.permAuditLog = user.permAuditLog
       }
       return token
     },
@@ -73,6 +77,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.permTransactions = token.permTransactions as boolean
         session.user.permUsers = token.permUsers as boolean
         session.user.permSettings = token.permSettings as boolean
+        session.user.permReports = token.permReports as boolean
+        session.user.permAuditLog = token.permAuditLog as boolean
       }
       return session
     },

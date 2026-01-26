@@ -11,6 +11,8 @@ declare module "next-auth" {
       permTransactions: boolean
       permUsers: boolean
       permSettings: boolean
+      permReports: boolean
+      permAuditLog: boolean
     } & DefaultSession["user"]
   }
 
@@ -21,6 +23,8 @@ declare module "next-auth" {
     permTransactions: boolean
     permUsers: boolean
     permSettings: boolean
+    permReports: boolean
+    permAuditLog: boolean
   }
 }
 
@@ -33,5 +37,7 @@ declare module "next-auth/jwt" {
     permTransactions: boolean
     permUsers: boolean
     permSettings: boolean
+    permReports: boolean
+    permAuditLog: boolean
   }
 }

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { Header } from "@/components/layout/header"
 import { Sidebar } from "@/components/layout/sidebar"
 import { SessionProvider } from "@/components/providers/session-provider"
+import { OnboardingTour } from "@/components/onboarding/tour"
 
 export default async function DashboardLayout({
   children,
@@ -21,8 +22,9 @@ export default async function DashboardLayout({
         <Header />
         <div className="flex">
           <Sidebar />
-          <main className="flex-1 p-4">{children}</main>
+          <main className="flex-1 pt-12 md:pt-0">{children}</main>
         </div>
+        <OnboardingTour />
       </div>
     </SessionProvider>
   )
