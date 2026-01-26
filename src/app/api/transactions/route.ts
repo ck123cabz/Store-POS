@@ -187,6 +187,9 @@ export async function POST(request: Request) {
 
     // Decrement stock if paid
     if (body.status === 1 && body.paidAmount >= body.total) {
+      // Create a changeId for grouping ingredient history entries for this sale
+      const changeId = `sale-${transaction.orderNumber}-${Date.now()}`
+
       for (const item of body.items) {
         const product = await prisma.product.findUnique({
           where: { id: item.id },
@@ -198,6 +201,45 @@ export async function POST(request: Request) {
               quantity: { decrement: item.quantity },
               // Also increment weekly units sold
               weeklyUnitsSold: { increment: item.quantity },
+            },
+          })
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // RECIPE-BASED INGREDIENT DECREMENT
+        // ═══════════════════════════════════════════════════════════════════════
+        // For each product sold, decrement its recipe ingredients
+        const recipeItems = await prisma.recipeItem.findMany({
+          where: { productId: item.id },
+          include: { ingredient: true },
+        })
+
+        for (const recipeItem of recipeItems) {
+          const decrementAmount = Number(recipeItem.quantity) * item.quantity
+          const ingredient = recipeItem.ingredient
+          const oldQuantity = Number(ingredient.quantity)
+          const newQuantity = Math.max(0, oldQuantity - decrementAmount)
+
+          // Update ingredient quantity
+          await prisma.ingredient.update({
+            where: { id: ingredient.id },
+            data: { quantity: newQuantity },
+          })
+
+          // Log to ingredient history for audit trail
+          await prisma.ingredientHistory.create({
+            data: {
+              ingredientId: ingredient.id,
+              ingredientName: ingredient.name,
+              changeId,
+              field: "quantity",
+              oldValue: oldQuantity.toString(),
+              newValue: newQuantity.toString(),
+              source: "sale",
+              reason: `Order #${transaction.orderNumber}`,
+              reasonNote: `${item.quantity}x ${item.productName}`,
+              userId: parseInt(session.user.id),
+              userName: session.user.name || "System",
             },
           })
         }
