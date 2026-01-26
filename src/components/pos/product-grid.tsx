@@ -14,6 +14,18 @@ interface Product {
   trackStock: boolean
   image: string
   categoryId: number
+  // Phase 4 fields
+  linkedIngredientId?: number | null
+  needsPricing?: boolean
+  linkedIngredient?: {
+    id: number
+    name: string
+    quantity: number
+    parLevel: number
+    unit: string
+    stockStatus: "ok" | "low" | "critical" | "out" | null
+    stockRatio: number | null
+  } | null
 }
 
 interface Category {

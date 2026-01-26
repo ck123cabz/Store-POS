@@ -90,9 +90,14 @@ model Product {
   menuDecision       String?  @map("menu_decision")                          // Star, Workhorse, Puzzle, Dog
   weeklyUnitsSold    Int      @default(0) @map("weekly_units_sold")
 
+  // Phase 4: POS-Ingredient Integration
+  linkedIngredientId  Int?      @unique @map("linked_ingredient_id")
+  needsPricing        Boolean   @default(false) @map("needs_pricing")
+
   // Relations
-  category    Category     @relation(fields: [categoryId], references: [id])
-  recipeItems RecipeItem[]
+  category         Category     @relation(fields: [categoryId], references: [id])
+  recipeItems      RecipeItem[]
+  linkedIngredient Ingredient?  @relation("ProductIngredient", fields: [linkedIngredientId], references: [id])
 
   @@map("products")
 }
@@ -276,11 +281,19 @@ model Ingredient {
   // NEW: Barcode support
   barcode           String?   @unique
 
+  // Phase 4: Auto-sync sellable ingredients to products
+  sellable          Boolean   @default(false)
+  linkedProductId   Int?      @unique @map("linked_product_id")
+  syncStatus        String    @default("synced") @map("sync_status")  // synced, pending, error
+  syncError         String?   @map("sync_error")
+  lastSyncAt        DateTime? @map("last_sync_at")
+
   // Relations
-  vendor      Vendor?       @relation(fields: [vendorId], references: [id])
-  recipeItems RecipeItem[]
-  wasteLogs   WasteLog[]
-  history     IngredientHistory[]
+  vendor         Vendor?       @relation(fields: [vendorId], references: [id])
+  recipeItems    RecipeItem[]
+  wasteLogs      WasteLog[]
+  history        IngredientHistory[]
+  linkedProduct  Product?      @relation("ProductIngredient")
 
   @@map("ingredients")
 }

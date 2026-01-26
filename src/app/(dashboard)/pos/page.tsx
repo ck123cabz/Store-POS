@@ -5,6 +5,7 @@ import { ProductGrid } from "@/components/pos/product-grid"
 import { Cart } from "@/components/pos/cart"
 import { PaymentModal } from "@/components/pos/payment-modal"
 import { HoldModal } from "@/components/pos/hold-modal"
+import { POSAlertBell } from "@/components/pos/pos-alert-bell"
 import { useCart } from "@/hooks/use-cart"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,18 @@ interface Product {
   trackStock: boolean
   image: string
   categoryId: number
+  // Phase 4: Ingredient link data
+  linkedIngredientId?: number | null
+  needsPricing?: boolean
+  linkedIngredient?: {
+    id: number
+    name: string
+    quantity: number
+    parLevel: number
+    unit: string
+    stockStatus: "ok" | "low" | "critical" | "out" | null
+    stockRatio: number | null
+  } | null
 }
 
 interface Category {
@@ -265,6 +278,23 @@ export default function POSPage() {
     setCustomerOrdersModalOpen(false)
   }
 
+  const handleQuickSetPrice = async (productId: number, price: number) => {
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price, needsPricing: false }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update price")
+
+      toast.success("Price updated!")
+      fetchData()
+    } catch {
+      toast.error("Failed to update price")
+    }
+  }
+
   return (
     <div className="flex gap-4 h-[calc(100vh-7rem)]">
       {/* Product Grid */}
@@ -276,8 +306,16 @@ export default function POSPage() {
           onAddToCart={handleAddToCart}
         />
 
+        {/* POS Alert Bell */}
+        <div className="flex justify-end mb-2 mt-4">
+          <POSAlertBell
+            currencySymbol={settings.currencySymbol}
+            onSetPrice={handleQuickSetPrice}
+          />
+        </div>
+
         {/* Hold/Customer Orders Buttons */}
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={() => setHoldOrdersModalOpen(true)}
