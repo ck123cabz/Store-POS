@@ -187,19 +187,99 @@ export async function POST(request: Request) {
 
     // Decrement stock if paid
     if (body.status === 1 && body.paidAmount >= body.total) {
+      const { nanoid } = await import("nanoid")
+      const saleChangeId = nanoid(10)
+
       for (const item of body.items) {
         const product = await prisma.product.findUnique({
           where: { id: item.id },
+          include: {
+            linkedIngredient: true,
+            recipeItems: {
+              include: { ingredient: true },
+            },
+          },
         })
-        if (product?.trackStock) {
+
+        if (!product) continue
+
+        // Decrement product stock if tracked
+        if (product.trackStock) {
           await prisma.product.update({
             where: { id: item.id },
             data: {
               quantity: { decrement: item.quantity },
-              // Also increment weekly units sold
               weeklyUnitsSold: { increment: item.quantity },
             },
           })
+        }
+
+        // Phase 4: Decrement linked ingredient (for directly-linked products like "Bottled Water")
+        if (product.linkedIngredientId && product.linkedIngredient) {
+          const ingredient = product.linkedIngredient
+          const oldQty = Number(ingredient.quantity)
+          const newQty = Math.max(0, oldQty - item.quantity)
+
+          await prisma.ingredient.update({
+            where: { id: ingredient.id },
+            data: {
+              quantity: newQty,
+              lastUpdated: new Date(),
+            },
+          })
+
+          // Log to ingredient history
+          await prisma.ingredientHistory.create({
+            data: {
+              ingredientId: ingredient.id,
+              ingredientName: ingredient.name,
+              changeId: saleChangeId,
+              field: "quantity",
+              oldValue: oldQty.toString(),
+              newValue: newQty.toString(),
+              source: "sale",
+              reason: "sale",
+              reasonNote: `Sold ${item.quantity}x ${product.name} (Order #${orderNumber})`,
+              userId: parseInt(session.user.id),
+              userName: session.user.name || "Unknown",
+            },
+          })
+        }
+
+        // Phase 4: Decrement recipe ingredients (for products with recipes)
+        if (product.recipeItems.length > 0) {
+          for (const recipeItem of product.recipeItems) {
+            const ingredient = recipeItem.ingredient
+            const usagePerUnit = Number(recipeItem.quantity)
+            const totalUsage = usagePerUnit * item.quantity
+            const oldQty = Number(ingredient.quantity)
+            const newQty = Math.max(0, oldQty - totalUsage)
+
+            await prisma.ingredient.update({
+              where: { id: ingredient.id },
+              data: {
+                quantity: newQty,
+                lastUpdated: new Date(),
+              },
+            })
+
+            // Log to ingredient history
+            await prisma.ingredientHistory.create({
+              data: {
+                ingredientId: ingredient.id,
+                ingredientName: ingredient.name,
+                changeId: saleChangeId,
+                field: "quantity",
+                oldValue: oldQty.toString(),
+                newValue: newQty.toString(),
+                source: "sale",
+                reason: "sale",
+                reasonNote: `Recipe: ${item.quantity}x ${product.name} used ${totalUsage} ${ingredient.unit} (Order #${orderNumber})`,
+                userId: parseInt(session.user.id),
+                userName: session.user.name || "Unknown",
+              },
+            })
+          }
         }
       }
 
