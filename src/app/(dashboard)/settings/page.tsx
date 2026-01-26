@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
-import { Loader2, Save, Upload } from "lucide-react"
+import { Loader2, Save, Upload, RotateCcw } from "lucide-react"
+import { useOnboarding } from "@/hooks/use-onboarding"
 
 interface SettingsFormData {
   appMode: string
@@ -40,6 +41,7 @@ const initialFormData: SettingsFormData = {
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const { reset: resetTour } = useOnboarding()
   const [currentLogo, setCurrentLogo] = useState<string>("")
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>("")
@@ -327,6 +329,34 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">
                 This message will appear at the bottom of printed receipts.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Help & Support */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Help & Support</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Onboarding Tour</Label>
+                <p className="text-sm text-muted-foreground">
+                  Restart the guided tour to learn about Store POS features
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetTour()
+                  toast.success("Tour reset! Refresh the page to see the tour.")
+                }}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Restart Tour
+              </Button>
             </div>
           </CardContent>
         </Card>
