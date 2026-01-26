@@ -16,6 +16,7 @@ import {
   Carrot,
   Trash2,
   Calculator,
+  ChefHat,
 } from "lucide-react"
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/transactions", label: "Transactions", icon: Receipt, permission: "permTransactions" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, permission: null },
   { href: "/products", label: "Products", icon: Package, permission: "permProducts" },
+  { href: "/recipes", label: "Recipes", icon: ChefHat, permission: "permProducts" },
   { href: "/pricing", label: "Pricing", icon: Calculator, permission: "permProducts" },
   { href: "/categories", label: "Categories", icon: FolderTree, permission: "permCategories" },
   { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts" },
