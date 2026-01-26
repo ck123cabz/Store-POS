@@ -27,6 +27,7 @@ const navItems = [
   { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts" },
   { href: "/ingredients/count", label: "Inventory Count", icon: ClipboardList, permission: "permProducts" },
   { href: "/waste", label: "Waste Log", icon: Trash2, permission: null },
+  { href: "/employee", label: "My Tasks", icon: ClipboardList, permission: null },
   { href: "/customers", label: "Customers", icon: UserCircle, permission: null },
   { href: "/users", label: "Users", icon: Users, permission: "permUsers" },
   { href: "/settings", label: "Settings", icon: Settings, permission: "permSettings" },
