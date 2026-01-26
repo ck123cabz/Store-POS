@@ -105,6 +105,7 @@ export async function PUT(
           quantity: body.quantity,
           vendorId: body.vendorId || null,
           barcode: body.barcode || null,
+          sellable: body.sellable ?? current.sellable,
           lastUpdated: new Date(),
         },
         include: { vendor: true },
@@ -113,6 +114,19 @@ export async function PUT(
         prisma.ingredientHistory.create({ data: entry })
       ),
     ])
+
+    // Phase 4: Handle sellable toggle
+    if (body.sellable !== undefined && body.sellable !== current.sellable) {
+      if (body.sellable && body.categoryId) {
+        // Turning on sellable - sync to product
+        const { syncIngredientToProduct } = await import("@/lib/ingredient-sync")
+        await syncIngredientToProduct(ingredientId, body.categoryId)
+      } else if (!body.sellable && current.linkedProductId) {
+        // Turning off sellable - unlink from product
+        const { unlinkIngredientFromProduct } = await import("@/lib/ingredient-sync")
+        await unlinkIngredientFromProduct(ingredientId)
+      }
+    }
 
     return NextResponse.json({
       id: ingredient.id,
@@ -125,6 +139,9 @@ export async function PUT(
       vendorId: ingredient.vendorId,
       vendorName: ingredient.vendor?.name || null,
       barcode: ingredient.barcode,
+      sellable: ingredient.sellable,
+      linkedProductId: ingredient.linkedProductId,
+      syncStatus: ingredient.syncStatus,
     })
   } catch (error) {
     console.error("Failed to update ingredient:", error)

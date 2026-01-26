@@ -35,6 +35,10 @@ export async function GET() {
         vendorId: i.vendorId,
         vendorName: i.vendor?.name || null,
         barcode: i.barcode,
+        // Phase 4: Sellable fields
+        sellable: i.sellable,
+        linkedProductId: i.linkedProductId,
+        syncStatus: i.syncStatus,
       }
     })
 
@@ -67,10 +71,17 @@ export async function POST(request: NextRequest) {
         quantity: body.quantity || 0,
         vendorId: body.vendorId || null,
         barcode: body.barcode || null,
+        sellable: body.sellable || false,
         lastUpdated: new Date(),
       },
       include: { vendor: true },
     })
+
+    // Phase 4: Auto-sync if sellable
+    if (ingredient.sellable && body.categoryId) {
+      const { syncIngredientToProduct } = await import("@/lib/ingredient-sync")
+      await syncIngredientToProduct(ingredient.id, body.categoryId)
+    }
 
     return NextResponse.json({
       id: ingredient.id,
@@ -83,6 +94,9 @@ export async function POST(request: NextRequest) {
       vendorId: ingredient.vendorId,
       vendorName: ingredient.vendor?.name || null,
       barcode: ingredient.barcode,
+      sellable: ingredient.sellable,
+      linkedProductId: ingredient.linkedProductId,
+      syncStatus: ingredient.syncStatus,
     }, { status: 201 })
   } catch (error) {
     console.error("Failed to create ingredient:", error)
