@@ -9,12 +9,25 @@ import { POSAlertBell } from "@/components/pos/pos-alert-bell"
 import { useCart } from "@/hooks/use-cart"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  PauseCircle,
+  Users,
+  ShoppingBag,
+  Clock,
+  RefreshCw,
+  Loader2,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { formatDistanceToNow } from "date-fns"
 
 interface Product {
   id: number
@@ -24,7 +37,6 @@ interface Product {
   trackStock: boolean
   image: string
   categoryId: number
-  // Phase 4: Ingredient link data
   linkedIngredientId?: number | null
   needsPricing?: boolean
   linkedIngredient?: {
@@ -69,6 +81,7 @@ interface HoldOrder {
   total: number
   items: HoldOrderItem[]
   customer: { id: number; name: string } | null
+  createdAt?: string
 }
 
 export default function POSPage() {
@@ -95,6 +108,8 @@ export default function POSPage() {
   })
   const [holdOrders, setHoldOrders] = useState<HoldOrder[]>([])
   const [customerOrders, setCustomerOrders] = useState<HoldOrder[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [holdModalOpen, setHoldModalOpen] = useState(false)
@@ -107,8 +122,8 @@ export default function POSPage() {
     : 0
   const total = discountedSubtotal + taxAmount
 
-  // Fetch data
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setIsRefreshing(true)
     try {
       const [productsRes, categoriesRes, customersRes, settingsRes] =
         await Promise.all([
@@ -118,7 +133,6 @@ export default function POSPage() {
           fetch("/api/settings"),
         ])
 
-      // Only set data if responses are OK, otherwise use defaults
       if (productsRes.ok) {
         const data = await productsRes.json()
         if (Array.isArray(data)) setProducts(data)
@@ -137,6 +151,9 @@ export default function POSPage() {
       }
     } catch {
       toast.error("Failed to load data")
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
     }
   }, [])
 
@@ -163,7 +180,6 @@ export default function POSPage() {
     fetchData()
     fetchHoldOrders()
 
-    // Polling every 30 seconds
     const interval = setInterval(() => {
       fetchData()
       fetchHoldOrders()
@@ -178,6 +194,7 @@ export default function POSPage() {
       return
     }
     addToCart(product)
+    toast.success(`Added ${product.name}`, { duration: 1500 })
   }
 
   const handleCancel = () => {
@@ -268,9 +285,6 @@ export default function POSPage() {
       if (!response.ok) throw new Error("Failed to process payment")
 
       const transaction = await response.json()
-
-      // Don't close modal - it will show receipt options
-      // Modal will close when user clicks Done
       clearCart()
       setCurrentOrderId(null)
       fetchData()
@@ -294,8 +308,12 @@ export default function POSPage() {
         quantity: item.quantity,
         maxQuantity: null,
       })),
-      discount: Number(order.total) - order.items.reduce((sum, item) =>
-        sum + Number(item.price) * item.quantity, 0),
+      discount:
+        Number(order.total) -
+        order.items.reduce(
+          (sum, item) => sum + Number(item.price) * item.quantity,
+          0
+        ),
       customerId: order.customer?.id || null,
       customerName: order.customer?.name || "Walk in customer",
       refNumber: order.refNumber,
@@ -303,6 +321,7 @@ export default function POSPage() {
     setCurrentOrderId(order.id)
     setHoldOrdersModalOpen(false)
     setCustomerOrdersModalOpen(false)
+    toast.success("Order loaded")
   }
 
   const handleQuickSetPrice = async (productId: number, price: number) => {
@@ -322,43 +341,90 @@ export default function POSPage() {
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-7rem)]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading POS...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex gap-4 h-[calc(100vh-7rem)]">
-      {/* Product Grid */}
-      <div className="flex-1 overflow-auto">
-        {/* Header with Hold/Customer Orders and Alert Bell */}
-        <div className="flex items-center justify-between mb-2 sticky top-0 bg-background/95 backdrop-blur z-10 py-2">
-          <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setHoldOrdersModalOpen(true)}
-          >
-            Hold Orders ({holdOrders.length})
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setCustomerOrdersModalOpen(true)}
-          >
-            Customer Orders ({customerOrders.length})
-          </Button>
+    <div className="flex h-[calc(100vh-7rem)] gap-0">
+      {/* Product Grid Section */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header bar */}
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur sticky top-0 z-10">
+          <div className="flex items-center gap-2">
+            {/* Hold Orders Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-2"
+              onClick={() => setHoldOrdersModalOpen(true)}
+            >
+              <PauseCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Hold</span>
+              {holdOrders.length > 0 && (
+                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                  {holdOrders.length}
+                </Badge>
+              )}
+            </Button>
+
+            {/* Customer Orders Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-2"
+              onClick={() => setCustomerOrdersModalOpen(true)}
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Orders</span>
+              {customerOrders.length > 0 && (
+                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                  {customerOrders.length}
+                </Badge>
+              )}
+            </Button>
+
+            {/* Refresh button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => fetchData(true)}
+              disabled={isRefreshing}
+            >
+              <RefreshCw
+                className={cn("h-4 w-4", isRefreshing && "animate-spin")}
+              />
+            </Button>
           </div>
-          {/* POS Alert Bell - positioned prominently */}
+
+          {/* Alert Bell */}
           <POSAlertBell
             currencySymbol={settings.currencySymbol}
             onSetPrice={handleQuickSetPrice}
           />
         </div>
 
-        <ProductGrid
-          products={products}
-          categories={categories}
-          currencySymbol={settings.currencySymbol}
-          onAddToCart={handleAddToCart}
-        />
+        {/* Products */}
+        <ScrollArea className="flex-1 px-4 py-4">
+          <ProductGrid
+            products={products}
+            categories={categories}
+            currencySymbol={settings.currencySymbol}
+            onAddToCart={handleAddToCart}
+          />
+        </ScrollArea>
       </div>
 
-      {/* Cart */}
-      <div className="w-96">
+      {/* Cart Section */}
+      <div className="w-[380px] lg:w-[420px] flex-shrink-0 border-l">
         <Cart
           cart={cart}
           subtotal={subtotal}
@@ -396,63 +462,137 @@ export default function POSPage() {
 
       {/* Hold Orders Modal */}
       <Dialog open={holdOrdersModalOpen} onOpenChange={setHoldOrdersModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Hold Orders</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <PauseCircle className="h-5 w-5" />
+              Hold Orders
+              <Badge variant="secondary">{holdOrders.length}</Badge>
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 max-h-96 overflow-auto">
-            {holdOrders.map((order) => (
-              <div
-                key={order.id}
-                className="border rounded-lg p-4 cursor-pointer hover:bg-accent"
-                onClick={() => handleLoadOrder(order)}
-              >
-                <p className="font-medium">Ref: {order.refNumber}</p>
-                <p className="text-sm text-muted-foreground">
-                  {order.items.length} items
-                </p>
-                <p className="text-green-600 font-bold">
-                  {settings.currencySymbol}{Number(order.total).toFixed(2)}
-                </p>
+          <ScrollArea className="max-h-[60vh]">
+            {holdOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <PauseCircle className="h-12 w-12 mb-3 opacity-30" />
+                <p className="font-medium">No hold orders</p>
+                <p className="text-sm">Orders placed on hold will appear here</p>
               </div>
-            ))}
-            {holdOrders.length === 0 && (
-              <p className="col-span-2 text-center text-muted-foreground py-8">
-                No hold orders
-              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">
+                {holdOrders.map((order) => (
+                  <Card
+                    key={order.id}
+                    className="p-4 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
+                    onClick={() => handleLoadOrder(order)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="font-semibold">#{order.refNumber || order.id}</p>
+                        {order.createdAt && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formatDistanceToNow(new Date(order.createdAt), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {order.items.length} items
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      {order.items.slice(0, 2).map((item, idx) => (
+                        <p key={idx} className="text-sm text-muted-foreground truncate">
+                          {item.quantity}x {item.productName}
+                        </p>
+                      ))}
+                      {order.items.length > 2 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{order.items.length - 2} more
+                        </p>
+                      )}
+                    </div>
+                    <div className="mt-3 pt-2 border-t flex items-center justify-between">
+                      <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-bold text-primary">
+                        {settings.currencySymbol}
+                        {Number(order.total).toFixed(2)}
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             )}
-          </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
       {/* Customer Orders Modal */}
-      <Dialog open={customerOrdersModalOpen} onOpenChange={setCustomerOrdersModalOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog
+        open={customerOrdersModalOpen}
+        onOpenChange={setCustomerOrdersModalOpen}
+      >
+        <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Customer Orders</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Customer Orders
+              <Badge variant="secondary">{customerOrders.length}</Badge>
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 max-h-96 overflow-auto">
-            {customerOrders.map((order) => (
-              <div
-                key={order.id}
-                className="border rounded-lg p-4 cursor-pointer hover:bg-accent"
-                onClick={() => handleLoadOrder(order)}
-              >
-                <p className="font-medium">{order.customer?.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {order.items.length} items
-                </p>
-                <p className="text-green-600 font-bold">
-                  {settings.currencySymbol}{Number(order.total).toFixed(2)}
+          <ScrollArea className="max-h-[60vh]">
+            {customerOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <Users className="h-12 w-12 mb-3 opacity-30" />
+                <p className="font-medium">No customer orders</p>
+                <p className="text-sm">
+                  Orders with customers assigned will appear here
                 </p>
               </div>
-            ))}
-            {customerOrders.length === 0 && (
-              <p className="col-span-2 text-center text-muted-foreground py-8">
-                No customer orders
-              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">
+                {customerOrders.map((order) => (
+                  <Card
+                    key={order.id}
+                    className="p-4 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
+                    onClick={() => handleLoadOrder(order)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="font-semibold">{order.customer?.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          #{order.refNumber || order.id}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {order.items.length} items
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      {order.items.slice(0, 2).map((item, idx) => (
+                        <p key={idx} className="text-sm text-muted-foreground truncate">
+                          {item.quantity}x {item.productName}
+                        </p>
+                      ))}
+                      {order.items.length > 2 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{order.items.length - 2} more
+                        </p>
+                      )}
+                    </div>
+                    <div className="mt-3 pt-2 border-t flex items-center justify-between">
+                      <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-bold text-primary">
+                        {settings.currencySymbol}
+                        {Number(order.total).toFixed(2)}
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             )}
-          </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

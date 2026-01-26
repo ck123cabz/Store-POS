@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
-import { AlertTriangle, DollarSign } from "lucide-react"
+import { AlertTriangle, DollarSign, Package } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getStockStatus,
@@ -39,7 +39,6 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCardProps) {
-  // Use the stock status utility for consistent calculation (EC-03 compliant)
   const stockStatus = getStockStatus({
     quantity: product.quantity,
     trackStock: product.trackStock,
@@ -51,16 +50,10 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
     product.linkedIngredient?.stockStatus === "critical"
   const ingredientOut = product.linkedIngredient?.stockStatus === "out"
 
-  // Determine if product should be disabled (T029, T035.6)
   const isDisabled = stockStatus.isOutOfStock || ingredientOut
-
-  // Determine if low stock warning should show (T026, T027)
   const isLowStock = stockStatus.isLowStock && !stockStatus.isOutOfStock
-
-  // T031: Needs pricing indicator (can co-exist with other states)
   const needsPricing = product.needsPricing
 
-  // Calculate linked ingredient percentage for badge (T030)
   const ingredientPercentage = product.linkedIngredient
     ? getIngredientStockPercentage(
         product.linkedIngredient.quantity,
@@ -68,118 +61,136 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
       )
     : null
 
-  // EC-01, EC-02, EC-04: Multiple indicators can show simultaneously
-
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all hover:shadow-md relative",
-        // T029: Out of stock visual treatment
-        isDisabled && "opacity-50 pointer-events-none",
-        // T027: Orange accent border for low-stock products
-        isLowStock && !isDisabled && "ring-2 ring-orange-400",
-        // T028: Red dashed border for needs-pricing products
-        needsPricing && !isDisabled && "border-2 border-dashed border-red-400"
+        "group relative overflow-hidden transition-all duration-200",
+        "hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]",
+        "cursor-pointer select-none",
+        isDisabled && "opacity-60 cursor-not-allowed hover:scale-100",
+        isLowStock && !isDisabled && "ring-2 ring-orange-400/70",
+        needsPricing && !isDisabled && "ring-2 ring-red-400/70 ring-dashed"
       )}
       onClick={() => !isDisabled && onAddToCart()}
-      // T035: Accessibility for disabled tiles (NFR-A03, NFR-A04)
       aria-disabled={isDisabled}
       tabIndex={isDisabled ? -1 : 0}
       role="button"
       aria-label={`${product.name}, ${currencySymbol}${product.price.toFixed(2)}${isDisabled ? ", unavailable" : ""}`}
     >
-      {/* T026: Low stock warning badge ("X left") - top right */}
-      {isLowStock && stockStatus.quantityLeft !== undefined && (
-        <div className="absolute top-1 right-1 z-10">
-          <Badge className="bg-orange-500 hover:bg-orange-500 text-white text-xs px-1.5">
-            {stockStatus.quantityLeft} left
-          </Badge>
+      {/* Status badges - top bar */}
+      <div className="absolute top-0 left-0 right-0 z-10 flex items-start justify-between p-2">
+        {/* Left side badges */}
+        <div className="flex flex-col gap-1">
+          {needsPricing && (
+            <Badge className="bg-red-500 hover:bg-red-500 text-white text-[10px] px-1.5 py-0.5 shadow-sm">
+              <DollarSign className="h-3 w-3 mr-0.5" />
+              SET PRICE
+            </Badge>
+          )}
         </div>
-      )}
 
-      {/* EC-02: Linked ingredient low warning - top right (offset if low stock badge) */}
-      {ingredientLow && !ingredientOut && (
-        <div className={cn("absolute z-10", isLowStock ? "top-7 right-1" : "top-1 right-1")}>
-          <div className="bg-orange-500 text-white rounded-full p-1" title="Linked ingredient low">
-            <AlertTriangle className="h-3 w-3" />
-          </div>
+        {/* Right side badges */}
+        <div className="flex flex-col gap-1 items-end">
+          {isLowStock && stockStatus.quantityLeft !== undefined && (
+            <Badge className="bg-orange-500 hover:bg-orange-500 text-white text-[10px] px-1.5 py-0.5 shadow-sm">
+              {stockStatus.quantityLeft} left
+            </Badge>
+          )}
+          {ingredientLow && !ingredientOut && (
+            <div className="bg-orange-500 text-white rounded-full p-1 shadow-sm" title="Linked ingredient low">
+              <AlertTriangle className="h-3 w-3" />
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* T028: Needs pricing indicator - top left */}
-      {needsPricing && (
-        <div className="absolute top-1 left-1 z-10">
-          <Badge className="bg-red-100 hover:bg-red-100 text-red-800 text-xs border border-red-300 gap-0.5">
-            <DollarSign className="h-3 w-3" />
-            SET PRICE
-          </Badge>
-        </div>
-      )}
-
-      {/* T029: Out of stock overlay */}
+      {/* Out of stock overlay */}
       {stockStatus.isOutOfStock && (
-        <div className="absolute inset-0 z-20 bg-background/60 flex items-center justify-center rounded-lg">
-          <Badge variant="destructive" className="text-sm font-semibold">
+        <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-[2px] flex items-center justify-center">
+          <Badge variant="destructive" className="text-xs font-bold px-3 py-1.5 shadow-lg">
             OUT OF STOCK
           </Badge>
         </div>
       )}
 
-      <CardContent className="p-3">
-        <div className="aspect-square relative bg-muted rounded-md mb-2">
+      {/* Ingredient out overlay */}
+      {ingredientOut && !stockStatus.isOutOfStock && (
+        <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-[2px] flex items-center justify-center">
+          <Badge variant="destructive" className="text-xs font-bold px-3 py-1.5 shadow-lg">
+            UNAVAILABLE
+          </Badge>
+        </div>
+      )}
+
+      <CardContent className="p-0">
+        {/* Product image */}
+        <div className="aspect-square relative bg-gradient-to-br from-muted to-muted/50 overflow-hidden">
           {product.image ? (
             <Image
               src={`/uploads/${product.image}`}
               alt={product.name}
               fill
-              className="object-cover rounded-md"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-              No Image
+            <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/50">
+              <Package className="h-10 w-10 mb-1" />
+              <span className="text-[10px]">No image</span>
             </div>
           )}
         </div>
-        <div className="text-center">
-          <p className="font-medium text-sm truncate">{product.name}</p>
-          <p className="text-green-600 font-bold">
-            {currencySymbol}{product.price.toFixed(2)}
+
+        {/* Product info */}
+        <div className="p-3 space-y-1.5 bg-card">
+          <p className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem]">
+            {product.name}
           </p>
-          <div className="mt-1 flex flex-col gap-1 items-center">
-            {/* Product stock badge - only show if tracking stock */}
+
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-bold text-primary">
+              {currencySymbol}{product.price.toFixed(2)}
+            </span>
+
+            {/* Stock indicator */}
             {product.trackStock && (
               <Badge
-                variant={
-                  stockStatus.isOutOfStock
-                    ? "destructive"
-                    : stockStatus.isLowStock
-                    ? "secondary"
-                    : "outline"
-                }
+                variant="outline"
                 className={cn(
-                  "text-xs",
-                  stockStatus.isLowStock && !stockStatus.isOutOfStock && "bg-orange-100 text-orange-800"
+                  "text-[10px] px-1.5 py-0",
+                  stockStatus.isOutOfStock && "border-destructive/50 text-destructive",
+                  stockStatus.isLowStock && !stockStatus.isOutOfStock && "border-orange-400/50 text-orange-600",
+                  !stockStatus.isOutOfStock && !stockStatus.isLowStock && "border-muted text-muted-foreground"
                 )}
               >
-                Stock: {product.quantity}
-              </Badge>
-            )}
-
-            {/* T030: Linked ingredient stock percentage badge with color coding */}
-            {product.linkedIngredient && ingredientPercentage !== null && (
-              <Badge
-                variant={ingredientOut ? "destructive" : "outline"}
-                className={cn(
-                  "text-xs",
-                  !ingredientOut && getStockPercentageColor(ingredientPercentage)
-                )}
-              >
-                {ingredientOut
-                  ? "Ingredient Out"
-                  : `${ingredientPercentage}%`}
+                {product.quantity} in stock
               </Badge>
             )}
           </div>
+
+          {/* Linked ingredient indicator */}
+          {product.linkedIngredient && ingredientPercentage !== null && (
+            <div className="flex items-center gap-1.5">
+              <div
+                className={cn(
+                  "h-1.5 flex-1 rounded-full bg-muted overflow-hidden"
+                )}
+              >
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    ingredientOut ? "bg-destructive" : getStockPercentageColor(ingredientPercentage).replace("text-", "bg-").replace("-600", "-500")
+                  )}
+                  style={{ width: `${Math.min(ingredientPercentage, 100)}%` }}
+                />
+              </div>
+              <span className={cn(
+                "text-[10px] font-medium tabular-nums",
+                ingredientOut ? "text-destructive" : getStockPercentageColor(ingredientPercentage)
+              )}>
+                {ingredientOut ? "0%" : `${ingredientPercentage}%`}
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

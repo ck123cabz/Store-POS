@@ -1,10 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ProductCard } from "./product-card"
 import { toast } from "sonner"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { Search, X, Grid3X3, LayoutGrid } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 interface Product {
   id: number
@@ -14,7 +18,6 @@ interface Product {
   trackStock: boolean
   image: string
   categoryId: number
-  // Phase 4 fields
   linkedIngredientId?: number | null
   needsPricing?: boolean
   linkedIngredient?: {
@@ -47,75 +50,204 @@ export function ProductGrid({
   onAddToCart,
 }: ProductGridProps) {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
-  const [searchSku, setSearchSku] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [gridSize, setGridSize] = useState<"normal" | "compact">("normal")
 
-  const filteredProducts = selectedCategory
-    ? products.filter((p) => p.categoryId === selectedCategory)
-    : products
+  // Filter products by category and search
+  const filteredProducts = useMemo(() => {
+    let filtered = products
 
-  const handleSkuSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    const product = products.find((p) => p.id === parseInt(searchSku))
-
-    if (product) {
-      if (product.trackStock && product.quantity <= 0) {
-        toast.error("Out of stock! This item is currently unavailable")
-      } else {
-        onAddToCart(product)
-        setSearchSku("")
-      }
-    } else {
-      toast.error(`${searchSku} is not a valid barcode!`)
+    // Filter by category
+    if (selectedCategory !== null) {
+      filtered = filtered.filter((p) => p.categoryId === selectedCategory)
     }
+
+    // Filter by search query (name or SKU/ID)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.id.toString() === query
+      )
+    }
+
+    return filtered
+  }, [products, selectedCategory, searchQuery])
+
+  // Count products per category
+  const categoryCounts = useMemo(() => {
+    const counts: Record<number, number> = {}
+    products.forEach((p) => {
+      counts[p.categoryId] = (counts[p.categoryId] || 0) + 1
+    })
+    return counts
+  }, [products])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    // If search is a number (SKU), try to add directly
+    const sku = parseInt(searchQuery)
+    if (!isNaN(sku)) {
+      const product = products.find((p) => p.id === sku)
+      if (product) {
+        if (product.trackStock && product.quantity <= 0) {
+          toast.error("Out of stock! This item is currently unavailable")
+        } else {
+          onAddToCart(product)
+          setSearchQuery("")
+          toast.success(`Added ${product.name} to cart`)
+        }
+        return
+      }
+    }
+    // Otherwise just filter
+  }
+
+  const clearSearch = () => {
+    setSearchQuery("")
   }
 
   return (
     <div className="space-y-4">
-      {/* Category Filter */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={selectedCategory === null ? "default" : "outline"}
-          onClick={() => setSelectedCategory(null)}
-          size="sm"
-        >
-          All
-        </Button>
-        {categories.map((category) => (
+      {/* Search and controls */}
+      <div className="flex items-center gap-3">
+        <form onSubmit={handleSearch} className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search products or scan barcode..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10 h-11 text-base"
+          />
+          {searchQuery && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+              onClick={clearSearch}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </form>
+
+        {/* Grid size toggle */}
+        <div className="flex items-center border rounded-lg p-1 bg-muted/50">
           <Button
-            key={category.id}
-            variant={selectedCategory === category.id ? "default" : "outline"}
-            onClick={() => setSelectedCategory(category.id)}
-            size="sm"
+            variant={gridSize === "normal" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setGridSize("normal")}
           >
-            {category.name}
+            <LayoutGrid className="h-4 w-4" />
           </Button>
-        ))}
+          <Button
+            variant={gridSize === "compact" ? "secondary" : "ghost"}
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setGridSize("compact")}
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Barcode Search */}
-      <form onSubmit={handleSkuSearch} className="flex gap-2">
-        <Input
-          placeholder="Scan barcode or enter SKU..."
-          value={searchSku}
-          onChange={(e) => setSearchSku(e.target.value)}
-          className="max-w-xs"
-        />
-        <Button type="submit" variant="secondary">
-          Search
-        </Button>
-      </form>
+      {/* Category pills - horizontally scrollable */}
+      <ScrollArea className="w-full whitespace-nowrap">
+        <div className="flex gap-2 pb-2">
+          <Button
+            variant={selectedCategory === null ? "default" : "outline"}
+            onClick={() => setSelectedCategory(null)}
+            className={cn(
+              "rounded-full h-9 px-4 font-medium transition-all",
+              selectedCategory === null && "shadow-md"
+            )}
+          >
+            All
+            <Badge
+              variant="secondary"
+              className={cn(
+                "ml-2 rounded-full px-2 py-0 text-xs",
+                selectedCategory === null && "bg-primary-foreground/20 text-primary-foreground"
+              )}
+            >
+              {products.length}
+            </Badge>
+          </Button>
+
+          {categories.map((category) => (
+            <Button
+              key={category.id}
+              variant={selectedCategory === category.id ? "default" : "outline"}
+              onClick={() => setSelectedCategory(category.id)}
+              className={cn(
+                "rounded-full h-9 px-4 font-medium transition-all",
+                selectedCategory === category.id && "shadow-md"
+              )}
+            >
+              {category.name}
+              <Badge
+                variant="secondary"
+                className={cn(
+                  "ml-2 rounded-full px-2 py-0 text-xs",
+                  selectedCategory === category.id && "bg-primary-foreground/20 text-primary-foreground"
+                )}
+              >
+                {categoryCounts[category.id] || 0}
+              </Badge>
+            </Button>
+          ))}
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+
+      {/* Results count */}
+      {searchQuery && (
+        <p className="text-sm text-muted-foreground">
+          {filteredProducts.length} result{filteredProducts.length !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
+        </p>
+      )}
 
       {/* Product Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        {filteredProducts.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            currencySymbol={currencySymbol}
-            onAddToCart={() => onAddToCart(product)}
-          />
-        ))}
-      </div>
+      {filteredProducts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <Search className="h-12 w-12 mb-4 opacity-50" />
+          <p className="text-lg font-medium">No products found</p>
+          <p className="text-sm">Try adjusting your search or category filter</p>
+          {(searchQuery || selectedCategory !== null) && (
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => {
+                setSearchQuery("")
+                setSelectedCategory(null)
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div
+          className={cn(
+            "grid gap-3",
+            gridSize === "normal"
+              ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+              : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+          )}
+        >
+          {filteredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              currencySymbol={currencySymbol}
+              onAddToCart={() => onAddToCart(product)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

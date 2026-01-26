@@ -10,15 +10,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Minus, Plus, X, AlertTriangle } from "lucide-react"
+  Minus,
+  Plus,
+  Trash2,
+  AlertTriangle,
+  ShoppingCart,
+  User,
+  Percent,
+  CreditCard,
+  PauseCircle,
+  XCircle,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Tooltip,
@@ -81,159 +88,228 @@ export function Cart({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow h-full flex flex-col">
-      <div className="p-4 border-b">
-        <h2 className="font-semibold text-lg">Cart ({cart.items.length})</h2>
+    <Card className="h-full flex flex-col bg-card border-l-0 rounded-l-none shadow-xl">
+      {/* Header */}
+      <div className="p-4 border-b bg-muted/30">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="h-5 w-5 text-primary" />
+            <h2 className="font-bold text-lg">Current Order</h2>
+          </div>
+          <Badge variant="secondary" className="text-sm px-3">
+            {cart.items.length} item{cart.items.length !== 1 ? "s" : ""}
+          </Badge>
+        </div>
+
+        {/* Customer selector */}
+        <div className="mt-3">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <Select
+              value={cart.customerId?.toString() || "0"}
+              onValueChange={handleCustomerChange}
+            >
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Walk in customer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Walk in customer</SelectItem>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id.toString()}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       {/* Cart Items */}
-      <div className="flex-1 overflow-auto p-4">
-        {cart.items.length === 0 ? (
-          <p className="text-muted-foreground text-center py-8">Cart is empty</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead>Qty</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {cart.items.map((item, index) => (
-                <TableRow key={item.id} className={cn(item.stockChanged && "bg-orange-50")}>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-1">
-                      {item.productName}
-                      {/* EC-05: Stock changed warning */}
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-2">
+          {cart.items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <ShoppingCart className="h-16 w-16 mb-3 opacity-30" />
+              <p className="font-medium">Cart is empty</p>
+              <p className="text-sm">Add products to get started</p>
+            </div>
+          ) : (
+            cart.items.map((item, index) => (
+              <div
+                key={item.id}
+                className={cn(
+                  "group relative p-3 rounded-lg border bg-background transition-colors",
+                  item.stockChanged && "bg-orange-50 border-orange-200"
+                )}
+              >
+                {/* Item number badge */}
+                <div className="absolute -left-1 -top-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
+                  {index + 1}
+                </div>
+
+                <div className="flex items-start gap-3">
+                  {/* Product info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium text-sm leading-tight truncate">
+                        {item.productName}
+                      </p>
                       {item.stockChanged && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                              <AlertTriangle className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Stock changed</p>
+                              <p>Stock changed since added</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <Input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
-                        }
-                        className="w-12 h-6 text-center p-1"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {currencySymbol}
-                    {(item.price * item.quantity).toFixed(2)}
-                  </TableCell>
-                  <TableCell>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {currencySymbol}{item.price.toFixed(2)} each
+                    </p>
+                  </div>
+
+                  {/* Price */}
+                  <div className="text-right">
+                    <p className="font-bold text-sm text-primary">
+                      {currencySymbol}{(item.price * item.quantity).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quantity controls */}
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-1">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
-                      className="h-6 w-6 text-red-500"
-                      onClick={() => onRemoveItem(item.id)}
+                      className="h-8 w-8 rounded-full"
+                      onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
                     >
-                      <X className="h-4 w-4" />
+                      <Minus className="h-3 w-3" />
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+                    <Input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
+                      }
+                      className="w-14 h-8 text-center text-sm font-medium"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-full"
+                      onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => onRemoveItem(item.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </ScrollArea>
 
       {/* Totals and Actions */}
-      <div className="p-4 border-t space-y-3">
-        <div className="flex justify-between text-sm">
-          <span>Subtotal:</span>
-          <span>{currencySymbol}{subtotal.toFixed(2)}</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Label className="text-sm">Discount:</Label>
-          <Input
-            type="number"
-            value={cart.discount || ""}
-            onChange={(e) => onSetDiscount(parseFloat(e.target.value) || 0)}
-            className="w-20 h-8"
-            placeholder="0.00"
-          />
-        </div>
-
-        {chargeTax && (
+      <div className="border-t bg-muted/20">
+        {/* Summary */}
+        <div className="p-4 space-y-2">
           <div className="flex justify-between text-sm">
-            <span>Tax ({taxPercentage}%):</span>
-            <span>{currencySymbol}{taxAmount.toFixed(2)}</span>
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="font-medium">{currencySymbol}{subtotal.toFixed(2)}</span>
           </div>
-        )}
 
-        <div className="flex justify-between font-bold text-lg border-t pt-2">
-          <span>Total:</span>
-          <span className="text-green-600">{currencySymbol}{total.toFixed(2)}</span>
+          {/* Discount input */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Percent className="h-3.5 w-3.5" />
+              <span>Discount</span>
+            </div>
+            <Input
+              type="number"
+              value={cart.discount || ""}
+              onChange={(e) => onSetDiscount(parseFloat(e.target.value) || 0)}
+              className="w-24 h-8 text-sm ml-auto"
+              placeholder="0.00"
+            />
+          </div>
+
+          {cart.discount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">After discount</span>
+              <span className="font-medium text-green-600">
+                {currencySymbol}{discountedSubtotal.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {chargeTax && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Tax ({taxPercentage}%)</span>
+              <span className="font-medium">{currencySymbol}{taxAmount.toFixed(2)}</span>
+            </div>
+          )}
+
+          <Separator className="my-2" />
+
+          <div className="flex justify-between items-center">
+            <span className="font-bold text-lg">Total</span>
+            <span className="font-bold text-2xl text-primary">
+              {currencySymbol}{total.toFixed(2)}
+            </span>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-sm">Customer:</Label>
-          <Select
-            value={cart.customerId?.toString() || "0"}
-            onValueChange={handleCustomerChange}
+        {/* Action buttons */}
+        <div className="p-4 pt-0 space-y-2">
+          {/* Pay button - prominent */}
+          <Button
+            className="w-full h-14 text-lg font-bold"
+            onClick={onPay}
+            disabled={cart.items.length === 0}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Walk in customer" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">Walk in customer</SelectItem>
-              {customers.map((customer) => (
-                <SelectItem key={customer.id} value={customer.id.toString()}>
-                  {customer.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            <CreditCard className="h-5 w-5 mr-2" />
+            Pay {currencySymbol}{total.toFixed(2)}
+          </Button>
 
-        <div className="grid grid-cols-3 gap-2 pt-2">
-          <Button variant="destructive" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button variant="secondary" onClick={onHold}>
-            Hold
-          </Button>
-          <Button onClick={onPay} disabled={cart.items.length === 0}>
-            Pay
-          </Button>
+          {/* Secondary actions */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              className="h-11"
+              onClick={onHold}
+              disabled={cart.items.length === 0}
+            >
+              <PauseCircle className="h-4 w-4 mr-2" />
+              Hold
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={onCancel}
+              disabled={cart.items.length === 0}
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Clear
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }
