@@ -6,6 +6,11 @@ type RouteContext = { params: Promise<{ id: string }> }
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await context.params
     const taskId = parseInt(id)
 
@@ -66,6 +71,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Only admins can update tasks
+    if (!session.user.permUsers) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 })
     }
 
     const { id } = await context.params
