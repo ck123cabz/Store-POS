@@ -118,10 +118,23 @@ export default function POSPage() {
           fetch("/api/settings"),
         ])
 
-      setProducts(await productsRes.json())
-      setCategories(await categoriesRes.json())
-      setCustomers(await customersRes.json())
-      setSettings(await settingsRes.json())
+      // Only set data if responses are OK, otherwise use defaults
+      if (productsRes.ok) {
+        const data = await productsRes.json()
+        if (Array.isArray(data)) setProducts(data)
+      }
+      if (categoriesRes.ok) {
+        const data = await categoriesRes.json()
+        if (Array.isArray(data)) setCategories(data)
+      }
+      if (customersRes.ok) {
+        const data = await customersRes.json()
+        if (Array.isArray(data)) setCustomers(data)
+      }
+      if (settingsRes.ok) {
+        const data = await settingsRes.json()
+        if (data && !data.error) setSettings(data)
+      }
     } catch {
       toast.error("Failed to load data")
     }
@@ -133,8 +146,14 @@ export default function POSPage() {
         fetch("/api/transactions?onHold=true"),
         fetch("/api/transactions?customerOrders=true"),
       ])
-      setHoldOrders(await holdRes.json())
-      setCustomerOrders(await customerRes.json())
+      if (holdRes.ok) {
+        const data = await holdRes.json()
+        if (Array.isArray(data)) setHoldOrders(data)
+      }
+      if (customerRes.ok) {
+        const data = await customerRes.json()
+        if (Array.isArray(data)) setCustomerOrders(data)
+      }
     } catch {
       console.error("Failed to fetch orders")
     }
