@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -381,11 +383,24 @@ export default function RecipeBuilderPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recipeItems.map((item) => (
+                  {recipeItems.map((item) => {
+                    const ing = ingredients.find((i) => i.id === item.ingredientId)
+                    const isOut = ing?.stockStatus === "out"
+                    const isLowStock = ing?.stockStatus === "low" || ing?.stockStatus === "critical"
+
+                    return (
                     <TableRow key={item.ingredientId}>
                       <TableCell className="font-medium">
-                        {item.ingredientName}
-                        <span className="text-muted-foreground ml-1">({item.unit})</span>
+                        <div className="flex items-center gap-2">
+                          {item.ingredientName}
+                          <span className="text-muted-foreground">({item.unit})</span>
+                          {isOut && (
+                            <Badge variant="destructive" className="text-xs">Out of Stock</Badge>
+                          )}
+                          {isLowStock && !isOut && (
+                            <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">Low Stock</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -429,7 +444,8 @@ export default function RecipeBuilderPage() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                   {recipeItems.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
@@ -547,19 +563,34 @@ export default function RecipeBuilderPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {availableIngredients.map((ingredient) => (
-                  <Button
-                    key={ingredient.id}
-                    variant="outline"
-                    className="w-full justify-between"
-                    onClick={() => addIngredient(ingredient)}
-                  >
-                    <span>{ingredient.name}</span>
-                    <span className="text-muted-foreground text-xs">
-                      {currencySymbol}{ingredient.costPerUnit.toFixed(2)}/{ingredient.unit}
-                    </span>
-                  </Button>
-                ))}
+                {availableIngredients.map((ingredient) => {
+                  const isLowStock = ingredient.stockStatus === "low" || ingredient.stockStatus === "critical"
+                  const isOut = ingredient.stockStatus === "out"
+
+                  return (
+                    <Button
+                      key={ingredient.id}
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-between",
+                        isOut && "border-red-300 bg-red-50",
+                        isLowStock && !isOut && "border-orange-300 bg-orange-50"
+                      )}
+                      onClick={() => addIngredient(ingredient)}
+                    >
+                      <span className="flex items-center gap-2">
+                        {ingredient.name}
+                        {isOut && <Badge variant="destructive" className="text-xs">Out</Badge>}
+                        {isLowStock && !isOut && (
+                          <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">Low</Badge>
+                        )}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {currencySymbol}{ingredient.costPerUnit.toFixed(2)}/{ingredient.unit}
+                      </span>
+                    </Button>
+                  )
+                })}
                 {availableIngredients.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     All ingredients are in the recipe
