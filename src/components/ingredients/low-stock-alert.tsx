@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { AlertTriangle } from "lucide-react"
+import { useEffect, useState, useRef, useCallback } from "react"
+import { AlertTriangle, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   Popover,
@@ -9,6 +9,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface LowStockItem {
   id: number
@@ -28,28 +34,77 @@ interface LowStockData {
 export function LowStockAlert() {
   const [data, setData] = useState<LowStockData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  const fetchLowStock = useCallback(async () => {
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    abortControllerRef.current = new AbortController()
+
+    try {
+      const res = await fetch("/api/ingredients/low-stock", {
+        signal: abortControllerRef.current.signal,
+      })
+      if (res.ok) {
+        const newData = await res.json()
+        setData(newData)
+        setError(false)
+      } else {
+        // Keep last known data on error, but flag error state
+        setError(true)
+      }
+    } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === "AbortError") {
+        return
+      }
+      console.error("Failed to fetch low stock:", err)
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    async function fetchLowStock() {
-      try {
-        const res = await fetch("/api/ingredients/low-stock")
-        if (res.ok) {
-          setData(await res.json())
-        }
-      } catch (error) {
-        console.error("Failed to fetch low stock:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchLowStock()
     // Refresh every 5 minutes
     const interval = setInterval(fetchLowStock, 5 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [])
+    return () => {
+      clearInterval(interval)
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchLowStock])
 
-  if (loading || !data || data.count === 0) {
+  // Show nothing only while initially loading with no data
+  if (loading && !data) {
+    return null
+  }
+
+  // Show error indicator if we have an error and no data
+  if (error && !data) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" className="relative">
+              <AlertCircle className="h-5 w-5 text-muted-foreground" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Unable to load low stock alerts</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  // Hide if no alerts (but data loaded successfully)
+  if (!data || data.count === 0) {
     return null
   }
 

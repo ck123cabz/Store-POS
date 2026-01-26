@@ -326,23 +326,9 @@ export default function POSPage() {
     <div className="flex gap-4 h-[calc(100vh-7rem)]">
       {/* Product Grid */}
       <div className="flex-1 overflow-auto">
-        <ProductGrid
-          products={products}
-          categories={categories}
-          currencySymbol={settings.currencySymbol}
-          onAddToCart={handleAddToCart}
-        />
-
-        {/* POS Alert Bell */}
-        <div className="flex justify-end mb-2 mt-4">
-          <POSAlertBell
-            currencySymbol={settings.currencySymbol}
-            onSetPrice={handleQuickSetPrice}
-          />
-        </div>
-
-        {/* Hold/Customer Orders Buttons */}
-        <div className="flex gap-2">
+        {/* Header with Hold/Customer Orders and Alert Bell */}
+        <div className="flex items-center justify-between mb-2 sticky top-0 bg-background/95 backdrop-blur z-10 py-2">
+          <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={() => setHoldOrdersModalOpen(true)}
@@ -355,7 +341,20 @@ export default function POSPage() {
           >
             Customer Orders ({customerOrders.length})
           </Button>
+          </div>
+          {/* POS Alert Bell - positioned prominently */}
+          <POSAlertBell
+            currencySymbol={settings.currencySymbol}
+            onSetPrice={handleQuickSetPrice}
+          />
         </div>
+
+        <ProductGrid
+          products={products}
+          categories={categories}
+          currencySymbol={settings.currencySymbol}
+          onAddToCart={handleAddToCart}
+        />
       </div>
 
       {/* Cart */}

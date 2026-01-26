@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { format, addMonths, subMonths, isFuture, isSameMonth } from "date-fns"
+import { format, addMonths, subMonths, isFuture } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -93,7 +93,7 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null)
   const [dayDetail, setDayDetail] = useState<DayDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
-  const [fetchError, setFetchError] = useState(false)
+  const [_fetchError, setFetchError] = useState(false)
 
   // T087: Cache vibe data per month view (NFR-P07)
   const cacheRef = useRef<MonthCache>(new Map())

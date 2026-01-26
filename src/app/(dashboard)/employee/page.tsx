@@ -489,8 +489,8 @@ function TimelineView({
 // T057, T063, T066: Individual task card with status coloring and accessibility
 function TaskCard({
   task,
-  isFirst,
-  isLast,
+  isFirst: _isFirst,
+  isLast: _isLast,
   actionLoading,
   onStart,
   onComplete,

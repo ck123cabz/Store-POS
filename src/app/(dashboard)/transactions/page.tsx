@@ -115,7 +115,7 @@ export default function TransactionsPage() {
   // T069-T080: Quick filter state
   const [activeQuickFilter, setActiveQuickFilter] = useState<DateRangeType | null>(null)
   const [isQuickFilterLoading, setIsQuickFilterLoading] = useState(false)
-  const [quickFilterError, setQuickFilterError] = useState(false)
+  const [_quickFilterError, setQuickFilterError] = useState(false)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
   // T071: Quick filter date range options
