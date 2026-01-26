@@ -38,6 +38,14 @@ export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
 
+  // Helper to check if nav item is active
+  function isActive(href: string) {
+    if (href === pathname) return true
+    // Handle nested routes (e.g., /recipes/123 should highlight /recipes)
+    if (href !== "/" && pathname.startsWith(href + "/")) return true
+    return false
+  }
+
   return (
     <aside className="w-56 border-r bg-gray-50 min-h-[calc(100vh-3.5rem)]">
       <nav className="p-2 space-y-1">
@@ -54,7 +62,7 @@ export function Sidebar() {
               href={item.href}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                pathname === item.href
+                isActive(item.href)
                   ? "bg-gray-200 text-gray-900"
                   : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               )}
