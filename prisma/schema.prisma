@@ -312,6 +312,7 @@ model RecipeItem {
   productId    Int        @map("product_id")
   ingredientId Int        @map("ingredient_id")
   quantity     Decimal    @db.Decimal(10, 3)                    // amount of ingredient used
+  portionNote  String?    @map("portion_note")                  // e.g., "2 slices", "1/4 cup"
   createdAt    DateTime   @default(now()) @map("created_at")
 
   // Relations

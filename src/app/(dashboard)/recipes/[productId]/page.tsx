@@ -42,6 +42,7 @@ interface RecipeIngredient {
   ingredientName: string
   unit: string
   quantity: number
+  portionNote: string | null
   costPerUnit: number
   lineCost: number
 }
@@ -177,6 +178,7 @@ export default function RecipeBuilderPage() {
           ingredients: recipeItems.map((item) => ({
             ingredientId: item.ingredientId,
             quantity: item.quantity,
+            portionNote: item.portionNote,
           })),
         }),
       })
@@ -207,6 +209,17 @@ export default function RecipeBuilderPage() {
     )
   }
 
+  function updateIngredientPortionNote(ingredientId: number, note: string) {
+    setRecipeItems((prev) =>
+      prev.map((item) => {
+        if (item.ingredientId === ingredientId) {
+          return { ...item, portionNote: note || null }
+        }
+        return item
+      })
+    )
+  }
+
   function removeIngredient(ingredientId: number) {
     setRecipeItems((prev) => prev.filter((item) => item.ingredientId !== ingredientId))
   }
@@ -225,6 +238,7 @@ export default function RecipeBuilderPage() {
         ingredientName: ingredient.name,
         unit: ingredient.unit,
         quantity: 1,
+        portionNote: null,
         costPerUnit: ingredient.costPerUnit,
         lineCost: ingredient.costPerUnit,
       },
@@ -359,7 +373,8 @@ export default function RecipeBuilderPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Ingredient</TableHead>
-                    <TableHead className="w-32">Quantity</TableHead>
+                    <TableHead className="w-24">Qty</TableHead>
+                    <TableHead className="w-32">Portion Note</TableHead>
                     <TableHead className="text-right">Unit Cost</TableHead>
                     <TableHead className="text-right">Line Cost</TableHead>
                     <TableHead className="w-16"></TableHead>
@@ -384,7 +399,18 @@ export default function RecipeBuilderPage() {
                               parseFloat(e.target.value) || 0
                             )
                           }
-                          className="w-24"
+                          className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="text"
+                          value={item.portionNote || ""}
+                          onChange={(e) =>
+                            updateIngredientPortionNote(item.ingredientId, e.target.value)
+                          }
+                          placeholder="e.g., 2 slices"
+                          className="w-28"
                         />
                       </TableCell>
                       <TableCell className="text-right">
@@ -406,7 +432,7 @@ export default function RecipeBuilderPage() {
                   ))}
                   {recipeItems.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         No ingredients added. Select from the list on the right.
                       </TableCell>
                     </TableRow>
