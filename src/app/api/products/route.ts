@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const includeCosting = searchParams.get("includeCosting") === "true"
+
     const products = await prisma.product.findMany({
       include: {
         category: true,
@@ -60,6 +63,12 @@ export async function GET() {
               stockRatio: ingredientStockRatio,
             }
           : null,
+        // Phase 5: Costing data (optional)
+        ...(includeCosting && {
+          trueCost: p.trueCost ? Number(p.trueCost) : null,
+          trueMargin: p.trueMargin ? Number(p.trueMargin) : null,
+          trueMarginPercent: p.trueMarginPercent ? Number(p.trueMarginPercent) : null,
+        }),
       }
     })
 

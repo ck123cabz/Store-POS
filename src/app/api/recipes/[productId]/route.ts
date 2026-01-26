@@ -48,6 +48,7 @@ export async function GET(
         ingredientName: ri.ingredient.name,
         unit: ri.ingredient.unit,
         quantity: Number(ri.quantity),
+        portionNote: ri.portionNote,
         costPerUnit: Number(ri.ingredient.costPerUnit),
         lineCost: Number(ri.quantity) * Number(ri.ingredient.costPerUnit),
       })),
@@ -96,10 +97,11 @@ export async function PUT(
       // Create new recipe items
       if (body.ingredients.length > 0) {
         await prisma.recipeItem.createMany({
-          data: body.ingredients.map((ing: { ingredientId: number; quantity: number }) => ({
+          data: body.ingredients.map((ing: { ingredientId: number; quantity: number; portionNote?: string }) => ({
             productId: id,
             ingredientId: ing.ingredientId,
             quantity: ing.quantity,
+            portionNote: ing.portionNote || null,
           })),
         })
       }

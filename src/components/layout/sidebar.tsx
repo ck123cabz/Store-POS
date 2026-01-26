@@ -22,6 +22,8 @@ import {
   History,
   Menu,
   X,
+  Calculator,
+  ChefHat,
 } from "lucide-react"
 
 const navItems = [
@@ -30,6 +32,8 @@ const navItems = [
   { href: "/analytics", label: "Analytics", icon: BarChart3, permission: null },
   { href: "/calendar", label: "Calendar", icon: Calendar, permission: null },
   { href: "/products", label: "Products", icon: Package, permission: "permProducts" },
+  { href: "/recipes", label: "Recipes", icon: ChefHat, permission: "permProducts" },
+  { href: "/pricing", label: "Pricing", icon: Calculator, permission: "permProducts" },
   { href: "/categories", label: "Categories", icon: FolderTree, permission: "permCategories" },
   { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts" },
   { href: "/ingredients/count", label: "Inventory Count", icon: ClipboardList, permission: "permProducts" },
@@ -48,6 +52,13 @@ export function Sidebar() {
 
   const toggleSidebar = () => setIsOpen(!isOpen)
   const closeSidebar = () => setIsOpen(false)
+
+  // Helper to check if nav item is active (handles nested routes)
+  function isActive(href: string) {
+    if (href === pathname) return true
+    if (href !== "/" && pathname.startsWith(href + "/")) return true
+    return false
+  }
 
   return (
     <>
@@ -91,7 +102,7 @@ export function Sidebar() {
                 onClick={closeSidebar}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  pathname === item.href
+                  isActive(item.href)
                     ? "bg-gray-200 text-gray-900"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 )}

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Pencil, Trash2 } from "lucide-react"
+import { Pencil, Trash2, ChefHat } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,7 +73,7 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
               <TableHead className="hidden md:table-cell">Category</TableHead>
               <TableHead className="text-right">Price</TableHead>
               <TableHead className="text-right hidden sm:table-cell">Stock</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
+              <TableHead className="w-28">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -106,6 +106,14 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => window.location.href = `/recipes/${product.id}`}
+                      title="Edit Recipe"
+                    >
+                      <ChefHat className="h-4 w-4" />
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => onEdit(product)}>
                       <Pencil className="h-4 w-4" />
                     </Button>

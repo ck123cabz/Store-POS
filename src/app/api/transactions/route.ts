@@ -246,7 +246,7 @@ export async function POST(request: Request) {
           })
         }
 
-        // Phase 4: Decrement recipe ingredients (for products with recipes)
+        // Phase 5: Decrement recipe ingredients (for products with recipes)
         if (product.recipeItems.length > 0) {
           for (const recipeItem of product.recipeItems) {
             const ingredient = recipeItem.ingredient
