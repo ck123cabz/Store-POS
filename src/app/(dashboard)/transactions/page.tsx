@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { format, subDays } from "date-fns"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { getDateRange, formatDateRangeLabel, type DateRangeType } from "@/lib/date-ranges"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -110,6 +112,15 @@ export default function TransactionsPage() {
   const [dateTo, setDateTo] = useState<string>("")
   const [till, setTill] = useState<string>("")
 
+  // T069-T080: Quick filter state
+  const [activeQuickFilter, setActiveQuickFilter] = useState<DateRangeType | null>(null)
+  const [isQuickFilterLoading, setIsQuickFilterLoading] = useState(false)
+  const [_quickFilterError, setQuickFilterError] = useState(false)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  // T071: Quick filter date range options
+  const quickFilterOptions: DateRangeType[] = ["Today", "Yesterday", "This Week", "Last Week", "This Month"]
+
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
     try {
@@ -197,41 +208,83 @@ export default function TransactionsPage() {
     setDateFrom("")
     setDateTo("")
     setTill("")
+    setActiveQuickFilter(null)
   }
 
-  // Quick filter presets
-  function setQuickFilter(preset: string) {
-    const today = format(new Date(), "yyyy-MM-dd")
-    const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd")
-    const weekAgo = format(subDays(new Date(), 7), "yyyy-MM-dd")
-
-    clearFilters()
-
-    switch (preset) {
-      case "today":
-        setDateFrom(today)
-        setDateTo(today)
-        break
-      case "yesterday":
-        setDateFrom(yesterday)
-        setDateTo(yesterday)
-        break
-      case "week":
-        setDateFrom(weekAgo)
-        setDateTo(today)
-        break
-      case "completed":
-        setStatus("1")
-        break
-      case "pending":
-        setStatus("0")
-        break
+  // T069-T080: Enhanced quick filter handler with debounce, toggle, and optimistic UI
+  async function handleQuickFilterClick(filterType: DateRangeType) {
+    // T073: Clear any pending debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
     }
+
+    // T078: Same filter clicked - toggle off (EC-18)
+    if (activeQuickFilter === filterType) {
+      setActiveQuickFilter(null)
+      setDateFrom("")
+      setDateTo("")
+      fetchTransactions()
+      return
+    }
+
+    // T074: Optimistic UI - set active state immediately (LS-06)
+    const previousFilter = activeQuickFilter
+    const previousDateFrom = dateFrom
+    const previousDateTo = dateTo
+    setActiveQuickFilter(filterType)
+    setQuickFilterError(false)
+
+    // T071: Get date range using utility
+    const range = getDateRange(filterType)
+    const formattedFrom = format(range.start, "yyyy-MM-dd")
+    const formattedTo = format(range.end, "yyyy-MM-dd")
+
+    setDateFrom(formattedFrom)
+    setDateTo(formattedTo)
+
+    // T079: Different filter clicked - replace (not additive) (EC-19)
+    setStatus("")
+    setUserId("")
+    setTill("")
+
+    // T073: 300ms debounce on filter clicks (NFR-P04)
+    debounceRef.current = setTimeout(async () => {
+      setIsQuickFilterLoading(true)
+      try {
+        const params = new URLSearchParams()
+        params.append("dateFrom", formattedFrom)
+        params.append("dateTo", formattedTo)
+
+        const res = await fetch(`/api/transactions?${params}`)
+        if (res.ok) {
+          setTransactions(await res.json())
+        } else {
+          throw new Error("Failed to fetch")
+        }
+      } catch {
+        // T076: Revert button state on filter failure (LS-08, NFR-E04)
+        setActiveQuickFilter(previousFilter)
+        setDateFrom(previousDateFrom)
+        setDateTo(previousDateTo)
+        setQuickFilterError(true)
+      } finally {
+        setIsQuickFilterLoading(false)
+      }
+    }, 300)
   }
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
+    }
+  }, [])
 
   // Heatmap color scale
   function getHeatmapColor(transactions: number, max: number): string {
-    if (transactions === 0) return "bg-gray-100"
+    if (transactions === 0) return "bg-muted"
     const intensity = transactions / max
     if (intensity > 0.75) return "bg-green-500 text-white"
     if (intensity > 0.5) return "bg-green-400"
@@ -302,24 +355,49 @@ export default function TransactionsPage() {
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
-          {/* Quick Filters */}
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => setQuickFilter("today")}>
-              Today
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setQuickFilter("yesterday")}>
-              Yesterday
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setQuickFilter("week")}>
-              Last 7 Days
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setQuickFilter("completed")}>
-              Completed
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setQuickFilter("pending")}>
-              Pending
-            </Button>
+          {/* T069-T080: Enhanced Quick Filters with toggle, active state, and accessibility */}
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label="Quick date filters"
+          >
+            {quickFilterOptions.map((filterType) => (
+              <Button
+                key={filterType}
+                // T072: Visual active state indication (variant="default" vs "outline")
+                variant={activeQuickFilter === filterType ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleQuickFilterClick(filterType)}
+                disabled={isQuickFilterLoading}
+                // T080: Focus indicators handled by default Tailwind focus-visible
+                className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-pressed={activeQuickFilter === filterType}
+                aria-label={`Filter by ${formatDateRangeLabel(filterType)}`}
+              >
+                {filterType}
+              </Button>
+            ))}
+            {/* Show clear button when filter is active */}
+            {activeQuickFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="text-muted-foreground"
+              >
+                Clear
+              </Button>
+            )}
           </div>
+
+          {/* T075: Skeleton loader while filtering (LS-07) */}
+          {isQuickFilterLoading && (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          )}
 
           {/* Filters */}
           <Card>
@@ -437,10 +515,39 @@ export default function TransactionsPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {/* T077: Zero results empty state with suggestion (EC-17) */}
                 {transactions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      {loading ? "Loading..." : "No transactions found"}
+                    <TableCell colSpan={8} className="text-center py-8">
+                      {loading || isQuickFilterLoading ? (
+                        <span className="text-muted-foreground">Loading...</span>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-muted-foreground">No transactions found</p>
+                          {activeQuickFilter && (
+                            <p className="text-sm text-muted-foreground/70">
+                              No transactions for {formatDateRangeLabel(activeQuickFilter)}.{" "}
+                              <button
+                                onClick={clearFilters}
+                                className="text-primary underline underline-offset-2 hover:text-primary/80"
+                              >
+                                Try a different date range
+                              </button>
+                            </p>
+                          )}
+                          {!activeQuickFilter && (dateFrom || dateTo || status || userId || till) && (
+                            <p className="text-sm text-muted-foreground/70">
+                              Try adjusting your filters or{" "}
+                              <button
+                                onClick={clearFilters}
+                                className="text-primary underline underline-offset-2 hover:text-primary/80"
+                              >
+                                clear all filters
+                              </button>
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 )}
@@ -509,7 +616,7 @@ export default function TransactionsPage() {
                 {/* Legend */}
                 <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <div className="w-4 h-4 rounded bg-gray-100" /> None
+                    <div className="w-4 h-4 rounded bg-muted" /> None
                   </span>
                   <span className="flex items-center gap-1">
                     <div className="w-4 h-4 rounded bg-green-100" /> Low

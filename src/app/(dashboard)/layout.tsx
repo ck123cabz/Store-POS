@@ -18,7 +18,7 @@ export default async function DashboardLayout({
 
   return (
     <SessionProvider>
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-muted">
         <Header />
         <div className="flex">
           <Sidebar />

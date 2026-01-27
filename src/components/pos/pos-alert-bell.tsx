@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Bell, AlertTriangle, DollarSign } from "lucide-react"
+import { useEffect, useState, useRef, useCallback } from "react"
+import { Bell, AlertTriangle, DollarSign, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,6 +10,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface LowStockItem {
   id: number
@@ -50,28 +56,77 @@ interface POSAlertBellProps {
 export function POSAlertBell({ currencySymbol, onSetPrice }: POSAlertBellProps) {
   const [data, setData] = useState<AlertsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [open, setOpen] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  useEffect(() => {
-    async function fetchAlerts() {
-      try {
-        const res = await fetch("/api/pos/alerts")
-        if (res.ok) {
-          setData(await res.json())
-        }
-      } catch (error) {
-        console.error("Failed to fetch alerts:", error)
-      } finally {
-        setLoading(false)
-      }
+  const fetchAlerts = useCallback(async () => {
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
     }
+    abortControllerRef.current = new AbortController()
 
-    fetchAlerts()
-    const interval = setInterval(fetchAlerts, 60 * 1000) // Refresh every minute
-    return () => clearInterval(interval)
+    try {
+      const res = await fetch("/api/pos/alerts", {
+        signal: abortControllerRef.current.signal,
+      })
+      if (res.ok) {
+        const newData = await res.json()
+        setData(newData)
+        setError(false)
+      } else {
+        // Keep last known data on error, but flag error state
+        setError(true)
+      }
+    } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === "AbortError") {
+        return
+      }
+      console.error("Failed to fetch alerts:", err)
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  if (loading || !data || data.totalAlerts === 0) {
+  useEffect(() => {
+    fetchAlerts()
+    const interval = setInterval(fetchAlerts, 60 * 1000)
+    return () => {
+      clearInterval(interval)
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchAlerts])
+
+  // Show nothing only while initially loading with no data
+  if (loading && !data) {
+    return null
+  }
+
+  // Show error indicator if we have an error and no data
+  if (error && !data) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" className="relative">
+              <AlertCircle className="h-5 w-5 text-muted-foreground" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Unable to load alerts</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  // Hide if no alerts (but data loaded successfully)
+  if (!data || data.totalAlerts === 0) {
     return null
   }
 

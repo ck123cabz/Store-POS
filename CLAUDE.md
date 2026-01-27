@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Store-POS is a desktop Point of Sale application built with Electron. It uses an embedded Express.js server with NeDB (document-oriented database) for data persistence. The frontend is jQuery-based with Bootstrap 3.
+Store-POS is a web-based Point of Sale application built with Next.js 16. It uses PostgreSQL with Prisma ORM for data persistence. The frontend is React 19 with Tailwind CSS and Radix UI components.
 
 ## Development Commands
 
@@ -12,71 +12,157 @@ Store-POS is a desktop Point of Sale application built with Electron. It uses an
 # Install dependencies
 npm install
 
-# Start development (with hot reload via nodemon)
-npm run electron
+# Start development server
+npm run dev
 
-# Build Windows installer
-npm run electron-build
+# Build for production
+npm run build
 
-# Package Windows executable
-npm run package-win
+# Start production server
+npm start
+
+# Linting
+npm run lint
+
+# Testing
+npm run test              # Run Vitest unit tests
+npm run test:unit         # Run unit tests with verbose output
+npm run test:coverage     # Run tests with coverage report
+npm run test:e2e          # Run Playwright E2E tests
+npm run test:e2e:ui       # Run E2E tests with UI
+npm run test:e2e:headed   # Run E2E tests in headed browser
+npm run test:smoke        # Run smoke tests only
+npm run test:all          # Run all tests (unit + E2E)
+
+# Database
+npx prisma migrate dev    # Run migrations in development
+npx prisma db seed        # Seed the database
+npx prisma studio         # Open Prisma Studio GUI
 ```
 
 **Default credentials:** admin/admin
 
-**Server port:** 8001 (configurable via PORT env variable)
+**Development server:** http://localhost:3000
 
 ## Architecture
 
-### Process Model
-- **Main Process** (`start.js`): Electron window management, IPC handlers for quit/reload
-- **Server** (`server.js`): Express.js API server started on app launch
-- **Renderer** (`index.html` + `assets/js/pos.js`): jQuery-based SPA handling all POS UI
+### Tech Stack
+- **Framework:** Next.js 16 (App Router)
+- **Frontend:** React 19, Tailwind CSS, Radix UI, Recharts
+- **Database:** PostgreSQL with Prisma ORM
+- **Authentication:** NextAuth.js v5 (beta) with credentials provider
+- **Validation:** Zod
+- **Testing:** Vitest (unit), Playwright (E2E)
 
-### Data Flow
-Frontend (jQuery) → Express API (localhost:8001) → NeDB databases
+### Directory Structure
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes
+│   │   ├── auth/          # NextAuth endpoints
+│   │   ├── products/      # Product CRUD
+│   │   ├── transactions/  # Sales operations
+│   │   ├── customers/     # Customer management
+│   │   ├── ingredients/   # Inventory ingredients
+│   │   ├── audit-log/     # Audit trail
+│   │   └── ...
+│   ├── (dashboard)/       # Protected dashboard routes
+│   └── login/             # Login page
+├── components/            # Reusable React components
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utilities and configurations
+│   ├── auth.ts           # NextAuth configuration
+│   ├── prisma.ts         # Prisma client instance
+│   └── utils.ts          # Helper functions
+└── types/                 # TypeScript type definitions
 
-### Database Location
-All NeDB databases stored in `%APPDATA%/POS/server/databases/`:
-- `users.db` - User accounts with role-based permissions
-- `inventory.db` - Products (id, name, price, category, quantity, stock flag, image)
-- `categories.db` - Product categories
-- `transactions.db` - Sales records with items, totals, payment info
-- `customers.db` - Customer records
-- `settings.db` - Store configuration (name, logo, tax settings)
+prisma/
+├── schema.prisma         # Database schema
+└── seed.ts               # Database seeding
+
+tests/
+├── e2e/                  # Playwright E2E tests
+├── integration/          # Integration tests
+├── unit/                 # Vitest unit tests
+└── setup.ts              # Test configuration
+```
+
+### Database Schema (Key Models)
+- `User` - User accounts with role-based permissions
+- `Product` - Products with pricing, stock tracking, recipe costing
+- `Category` - Product categories
+- `Transaction` - Sales records with items, totals, payment info
+- `TransactionItem` - Line items in transactions
+- `Customer` - Customer records with visit tracking
+- `Ingredient` - Raw ingredients for recipes
+- `RecipeItem` - Recipe composition (product → ingredients)
+- `IngredientHistory` - Audit trail for inventory changes
+- `Settings` - Store configuration (name, tax, benchmarks)
 
 ### API Routes
 | Route | File | Purpose |
 |-------|------|---------|
-| `/api/users` | `api/users.js` | Authentication, user CRUD |
-| `/api/inventory` | `api/inventory.js` | Product management, SKU lookup |
-| `/api/categories` | `api/categories.js` | Category CRUD |
-| `/api/transactions` | `api/transactions.js` | Sales, on-hold orders, filtering |
-| `/api/customers` | `api/customers.js` | Customer database |
-| `/api/settings` | `api/settings.js` | Store configuration |
-
-### Key Frontend Components
-The main UI logic lives in `assets/js/pos.js` (~2400 lines). Key areas:
-- Product grid and cart management
-- Receipt generation using html2canvas + jsPDF
-- Barcode scanning via JsBarcode
-- Print functionality via print-js
-- Date filtering with daterangepicker
+| `/api/auth/[...nextauth]` | `api/auth/[...nextauth]/route.ts` | Authentication |
+| `/api/users` | `api/users/route.ts` | User management |
+| `/api/products` | `api/products/route.ts` | Product CRUD |
+| `/api/categories` | `api/categories/route.ts` | Category CRUD |
+| `/api/transactions` | `api/transactions/route.ts` | Sales operations |
+| `/api/customers` | `api/customers/route.ts` | Customer database |
+| `/api/ingredients` | `api/ingredients/route.ts` | Ingredient inventory |
+| `/api/audit-log` | `api/audit-log/route.ts` | Audit trail |
+| `/api/settings` | `api/settings/route.ts` | Store configuration |
 
 ### User Permissions System
-Users have granular permissions: `perm_products`, `perm_categories`, `perm_transactions`, `perm_users`, `perm_settings`
-
-### Network Mode
-App supports "Network Point of Sale Terminal" mode where multiple PCs connect to a central database by configuring a different API IP address.
+Users have granular permissions controlled by boolean flags:
+- `permProducts` - Manage products
+- `permCategories` - Manage categories
+- `permTransactions` - View/manage transactions
+- `permUsers` - Manage users
+- `permSettings` - Manage store settings
+- `permReports` - View reports
+- `permAuditLog` - View audit logs
 
 ## Key Implementation Details
 
-- **IDs**: Products and transactions use timestamp-based IDs (`Math.floor(Date.now() / 1000)`)
-- **Image uploads**: Stored in `%APPDATA%/POS/uploads/`, filenames are timestamps
+- **IDs**: Auto-incrementing integers via Prisma
+- **Image uploads**: Stored in `public/uploads/`, filenames are timestamps
 - **Stock tracking**: Per-product toggle; inventory auto-decrements on paid transactions
-- **On-hold orders**: Tracked via `ref_number` field in transactions
-- **Receipt printing**: HTML rendered → html2canvas → jsPDF → print-js
+- **Recipe costing**: Products can have recipes linking to ingredients for true cost calculation
+- **Transactions**: Use Prisma interactive transactions for atomicity (all-or-nothing)
+- **Audit trail**: `IngredientHistory` tracks all inventory changes with source and reason
+
+## Constitution
+
+This project follows principles defined in `.specify/memory/constitution.md`:
+
+1. **Test-First Development** - TDD mandatory
+2. **Security-First** - Input validation, auth checks, audit logging
+3. **Pragmatic Simplicity** - YAGNI with reasonable architecture
+4. **Data Integrity** - Atomic transactions, inventory consistency
+5. **RESTful API Standards** - Consistent HTTP methods and error formats
 
 ## Testing
 
-No test framework is currently configured. Manual testing required.
+```bash
+# Unit tests (Vitest)
+npm run test:unit
+
+# E2E tests (Playwright)
+npm run test:e2e
+
+# All tests
+npm run test:all
+```
+
+Test files:
+- `tests/unit/calculations.test.ts` - Business logic tests
+- `tests/e2e/smoke.spec.ts` - Critical path smoke tests
+- `tests/e2e/pos-flow.spec.ts` - POS workflow tests
+- `tests/e2e/inventory-count.spec.ts` - Inventory count tests
+
+## Active Technologies
+- TypeScript 5.x, React 19.2.3, Next.js 16.1.4 + Tailwind CSS 4.x, Radix UI, shadcn/ui components, Lucide React icons (001-ui-refinement)
+- PostgreSQL with Prisma ORM 7.2.0 (existing schema, no changes needed) (001-ui-refinement)
+
+## Recent Changes
+- 001-ui-refinement: Added TypeScript 5.x, React 19.2.3, Next.js 16.1.4 + Tailwind CSS 4.x, Radix UI, shadcn/ui components, Lucide React icons

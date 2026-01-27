@@ -9,6 +9,7 @@ export interface CartItem {
   price: number
   quantity: number
   maxQuantity: number | null // null if stock not tracked
+  stockChanged?: boolean // EC-05: True if stock level changed after adding to cart
 }
 
 export interface Cart {

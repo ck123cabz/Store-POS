@@ -59,7 +59,7 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
   sale: { label: "Sale", color: "bg-green-100 text-green-800" },
   inventory_count: { label: "Inventory Count", color: "bg-purple-100 text-purple-800" },
   restock: { label: "Restock", color: "bg-orange-100 text-orange-800" },
-  import: { label: "Import", color: "bg-gray-100 text-gray-800" },
+  import: { label: "Import", color: "bg-muted text-foreground" },
 }
 
 export default function AuditLogPage() {
@@ -113,7 +113,7 @@ export default function AuditLogPage() {
   }
 
   function getSourceBadge(src: string) {
-    const info = sourceLabels[src] || { label: src, color: "bg-gray-100 text-gray-800" }
+    const info = sourceLabels[src] || { label: src, color: "bg-muted text-foreground" }
     return (
       <Badge variant="outline" className={info.color}>
         {info.label}

@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 import { Prisma } from "@prisma/client"
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (!session.user.permAuditLog) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 })
+    }
+
     const searchParams = request.nextUrl.searchParams
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "50")

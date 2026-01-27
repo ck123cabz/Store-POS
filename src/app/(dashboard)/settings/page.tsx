@@ -281,7 +281,7 @@ export default function SettingsPage() {
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0">
                   {(logoPreview || currentLogo) ? (
-                    <div className="relative w-24 h-24 border rounded-lg overflow-hidden bg-gray-50">
+                    <div className="relative w-24 h-24 border rounded-lg overflow-hidden bg-muted">
                       <Image
                         src={logoPreview || `/uploads/${currentLogo}`}
                         alt="Store Logo"
@@ -290,7 +290,7 @@ export default function SettingsPage() {
                       />
                     </div>
                   ) : (
-                    <div className="w-24 h-24 border rounded-lg bg-gray-50 flex items-center justify-center">
+                    <div className="w-24 h-24 border rounded-lg bg-muted flex items-center justify-center">
                       <Upload className="h-8 w-8 text-muted-foreground" />
                     </div>
                   )}

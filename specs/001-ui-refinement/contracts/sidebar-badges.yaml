@@ -1,0 +1,118 @@
+openapi: 3.1.0
+info:
+  title: Sidebar Badges API
+  description: API endpoint for fetching sidebar navigation badge counts
+  version: 1.0.0
+
+paths:
+  /api/sidebar-badges:
+    get:
+      summary: Get sidebar badge counts
+      description: |
+        Returns aggregated counts for sidebar navigation badges:
+        - Low stock ingredients (quantity <= parLevel)
+        - Products needing pricing review
+        - Today's task completion progress for the authenticated user
+      operationId: getSidebarBadges
+      tags:
+        - Navigation
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Badge counts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SidebarBadgesResponse'
+              examples:
+                withBadges:
+                  summary: Badges with counts
+                  value:
+                    lowStockIngredients: 3
+                    needsPricingProducts: 2
+                    taskProgress:
+                      completed: 4
+                      total: 7
+                noBadges:
+                  summary: No items requiring attention
+                  value:
+                    lowStockIngredients: 0
+                    needsPricingProducts: 0
+                    taskProgress:
+                      completed: 5
+                      total: 5
+        '401':
+          description: Unauthorized - user not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: true
+                message: Unauthorized
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: true
+                message: Failed to fetch badge counts
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: NextAuth.js session cookie
+
+  schemas:
+    SidebarBadgesResponse:
+      type: object
+      required:
+        - lowStockIngredients
+        - needsPricingProducts
+        - taskProgress
+      properties:
+        lowStockIngredients:
+          type: integer
+          minimum: 0
+          description: Count of active ingredients where quantity <= parLevel
+          example: 3
+        needsPricingProducts:
+          type: integer
+          minimum: 0
+          description: Count of products where needsPricing = true
+          example: 2
+        taskProgress:
+          type: object
+          required:
+            - completed
+            - total
+          properties:
+            completed:
+              type: integer
+              minimum: 0
+              description: Number of tasks completed today by any user
+              example: 4
+            total:
+              type: integer
+              minimum: 0
+              description: Total tasks scheduled for today
+              example: 7
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+          description: Human-readable error message

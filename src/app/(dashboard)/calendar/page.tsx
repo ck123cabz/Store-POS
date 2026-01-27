@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { format, addMonths, subMonths } from "date-fns"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { format, addMonths, subMonths, isFuture } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +19,8 @@ import {
   DollarSign,
   TrendingUp,
 } from "lucide-react"
+import { getVibeColorClasses, getVibeLabel, type VibeLevel } from "@/lib/vibe-colors"
+import { cn } from "@/lib/utils"
 
 interface CalendarDay {
   date: string
@@ -80,12 +82,9 @@ interface DayDetail {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-const vibeColors: Record<string, string> = {
-  "Crushed it": "bg-green-500",
-  Good: "bg-green-400",
-  Meh: "bg-yellow-400",
-  Rough: "bg-red-400",
-}
+// T087: Cache type for vibe data per month
+type MonthCacheKey = string // "year-month" format
+type MonthCache = Map<MonthCacheKey, CalendarData>
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -94,18 +93,40 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null)
   const [dayDetail, setDayDetail] = useState<DayDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [_fetchError, setFetchError] = useState(false)
 
-  const fetchCalendar = useCallback(async () => {
+  // T087: Cache vibe data per month view (NFR-P07)
+  const cacheRef = useRef<MonthCache>(new Map())
+
+  // T082-T086: Fetch calendar with caching and graceful degradation
+  const fetchCalendar = useCallback(async (forceRefresh = false) => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const cacheKey: MonthCacheKey = `${year}-${month}`
+
+    // T087: Check cache first (unless force refresh)
+    if (!forceRefresh && cacheRef.current.has(cacheKey)) {
+      setData(cacheRef.current.get(cacheKey)!)
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
+    setFetchError(false)
     try {
-      const year = currentDate.getFullYear()
-      const month = currentDate.getMonth()
       const res = await fetch(`/api/calendar?year=${year}&month=${month}`)
       if (res.ok) {
-        setData(await res.json())
+        const calendarData = await res.json()
+        // T087: Store in cache
+        cacheRef.current.set(cacheKey, calendarData)
+        setData(calendarData)
+      } else {
+        throw new Error("Failed to fetch calendar")
       }
     } catch (error) {
       console.error("Failed to fetch calendar:", error)
+      // T086: Graceful degradation - show neutral styling (NFR-E03)
+      setFetchError(true)
     } finally {
       setLoading(false)
     }
@@ -160,12 +181,12 @@ export default function CalendarPage() {
   const maxRevenue = data?.days.reduce((max, d) => Math.max(max, d.revenue), 0) || 1
 
   function getRevenueIntensity(revenue: number): string {
-    if (revenue === 0) return "bg-gray-50"
+    if (revenue === 0) return "bg-muted/50"
     const intensity = Math.min(revenue / maxRevenue, 1)
     if (intensity > 0.75) return "bg-green-200"
     if (intensity > 0.5) return "bg-green-100"
     if (intensity > 0.25) return "bg-green-50"
-    return "bg-gray-100"
+    return "bg-muted"
   }
 
   if (loading) {
@@ -197,7 +218,7 @@ export default function CalendarPage() {
           <Button variant="outline" size="icon" onClick={goToNextMonth}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={fetchCalendar}>
+          <Button variant="outline" size="icon" onClick={() => fetchCalendar(true)}>
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -243,7 +264,15 @@ export default function CalendarPage() {
       {data && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-center">{data.monthName}</CardTitle>
+            {/* T088: Year boundary display with year labels (EC-21) */}
+            <CardTitle className="text-center">
+              {data.monthName}
+              {data.year !== new Date().getFullYear() && (
+                <span className="ml-2 text-muted-foreground font-normal text-base">
+                  {data.year}
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {/* Weekday headers */}
@@ -262,48 +291,90 @@ export default function CalendarPage() {
                 <div key={`empty-${i}`} className="aspect-square" />
               ))}
 
-              {/* Day cells */}
-              {data.days.map((day) => (
-                <button
-                  key={day.date}
-                  onClick={() => setSelectedDay(day)}
-                  className={`aspect-square p-1 rounded-lg border transition-colors hover:border-primary ${
-                    getRevenueIntensity(day.revenue)
-                  } ${
-                    day.date === format(new Date(), "yyyy-MM-dd")
-                      ? "ring-2 ring-primary"
-                      : ""
-                  }`}
-                >
-                  <div className="h-full flex flex-col">
-                    <span className="text-xs font-medium">{day.dayOfMonth}</span>
-                    {day.transactions > 0 && (
-                      <>
-                        <span className="text-[10px] text-muted-foreground truncate hidden sm:block">
-                          {formatCurrency(day.revenue)}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground hidden sm:block">
-                          {day.transactions} tx
-                        </span>
-                      </>
+              {/* T083-T093: Day cells with vibe color coding and accessibility */}
+              {data.days.map((day) => {
+                const dateObj = new Date(day.date)
+                // T090: Future dates get neutral styling (EC-23)
+                const isFutureDate = isFuture(dateObj)
+                // T083: Get vibe color classes using utility
+                const vibeClasses = getVibeColorClasses(day.vibe as VibeLevel)
+                // T092: Get vibe label for tooltip (NFR-A07)
+                const vibeLabel = getVibeLabel(day.vibe as VibeLevel)
+                const isToday = day.date === format(new Date(), "yyyy-MM-dd")
+
+                // Build aria-label for accessibility (T093, NFR-A07)
+                const ariaLabel = [
+                  format(dateObj, "MMMM d, yyyy"),
+                  day.transactions > 0 ? `${formatCurrency(day.revenue)} revenue, ${day.transactions} transactions` : "No sales",
+                  day.vibe ? `Vibe: ${vibeLabel}` : null,
+                  isToday ? "Today" : null,
+                  isFutureDate ? "Future date" : null,
+                ].filter(Boolean).join(". ")
+
+                return (
+                  <button
+                    key={day.date}
+                    onClick={() => setSelectedDay(day)}
+                    // T092: Title tooltip describing vibe (NFR-A07)
+                    title={day.vibe ? `${vibeLabel} day` : undefined}
+                    // T093: aria-label for color-coded days (NFR-A07)
+                    aria-label={ariaLabel}
+                    className={cn(
+                      "aspect-square p-1 rounded-lg border transition-colors hover:border-primary",
+                      // T084, T085: Neutral styling first, vibe colors after data fetch (LS-11, LS-12)
+                      isFutureDate
+                        ? "bg-muted/30" // T090: Future dates neutral (EC-23)
+                        : day.vibe
+                          ? vibeClasses.bg // T083: Apply vibe background
+                          : getRevenueIntensity(day.revenue), // Fallback to revenue-based
+                      isToday && "ring-2 ring-primary",
+                      // T091: Adjacent month days muted (EC-24) - handled by empty cells
                     )}
-                    {day.vibe && (
-                      <div
-                        className={`w-2 h-2 rounded-full mt-auto self-end ${
-                          vibeColors[day.vibe] || "bg-gray-400"
-                        }`}
-                        title={day.vibe}
-                      />
-                    )}
-                  </div>
-                </button>
-              ))}
+                  >
+                    <div className="h-full flex flex-col">
+                      <span className={cn(
+                        "text-xs font-medium",
+                        // Use appropriate text color for vibe backgrounds
+                        day.vibe && !isFutureDate && vibeClasses.text
+                      )}>
+                        {day.dayOfMonth}
+                      </span>
+                      {day.transactions > 0 && (
+                        <>
+                          <span className={cn(
+                            "text-[10px] truncate hidden sm:block",
+                            day.vibe && !isFutureDate ? vibeClasses.text : "text-muted-foreground"
+                          )}>
+                            {formatCurrency(day.revenue)}
+                          </span>
+                          <span className={cn(
+                            "text-[10px] hidden sm:block",
+                            day.vibe && !isFutureDate ? vibeClasses.text : "text-muted-foreground"
+                          )}>
+                            {day.transactions} tx
+                          </span>
+                        </>
+                      )}
+                      {/* T089: Vibe indicator dot for quick visual (most recent vibe from API - EC-22) */}
+                      {day.vibe && !isFutureDate && (
+                        <div
+                          className={cn(
+                            "w-2 h-2 rounded-full mt-auto self-end",
+                            vibeClasses.dot
+                          )}
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
 
             {/* Legend */}
             <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-gray-50 border" /> No sales
+                <div className="w-3 h-3 rounded bg-muted border" /> No sales
               </span>
               <span className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded bg-green-50" /> Low

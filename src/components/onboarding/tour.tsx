@@ -116,7 +116,7 @@ export function OnboardingTour() {
               <div
                 key={index}
                 className={`w-2 h-2 rounded-full transition-colors ${
-                  index === currentStep ? "bg-primary" : "bg-gray-200"
+                  index === currentStep ? "bg-primary" : "bg-accent"
                 }`}
               />
             ))}
