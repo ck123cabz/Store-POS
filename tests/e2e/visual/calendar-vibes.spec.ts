@@ -4,8 +4,8 @@ test.describe("T081: Calendar Day Vibe Color Coding", () => {
   test.beforeEach(async ({ page }) => {
     // Login
     await page.goto("/login")
-    await page.fill('input[name="username"]', "admin")
-    await page.fill('input[name="password"]', "admin")
+    await page.fill('#username', "admin")
+    await page.fill('#password', "admin")
     await page.click('button[type="submit"]')
     await page.waitForURL("**/")
 
