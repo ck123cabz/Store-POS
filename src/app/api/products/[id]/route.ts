@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await params
     const product = await prisma.product.findUnique({
       where: { id: parseInt(id) },
@@ -36,6 +42,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (!session.user.permProducts) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 })
+    }
+
     const { id } = await params
     const body = await request.json()
 
@@ -75,6 +89,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (!session.user.permProducts) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 })
+    }
+
     const { id } = await params
     await prisma.product.delete({ where: { id: parseInt(id) } })
     return NextResponse.json({ success: true })

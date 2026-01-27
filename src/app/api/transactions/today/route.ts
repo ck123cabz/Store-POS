@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 import { startOfDay, endOfDay } from "date-fns"
 
 export async function GET() {
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const today = new Date()
     const dayStart = startOfDay(today)
     const dayEnd = endOfDay(today)

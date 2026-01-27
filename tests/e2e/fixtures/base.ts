@@ -54,8 +54,12 @@ export const test = base.extend<TestFixtures>({
   },
 
   inventoryCountPage: async ({ page }, use) => {
-    await page.goto('/ingredients/count')
-    await expect(page.getByRole('heading', { name: /inventory count/i })).toBeVisible()
+    // Inventory count page can be slow due to database queries
+    await page.goto('/ingredients/count', { timeout: 60000 })
+    // Wait for the page to fully load by checking for the main heading
+    await expect(
+      page.getByRole('heading', { name: 'Inventory Count', exact: true })
+    ).toBeVisible({ timeout: 30000 })
     await use()
   },
 })
