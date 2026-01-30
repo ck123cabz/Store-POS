@@ -23,6 +23,7 @@ export async function GET() {
         permTransactions: true,
         permUsers: true,
         permSettings: true,
+        permVoid: true,
         status: true,
       },
     })
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
         permTransactions: body.permTransactions === true,
         permUsers: body.permUsers === true,
         permSettings: body.permSettings === true,
+        permVoid: body.permVoid === true,
         status: "Logged Out",
       },
       select: {
@@ -94,6 +96,7 @@ export async function POST(request: NextRequest) {
         permTransactions: true,
         permUsers: true,
         permSettings: true,
+        permVoid: true,
         status: true,
       },
     })

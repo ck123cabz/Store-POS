@@ -1,0 +1,320 @@
+openapi: 3.1.0
+info:
+  title: Transaction Void API
+  version: 1.0.0
+  description: |
+    API contract for voiding transactions in Store-POS.
+    Part of feature 003-transaction-fixes.
+
+servers:
+  - url: /api
+    description: Local API server
+
+paths:
+  /transactions/{id}/void:
+    patch:
+      summary: Void a transaction
+      description: |
+        Marks a transaction as voided. Requires `permVoid` permission.
+        Transaction must be:
+        - Not already voided
+        - Within 7 days of creation
+
+        Voiding does NOT restore inventory. Stock adjustments must be made separately.
+      operationId: voidTransaction
+      tags:
+        - Transactions
+      security:
+        - nextAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+            example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoidRequest'
+            examples:
+              wrongItems:
+                summary: Void due to wrong items
+                value:
+                  reason: "Wrong Items"
+              testTransaction:
+                summary: Void test transaction
+                value:
+                  reason: "Test Transaction"
+              customReason:
+                summary: Void with custom reason
+                value:
+                  reason: "Other"
+                  customReason: "Manager approved exception"
+      responses:
+        '200':
+          description: Transaction voided successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoidedTransaction'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidReason:
+                  summary: Invalid void reason
+                  value:
+                    error: "Invalid void reason"
+                missingCustomReason:
+                  summary: Missing custom reason
+                  value:
+                    error: "Custom reason required when selecting 'Other'"
+                alreadyVoided:
+                  summary: Transaction already voided
+                  value:
+                    error: "Transaction is already voided"
+                tooOld:
+                  summary: Transaction too old
+                  value:
+                    error: "Transaction is older than 7 days and cannot be voided"
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Unauthorized"
+        '403':
+          description: User lacks permVoid permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Permission denied - void permission required"
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Transaction not found"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Failed to void transaction"
+
+  /transactions:
+    get:
+      summary: List transactions
+      description: |
+        Returns transactions with optional filtering.
+        By default, voided transactions are excluded.
+
+        **Changes for 003-transaction-fixes:**
+        - Added `isVoided` filter parameter
+        - Voided transactions now have void metadata in response
+      operationId: listTransactions
+      tags:
+        - Transactions
+      security:
+        - nextAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by transaction status (0=pending, 1=completed)
+          schema:
+            type: string
+            enum: ["0", "1", "all"]
+        - name: includeVoided
+          in: query
+          description: Include voided transactions in results
+          schema:
+            type: boolean
+            default: false
+        - name: isVoided
+          in: query
+          description: Filter to only voided (true) or only non-voided (false) transactions
+          schema:
+            type: boolean
+        - name: dateFrom
+          in: query
+          description: Filter transactions from this date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          description: Filter transactions up to this date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: userId
+          in: query
+          description: Filter by cashier user ID
+          schema:
+            type: integer
+        - name: till
+          in: query
+          description: Filter by till number
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+
+components:
+  securitySchemes:
+    nextAuth:
+      type: http
+      scheme: bearer
+      description: NextAuth.js session token
+
+  schemas:
+    VoidRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          enum:
+            - Wrong Items
+            - Test Transaction
+            - Customer Dispute
+            - Duplicate Entry
+            - Other
+          description: Predefined reason for voiding
+        customReason:
+          type: string
+          maxLength: 500
+          description: Custom reason text (required if reason is "Other")
+
+    VoidedTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Transaction ID
+        orderNumber:
+          type: integer
+          description: Order number
+        isVoided:
+          type: boolean
+          example: true
+        voidedAt:
+          type: string
+          format: date-time
+          description: When the transaction was voided
+        voidedById:
+          type: integer
+          description: User ID who voided
+        voidedByName:
+          type: string
+          description: Name of user who voided
+        voidReason:
+          type: string
+          description: Reason for voiding
+        # ... other transaction fields omitted for brevity
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        orderNumber:
+          type: integer
+        total:
+          type: string
+          description: Decimal as string
+        subtotal:
+          type: string
+        discount:
+          type: string
+        taxAmount:
+          type: string
+        status:
+          type: integer
+          description: 0=pending, 1=completed
+        paymentType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        # Void fields (003-transaction-fixes)
+        isVoided:
+          type: boolean
+          default: false
+        voidedAt:
+          type: string
+          format: date-time
+          nullable: true
+        voidedById:
+          type: integer
+          nullable: true
+        voidedByName:
+          type: string
+          nullable: true
+        voidReason:
+          type: string
+          nullable: true
+        # Relations
+        customer:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+            fullname:
+              type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionItem'
+
+    TransactionItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        productName:
+          type: string
+        price:
+          type: string
+        quantity:
+          type: integer
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message

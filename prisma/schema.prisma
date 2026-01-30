@@ -23,6 +23,7 @@ model User {
   permSettings     Boolean       @default(false) @map("perm_settings")
   permReports      Boolean       @default(false) @map("perm_reports")
   permAuditLog     Boolean       @default(false) @map("perm_audit_log")
+  permVoid         Boolean       @default(false) @map("perm_void")
   status           String        @default("")
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
@@ -34,8 +35,9 @@ model User {
   employmentStatus String        @default("Active") @map("employment_status")
 
   // Relations
-  transactions        Transaction[]
-  laborLogs           LaborLog[]
+  transactions         Transaction[]
+  voidedTransactions   Transaction[]         @relation("VoidedTransactions")
+  laborLogs            LaborLog[]
   inventoryCountDrafts InventoryCountDraft[]
 
   // Employee Task System
@@ -186,11 +188,20 @@ model Transaction {
   gcashPhotoPath  String?         @map("gcash_photo_path")    // Path to GCash confirmation photo
   idempotencyKey  String?         @unique @map("idempotency_key")  // For offline transaction deduplication
 
+  // Void tracking (003-transaction-fixes)
+  isVoided      Boolean           @default(false) @map("is_voided")
+  voidedAt      DateTime?         @map("voided_at")
+  voidedById    Int?              @map("voided_by_id")
+  voidedByName  String?           @map("voided_by_name")
+  voidReason    String?           @map("void_reason")
+
   // Relations
   customer      Customer?         @relation(fields: [customerId], references: [id])
   user          User              @relation(fields: [userId], references: [id])
   items         TransactionItem[]
+  voidedBy      User?             @relation("VoidedTransactions", fields: [voidedById], references: [id])
 
+  @@index([isVoided])
   @@map("transactions")
 }
 
@@ -276,16 +287,29 @@ model Ingredient {
   id          Int           @id @default(autoincrement())
   name        String
   category    String                                            // Protein, Produce, Dairy, Dry Goods, Frozen, Beverage, Condiments
-  unit        String                                            // lb, oz, each, case, gallon, quart, bunch, bag
-  costPerUnit Decimal       @map("cost_per_unit") @db.Decimal(10, 2)
-  parLevel    Int           @default(0) @map("par_level")       // minimum stock level
+
+  // ─── STANDARDIZED UNIT SYSTEM ───
+  // Base unit: fundamental measurement for recipes (kg, g, L, ml, pcs)
+  // Package: how you purchase (pack, box, bottle, bundle, sack, container)
+  // Example: Burger Patties - baseUnit="pcs", packageSize=8, packageUnit="pack"
+  //          Buy 3 packs @ ₱420/pack = 24 pieces, ₱52.50/piece for recipes
+  baseUnit        String        @default("pcs") @map("base_unit")     // kg, g, L, ml, pcs
+  packageSize     Decimal       @default(1) @map("package_size") @db.Decimal(10, 3)  // base units per package
+  packageUnit     String        @default("each") @map("package_unit") // pack, box, bottle, bundle, sack, bag, container, can, gallon, tank
+  costPerPackage  Decimal       @default(0) @map("cost_per_package") @db.Decimal(10, 2)  // cost to buy one package
+
+  // Legacy field (deprecated, use costPerPackage / packageSize for base unit cost)
+  unit            String        @default("")                          // @deprecated - kept for migration
+  costPerUnit     Decimal       @default(0) @map("cost_per_unit") @db.Decimal(10, 2) // @deprecated
+
+  parLevel    Int           @default(0) @map("par_level")       // minimum stock level (in packages)
   lastUpdated DateTime?     @map("last_updated")
   vendorId    Int?          @map("vendor_id")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
-  // NEW: Stock tracking
-  quantity          Decimal   @default(0) @db.Decimal(10, 2)
+  // Stock tracking (quantity is in PACKAGES, not base units)
+  quantity          Decimal   @default(0) @db.Decimal(10, 2)    // number of packages in stock
   lastRestockDate   DateTime? @map("last_restock_date")
 
   // NEW: Soft delete

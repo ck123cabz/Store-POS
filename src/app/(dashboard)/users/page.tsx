@@ -42,6 +42,7 @@ interface User {
   permTransactions: boolean
   permUsers: boolean
   permSettings: boolean
+  permVoid: boolean // 003-transaction-fixes
   status: string
 }
 
@@ -54,6 +55,7 @@ interface UserFormData {
   permTransactions: boolean
   permUsers: boolean
   permSettings: boolean
+  permVoid: boolean // 003-transaction-fixes
 }
 
 const initialFormData: UserFormData = {
@@ -65,6 +67,7 @@ const initialFormData: UserFormData = {
   permTransactions: false,
   permUsers: false,
   permSettings: false,
+  permVoid: false, // 003-transaction-fixes
 }
 
 const permissions = [
@@ -73,6 +76,7 @@ const permissions = [
   { key: "permTransactions" as const, label: "Transactions" },
   { key: "permUsers" as const, label: "Users" },
   { key: "permSettings" as const, label: "Settings" },
+  { key: "permVoid" as const, label: "Void Transactions" }, // 003-transaction-fixes
 ]
 
 export default function UsersPage() {
@@ -105,6 +109,7 @@ export default function UsersPage() {
       permTransactions: user?.permTransactions || false,
       permUsers: user?.permUsers || false,
       permSettings: user?.permSettings || false,
+      permVoid: user?.permVoid || false, // 003-transaction-fixes
     })
     setFormOpen(true)
   }
@@ -137,6 +142,7 @@ export default function UsersPage() {
         permTransactions: formData.permTransactions,
         permUsers: formData.permUsers,
         permSettings: formData.permSettings,
+        permVoid: formData.permVoid, // 003-transaction-fixes
       }
 
       if (!editUser) {

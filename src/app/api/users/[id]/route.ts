@@ -28,6 +28,7 @@ export async function GET(
         permTransactions: true,
         permUsers: true,
         permSettings: true,
+        permVoid: true, // 003-transaction-fixes
         status: true,
       },
     })
@@ -73,6 +74,7 @@ export async function PUT(
       permTransactions: boolean
       permUsers: boolean
       permSettings: boolean
+      permVoid: boolean // 003-transaction-fixes
       password?: string
     } = {
       fullname,
@@ -81,6 +83,7 @@ export async function PUT(
       permTransactions: body.permTransactions === true,
       permUsers: body.permUsers === true,
       permSettings: body.permSettings === true,
+      permVoid: body.permVoid === true, // 003-transaction-fixes
     }
 
     // Only update password if provided
@@ -104,6 +107,7 @@ export async function PUT(
         permTransactions: true,
         permUsers: true,
         permSettings: true,
+        permVoid: true, // 003-transaction-fixes
         status: true,
       },
     })

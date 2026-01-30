@@ -31,7 +31,13 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Eye, Search, TrendingUp, DollarSign, Clock, Flame, RefreshCw } from "lucide-react"
+import { Eye, Search, TrendingUp, DollarSign, Clock, Flame, RefreshCw, Ban, AlertTriangle } from "lucide-react"
+import { formatCurrency } from "@/lib/format-currency"
+import { useSettings } from "@/hooks/use-settings"
+import { useSession } from "next-auth/react"
+import { VALID_VOID_REASONS } from "@/lib/void-constants"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface TransactionItem {
   id: number
@@ -61,6 +67,11 @@ interface Transaction {
   customer: { id: number; name: string } | null
   user: { id: number; fullname: string }
   items: TransactionItem[]
+  // 003-transaction-fixes: Void fields
+  isVoided: boolean
+  voidedAt: string | null
+  voidedByName: string | null
+  voidReason: string | null
 }
 
 interface User {
@@ -109,12 +120,27 @@ export default function TransactionsPage() {
   const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null)
   const [activeTab, setActiveTab] = useState("list")
 
+  // 003-transaction-fixes: Use settings for currency symbol
+  const { currencySymbol } = useSettings()
+
+  // 003-transaction-fixes: Session for void permission
+  const { data: session } = useSession()
+
+  // 003-transaction-fixes: Void modal state
+  const [showVoidModal, setShowVoidModal] = useState(false)
+  const [voidReason, setVoidReason] = useState("")
+  const [customVoidReason, setCustomVoidReason] = useState("")
+  const [voidError, setVoidError] = useState<string | null>(null)
+  const [voidLoading, setVoidLoading] = useState(false)
+
   // Filters
   const [status, setStatus] = useState<string>("")
   const [userId, setUserId] = useState<string>("")
   const [dateFrom, setDateFrom] = useState<string>("")
   const [dateTo, setDateTo] = useState<string>("")
   const [till, setTill] = useState<string>("")
+  // 003-transaction-fixes: Include voided filter
+  const [includeVoided, setIncludeVoided] = useState(false)
 
   // T069-T080: Quick filter state
   const [activeQuickFilter, setActiveQuickFilter] = useState<DateRangeType | null>(null)
@@ -134,6 +160,8 @@ export default function TransactionsPage() {
       if (dateFrom) params.append("dateFrom", dateFrom)
       if (dateTo) params.append("dateTo", dateTo)
       if (till) params.append("till", till)
+      // 003-transaction-fixes: Include voided filter
+      if (includeVoided) params.append("includeVoided", "true")
 
       const res = await fetch(`/api/transactions?${params}`)
       if (res.ok) {
@@ -144,7 +172,7 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [status, userId, dateFrom, dateTo, till])
+  }, [status, userId, dateFrom, dateTo, till, includeVoided])
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -196,11 +224,9 @@ export default function TransactionsPage() {
     return <Badge variant="outline">Pending</Badge>
   }
 
-  function formatCurrency(value: string | number | null | undefined): string {
-    if (value === null || value === undefined) return "$0.00"
-    const num = typeof value === "string" ? parseFloat(value) : value
-    return `$${num.toFixed(2)}`
-  }
+  // 003-transaction-fixes: Helper to format currency with settings symbol
+  const fmtCurrency = (value: string | number | null | undefined) =>
+    formatCurrency(value, currencySymbol)
 
   // T021: Format payment display with details (002-pos-mobile-payments)
   function formatPaymentDisplay(tx: Transaction): { label: string; detail?: string; status?: "pending" | "confirmed" } {
@@ -210,7 +236,7 @@ export default function TransactionsPage() {
       case "Cash": {
         const change = parseFloat(tx.changeAmount || "0")
         if (change > 0) {
-          return { label: "Cash", detail: `Change: ${formatCurrency(change)}` }
+          return { label: "Cash", detail: `Change: ${fmtCurrency(change)}` }
         }
         return { label: "Cash" }
       }
@@ -243,12 +269,67 @@ export default function TransactionsPage() {
     fetchTransactions()
   }
 
+  // 003-transaction-fixes: Handle void transaction
+  async function handleVoidTransaction() {
+    if (!viewTransaction) return
+
+    if (!voidReason) {
+      setVoidError("Please select a reason")
+      return
+    }
+
+    if (voidReason === "Other" && !customVoidReason.trim()) {
+      setVoidError("Please provide a custom reason")
+      return
+    }
+
+    setVoidLoading(true)
+    setVoidError(null)
+
+    try {
+      const res = await fetch(`/api/transactions/${viewTransaction.id}/void`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: voidReason,
+          customReason: voidReason === "Other" ? customVoidReason : undefined,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to void transaction")
+      }
+
+      const voidedTx = await res.json()
+
+      // Update local state
+      setTransactions(transactions.map(tx =>
+        tx.id === voidedTx.id ? { ...tx, ...voidedTx } : tx
+      ))
+      setViewTransaction({ ...viewTransaction, ...voidedTx })
+
+      // Close void modal
+      setShowVoidModal(false)
+      setVoidReason("")
+      setCustomVoidReason("")
+
+      // Refresh today's data (revenue totals)
+      fetchTodayData()
+    } catch (err) {
+      setVoidError(err instanceof Error ? err.message : "Failed to void transaction")
+    } finally {
+      setVoidLoading(false)
+    }
+  }
+
   function clearFilters() {
     setStatus("")
     setUserId("")
     setDateFrom("")
     setDateTo("")
     setTill("")
+    setIncludeVoided(false)
     setActiveQuickFilter(null)
   }
 
@@ -355,14 +436,14 @@ export default function TransactionsPage() {
                 <DollarSign className="h-5 w-5" />
                 <span className="text-sm font-medium">Today</span>
               </div>
-              <p className="text-xl md:text-2xl font-bold">{formatCurrency(todayData.totalRevenue)}</p>
+              <p className="text-xl md:text-2xl font-bold" data-testid="today-revenue">{fmtCurrency(todayData.totalRevenue)}</p>
               <p className="text-xs text-muted-foreground">{todayData.transactions} transactions</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <TrendingUp className="h-4 w-4 text-muted-foreground mb-1" />
-              <p className="text-lg font-bold">{formatCurrency(todayData.avgTicket)}</p>
+              <p className="text-lg font-bold">{fmtCurrency(todayData.avgTicket)}</p>
               <p className="text-xs text-muted-foreground">Avg Ticket</p>
             </CardContent>
           </Card>
@@ -379,7 +460,7 @@ export default function TransactionsPage() {
               <div className="flex flex-wrap gap-4">
                 {todayData.daypartBreakdown.map((dp) => (
                   <div key={dp.daypart} className="text-center">
-                    <p className="text-sm font-medium">{formatCurrency(dp.total)}</p>
+                    <p className="text-sm font-medium">{fmtCurrency(dp.total)}</p>
                     <p className="text-xs text-muted-foreground">{dp.daypart}</p>
                   </div>
                 ))}
@@ -512,6 +593,18 @@ export default function TransactionsPage() {
                     Clear
                   </Button>
                 </div>
+
+                {/* 003-transaction-fixes: Include voided filter */}
+                <div className="flex items-center gap-2 col-span-full">
+                  <Checkbox
+                    id="includeVoided"
+                    checked={includeVoided}
+                    onCheckedChange={(checked) => setIncludeVoided(checked === true)}
+                  />
+                  <Label htmlFor="includeVoided" className="text-sm cursor-pointer">
+                    Include voided transactions
+                  </Label>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -533,10 +626,20 @@ export default function TransactionsPage() {
               </TableHeader>
               <TableBody>
                 {transactions.map((tx) => (
-                  <TableRow key={tx.id}>
+                  <TableRow
+                    key={tx.id}
+                    data-testid={`transaction-row-${tx.id}`}
+                    className={tx.isVoided ? "opacity-60" : ""}
+                  >
                     <TableCell className="font-mono">{tx.orderNumber}</TableCell>
                     <TableCell>
-                      {format(new Date(tx.createdAt), "MMM d, yyyy h:mm a")}
+                      <div>{format(new Date(tx.createdAt), "MMM d, yyyy h:mm a")}</div>
+                      {/* 003-transaction-fixes: Show void timestamp for voided transactions */}
+                      {tx.isVoided && tx.voidedAt && (
+                        <div className="text-xs text-destructive">
+                          Voided: {format(new Date(tx.voidedAt), "MMM d, h:mm a")}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{tx.customer?.name || "Walk-in"}</TableCell>
                     <TableCell className="hidden md:table-cell">{tx.user?.fullname || "Unknown"}</TableCell>
@@ -560,14 +663,24 @@ export default function TransactionsPage() {
                         )
                       })()}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(tx.total)}
+                    <TableCell
+                      className={`text-right font-medium ${tx.isVoided ? "line-through text-muted-foreground" : ""}`}
+                      data-testid="transaction-total"
+                    >
+                      {fmtCurrency(tx.total)}
                     </TableCell>
-                    <TableCell>{getStatusBadge(tx)}</TableCell>
+                    <TableCell>
+                      {tx.isVoided ? (
+                        <Badge variant="destructive">Voided</Badge>
+                      ) : (
+                        getStatusBadge(tx)
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Button
                         size="icon"
                         variant="ghost"
+                        data-testid={`view-transaction-${tx.id}`}
                         onClick={() => setViewTransaction(tx)}
                       >
                         <Eye className="h-4 w-4" />
@@ -650,7 +763,7 @@ export default function TransactionsPage() {
                                 cell?.transactions || 0,
                                 heatmapData.maxTransactions
                               )}`}
-                              title={`${dayName} ${hour}:00 - ${cell?.transactions || 0} transactions, ${formatCurrency(cell?.revenue || 0)}`}
+                              title={`${dayName} ${hour}:00 - ${cell?.transactions || 0} transactions, ${fmtCurrency(cell?.revenue || 0)}`}
                             >
                               {(cell?.transactions || 0) > 0 ? cell?.transactions : ""}
                             </div>
@@ -739,7 +852,7 @@ export default function TransactionsPage() {
                           const split = JSON.parse(viewTransaction.paymentInfo)
                           return split.components?.map((c: { method: string; amount: number; reference?: string }, i: number) => (
                             <div key={i}>
-                              {c.method}: {formatCurrency(c.amount)}
+                              {c.method}: {fmtCurrency(c.amount)}
                               {c.reference && <span className="text-muted-foreground ml-1">({c.reference})</span>}
                             </div>
                           ))
@@ -765,7 +878,7 @@ export default function TransactionsPage() {
                     <span>
                       {item.quantity}x {item.productName}
                     </span>
-                    <span>{formatCurrency(item.price)}</span>
+                    <span>{fmtCurrency(item.price)}</span>
                   </div>
                 ))}
               </div>
@@ -773,41 +886,161 @@ export default function TransactionsPage() {
               <div className="border-t pt-2 space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>{formatCurrency(viewTransaction.subtotal)}</span>
+                  <span>{fmtCurrency(viewTransaction.subtotal)}</span>
                 </div>
                 {viewTransaction.discount &&
                   parseFloat(viewTransaction.discount) > 0 && (
                     <div className="flex justify-between text-red-600">
                       <span>Discount</span>
-                      <span>-{formatCurrency(viewTransaction.discount)}</span>
+                      <span>-{fmtCurrency(viewTransaction.discount)}</span>
                     </div>
                   )}
                 {viewTransaction.taxAmount &&
                   parseFloat(viewTransaction.taxAmount) > 0 && (
                     <div className="flex justify-between">
                       <span>Tax</span>
-                      <span>{formatCurrency(viewTransaction.taxAmount)}</span>
+                      <span>{fmtCurrency(viewTransaction.taxAmount)}</span>
                     </div>
                   )}
                 <div className="flex justify-between font-bold text-base pt-1">
                   <span>Total</span>
-                  <span>{formatCurrency(viewTransaction.total)}</span>
+                  <span>{fmtCurrency(viewTransaction.total)}</span>
                 </div>
                 {viewTransaction.paidAmount && (
                   <div className="flex justify-between">
                     <span>Paid</span>
-                    <span>{formatCurrency(viewTransaction.paidAmount)}</span>
+                    <span>{fmtCurrency(viewTransaction.paidAmount)}</span>
                   </div>
                 )}
                 {viewTransaction.changeAmount && (
                   <div className="flex justify-between">
                     <span>Change</span>
-                    <span>{formatCurrency(viewTransaction.changeAmount)}</span>
+                    <span>{fmtCurrency(viewTransaction.changeAmount)}</span>
                   </div>
                 )}
               </div>
+
+              {/* 003-transaction-fixes: Void info section */}
+              {viewTransaction.isVoided && (
+                <div className="bg-destructive/10 border border-destructive/30 rounded p-3 space-y-1">
+                  <div className="flex items-center gap-2 text-destructive font-medium">
+                    <Ban className="h-4 w-4" />
+                    Transaction Voided
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <p>Reason: {viewTransaction.voidReason}</p>
+                    <p>By: {viewTransaction.voidedByName}</p>
+                    {viewTransaction.voidedAt && (
+                      <p>On: {format(new Date(viewTransaction.voidedAt), "MMM d, yyyy h:mm a")}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 003-transaction-fixes: Void button */}
+              {!viewTransaction.isVoided && session?.user?.permVoid && (
+                <div className="pt-2 border-t">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    data-testid="void-button"
+                    onClick={() => setShowVoidModal(true)}
+                  >
+                    <Ban className="h-4 w-4 mr-2" />
+                    Void Transaction
+                  </Button>
+                </div>
+              )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 003-transaction-fixes: Void Confirmation Modal */}
+      <Dialog open={showVoidModal} onOpenChange={(open) => {
+        if (!open) {
+          setShowVoidModal(false)
+          setVoidReason("")
+          setCustomVoidReason("")
+          setVoidError(null)
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Void Transaction #{viewTransaction?.orderNumber}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. The transaction will be marked as voided and excluded from revenue calculations.
+            </p>
+
+            <div className="space-y-2">
+              <Label>Reason for voiding</Label>
+              <Select
+                value={voidReason}
+                onValueChange={(value) => {
+                  setVoidReason(value)
+                  setVoidError(null)
+                }}
+              >
+                <SelectTrigger data-testid="void-reason-select">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VALID_VOID_REASONS.map((reason) => (
+                    <SelectItem
+                      key={reason}
+                      value={reason}
+                      data-testid={`void-reason-${reason.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      {reason}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {voidReason === "Other" && (
+              <div className="space-y-2">
+                <Label>Custom reason</Label>
+                <Textarea
+                  placeholder="Please describe the reason..."
+                  value={customVoidReason}
+                  onChange={(e) => {
+                    setCustomVoidReason(e.target.value)
+                    setVoidError(null)
+                  }}
+                />
+              </div>
+            )}
+
+            {voidError && (
+              <div className="text-sm text-destructive bg-destructive/10 rounded p-2">
+                {voidError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowVoidModal(false)}
+                disabled={voidLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                data-testid="confirm-void-button"
+                onClick={handleVoidTransaction}
+                disabled={voidLoading}
+              >
+                {voidLoading ? "Voiding..." : "Confirm Void"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

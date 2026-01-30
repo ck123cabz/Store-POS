@@ -19,7 +19,9 @@ async function main() {
 
   const _admin = await prisma.user.upsert({
     where: { id: 1 },
-    update: {},
+    update: {
+      permVoid: true, // Grant void permission to existing admin
+    },
     create: {
       id: 1,
       username: 'admin',
@@ -30,6 +32,7 @@ async function main() {
       permTransactions: true,
       permUsers: true,
       permSettings: true,
+      permVoid: true,
       status: '',
       // LEVER 8: Labor fields
       position: 'Owner',

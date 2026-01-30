@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
           lte: endDate,
         },
         status: 1,
+        isVoided: false, // 003-transaction-fixes: Exclude voided transactions
       },
       select: {
         createdAt: true,

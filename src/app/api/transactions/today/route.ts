@@ -21,6 +21,7 @@ export async function GET() {
           lte: dayEnd,
         },
         status: 1,
+        isVoided: false, // 003-transaction-fixes: Exclude voided transactions
       },
       select: {
         id: true,

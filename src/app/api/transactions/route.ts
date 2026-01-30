@@ -49,8 +49,14 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get("dateTo")
     const till = searchParams.get("till")
     const daypart = searchParams.get("daypart")
+    const includeVoided = searchParams.get("includeVoided") === "true"
 
     const where: Prisma.TransactionWhereInput = {}
+
+    // By default, exclude voided transactions unless explicitly requested
+    if (!includeVoided) {
+      where.isVoided = false
+    }
 
     if (onHold === "true") {
       where.status = 0
