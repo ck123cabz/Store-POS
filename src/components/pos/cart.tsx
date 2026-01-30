@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -25,6 +24,7 @@ import {
   CreditCard,
   PauseCircle,
   XCircle,
+  ArrowLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -55,6 +55,9 @@ interface CartProps {
   onCancel: () => void
   onHold: () => void
   onPay: () => void
+  // Mobile-specific props
+  onMobileBack?: () => void
+  isMobile?: boolean
 }
 
 export function Cart({
@@ -72,6 +75,8 @@ export function Cart({
   onCancel,
   onHold,
   onPay,
+  onMobileBack,
+  isMobile,
 }: CartProps) {
   const taxAmount = chargeTax ? discountedSubtotal * (taxPercentage / 100) : 0
   const total = discountedSubtotal + taxAmount
@@ -93,10 +98,22 @@ export function Cart({
       <div className="p-4 border-b bg-muted/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
+            {/* Mobile back button - 44px minimum touch target */}
+            {isMobile && onMobileBack && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 min-h-11 min-w-11 mr-1"
+                onClick={onMobileBack}
+                aria-label="Back to products"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
             <ShoppingCart className="h-5 w-5 text-primary" />
-            <h2 className="font-bold text-lg">Current Order</h2>
+            <h2 className="font-bold text-lg">Cart</h2>
           </div>
-          <Badge variant="secondary" className="text-sm px-3">
+          <Badge variant="secondary" className="text-sm px-3 py-1">
             {cart.items.length} item{cart.items.length !== 1 ? "s" : ""}
           </Badge>
         </div>
@@ -181,16 +198,17 @@ export function Cart({
                   </div>
                 </div>
 
-                {/* Quantity controls */}
+                {/* Quantity controls - 44px minimum touch targets for mobile */}
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center gap-1">
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8 rounded-full"
+                      className="h-11 w-11 min-h-11 min-w-11 rounded-full"
                       onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                      aria-label="Decrease quantity"
                     >
-                      <Minus className="h-3 w-3" />
+                      <Minus className="h-4 w-4" />
                     </Button>
                     <Input
                       type="number"
@@ -198,23 +216,25 @@ export function Cart({
                       onChange={(e) =>
                         onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
                       }
-                      className="w-14 h-8 text-center text-sm font-medium"
+                      className="w-14 h-11 text-center text-sm font-medium"
                     />
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8 rounded-full"
+                      className="h-11 w-11 min-h-11 min-w-11 rounded-full"
                       onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                      aria-label="Increase quantity"
                     >
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-4 w-4" />
                     </Button>
                   </div>
 
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    className="h-11 w-11 min-h-11 min-w-11 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     onClick={() => onRemoveItem(item.id)}
+                    aria-label="Remove item"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -275,11 +295,11 @@ export function Cart({
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* Action buttons - 44px minimum touch targets */}
         <div className="p-4 pt-0 space-y-2">
-          {/* Pay button - prominent */}
+          {/* Pay button - prominent, 56px for primary action */}
           <Button
-            className="w-full h-14 text-lg font-bold"
+            className="w-full h-14 min-h-14 text-lg font-bold"
             onClick={onPay}
             disabled={cart.items.length === 0}
           >
@@ -287,11 +307,11 @@ export function Cart({
             Pay {currencySymbol}{total.toFixed(2)}
           </Button>
 
-          {/* Secondary actions */}
+          {/* Secondary actions - 44px minimum touch targets */}
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
-              className="h-11"
+              className="h-11 min-h-11"
               onClick={onHold}
               disabled={cart.items.length === 0}
             >
@@ -300,7 +320,7 @@ export function Cart({
             </Button>
             <Button
               variant="outline"
-              className="h-11 text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="h-11 min-h-11 text-destructive hover:text-destructive hover:bg-destructive/10"
               onClick={onCancel}
               disabled={cart.items.length === 0}
             >

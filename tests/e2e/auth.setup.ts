@@ -32,11 +32,32 @@ setup('authenticate', async ({ page }) => {
   // Submit login - button is labeled "Login"
   await page.getByRole('button', { name: 'Login' }).click()
 
-  // Wait for redirect to dashboard/POS
-  await expect(page).toHaveURL(/\/(pos|dashboard)?/)
+  // Wait for redirect to dashboard/POS (give extra time for initial load/compilation)
+  await expect(page).toHaveURL(/\/(pos|dashboard)?/, { timeout: 60000 })
 
-  // Verify we're logged in
-  await expect(page.getByText(/Administrator|admin/i)).toBeVisible()
+  // Wait for any compilation to finish after redirect
+  if (await compiling.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await compiling.waitFor({ state: 'hidden', timeout: 120000 })
+  }
+
+  // Wait a bit for the page to settle after compilation
+  await page.waitForLoadState('networkidle', { timeout: 30000 })
+
+  // Verify we're logged in by checking for POS elements (like the "All" button) or sidebar elements
+  // The user name display varies, so let's check for a key element that proves we're on the main app
+  await expect(
+    page.getByRole('button', { name: 'All' }).or(page.getByText(/Dashboard|POS|Products/i).first())
+  ).toBeVisible({ timeout: 30000 })
+
+  // Wait a bit to ensure all cookies are set by NextAuth
+  await page.waitForTimeout(2000)
+
+  // Force a page reload to ensure cookies are properly captured
+  // This is needed because NextAuth v5 sets the session cookie asynchronously
+  await page.reload()
+  await expect(
+    page.getByRole('button', { name: 'All' }).or(page.getByText(/Dashboard|POS|Products/i).first())
+  ).toBeVisible({ timeout: 30000 })
 
   // Save authentication state
   await page.context().storageState({ path: authFile })

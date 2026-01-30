@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -29,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Eye, CreditCard } from "lucide-react"
 import { toast } from "sonner"
 
 interface Customer {
@@ -38,6 +40,9 @@ interface Customer {
   email: string
   phone: string
   address: string
+  tabBalance?: number
+  creditLimit?: number
+  tabStatus?: string
 }
 
 interface CustomerFormData {
@@ -157,30 +162,59 @@ export default function CustomersPage() {
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Phone</TableHead>
-            <TableHead className="w-24">Actions</TableHead>
+            <TableHead className="text-right">Tab Balance</TableHead>
+            <TableHead className="w-32">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {customers.map((customer) => (
-            <TableRow key={customer.id}>
-              <TableCell className="font-medium">{customer.name}</TableCell>
-              <TableCell>{customer.email || "-"}</TableCell>
-              <TableCell>{customer.phone || "-"}</TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openForm(customer)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(customer.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+          {customers.map((customer) => {
+            const tabBalance = Number(customer.tabBalance) || 0
+            const hasBalance = tabBalance > 0
+            return (
+              <TableRow key={customer.id}>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/customers/${customer.id}`}
+                    className="hover:underline flex items-center gap-2"
+                  >
+                    {customer.name}
+                    {hasBalance && (
+                      <CreditCard className="h-4 w-4 text-amber-500" />
+                    )}
+                  </Link>
+                </TableCell>
+                <TableCell>{customer.email || "-"}</TableCell>
+                <TableCell>{customer.phone || "-"}</TableCell>
+                <TableCell className="text-right">
+                  {hasBalance ? (
+                    <Badge variant="secondary" className="font-mono">
+                      ₱{tabBalance.toFixed(2)}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Link href={`/customers/${customer.id}`}>
+                      <Button size="icon" variant="ghost" className="min-h-11 min-w-11">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Button size="icon" variant="ghost" onClick={() => openForm(customer)} className="min-h-11 min-w-11">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(customer.id)} className="min-h-11 min-w-11">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )
+          })}
           {customers.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                 No customers found
               </TableCell>
             </TableRow>

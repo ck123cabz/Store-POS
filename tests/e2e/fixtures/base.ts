@@ -21,6 +21,11 @@ interface TestFixtures {
    * Navigate to inventory count page
    */
   inventoryCountPage: void
+
+  /**
+   * Navigate to customers page
+   */
+  customersPage: void
 }
 
 export const test = base.extend<TestFixtures>({
@@ -60,6 +65,13 @@ export const test = base.extend<TestFixtures>({
     await expect(
       page.getByRole('heading', { name: 'Inventory Count', exact: true })
     ).toBeVisible({ timeout: 30000 })
+    await use()
+  },
+
+  customersPage: async ({ page }, use) => {
+    await page.goto('/customers')
+    // Wait for the customers page to load
+    await expect(page.getByRole('heading', { name: /customers/i })).toBeVisible()
     await use()
   },
 })

@@ -131,8 +131,14 @@ model Customer {
   isRegular     Boolean      @default(false) @map("is_regular")     // 5+ visits
   notes         String?                                              // preferences, allergies, etc.
 
+  // Tab/Credit System (002-pos-mobile-payments)
+  tabBalance    Decimal      @default(0) @map("tab_balance") @db.Decimal(10, 2)
+  creditLimit   Decimal      @default(0) @map("credit_limit") @db.Decimal(10, 2)
+  tabStatus     String       @default("active") @map("tab_status")  // active, suspended, frozen
+
   // Relations
-  transactions Transaction[]
+  transactions   Transaction[]
+  tabSettlements TabSettlement[]
 
   @@map("customers")
 }
@@ -174,6 +180,11 @@ model Transaction {
 
   // LEVER 5: Daypart Economics
   daypart       String?           // Morning, Midday, Afternoon, Evening
+
+  // Payment Enhancements (002-pos-mobile-payments)
+  paymentStatus   String?         @map("payment_status")      // pending, confirmed, cancelled (for GCash)
+  gcashPhotoPath  String?         @map("gcash_photo_path")    // Path to GCash confirmation photo
+  idempotencyKey  String?         @unique @map("idempotency_key")  // For offline transaction deduplication
 
   // Relations
   customer      Customer?         @relation(fields: [customerId], references: [id])
@@ -612,4 +623,28 @@ model Benchmark {
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("benchmarks")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB SETTLEMENT - Records when customers pay down their tab balance
+// (002-pos-mobile-payments)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model TabSettlement {
+  id              Int       @id @default(autoincrement())
+  customerId      Int       @map("customer_id")
+  amount          Decimal   @db.Decimal(10, 2)
+  paymentType     String    @map("payment_type")              // Cash, GCash
+  paymentInfo     String?   @map("payment_info")              // GCash ref number if applicable
+  previousBalance Decimal   @map("previous_balance") @db.Decimal(10, 2)
+  newBalance      Decimal   @map("new_balance") @db.Decimal(10, 2)
+  userId          Int       @map("user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  customer        Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("tab_settlements")
 }

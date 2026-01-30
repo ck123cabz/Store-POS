@@ -51,6 +51,10 @@ interface Transaction {
   paymentType: string
   paidAmount: string
   changeAmount: string
+  // 002-pos-mobile-payments fields
+  paymentStatus: string | null
+  paymentInfo: string | null
+  gcashPhotoPath: string | null
   createdAt: string
   tillNumber: number
   refNumber: string
@@ -196,6 +200,43 @@ export default function TransactionsPage() {
     if (value === null || value === undefined) return "$0.00"
     const num = typeof value === "string" ? parseFloat(value) : value
     return `$${num.toFixed(2)}`
+  }
+
+  // T021: Format payment display with details (002-pos-mobile-payments)
+  function formatPaymentDisplay(tx: Transaction): { label: string; detail?: string; status?: "pending" | "confirmed" } {
+    if (!tx.paymentType) return { label: "-" }
+
+    switch (tx.paymentType) {
+      case "Cash": {
+        const change = parseFloat(tx.changeAmount || "0")
+        if (change > 0) {
+          return { label: "Cash", detail: `Change: ${formatCurrency(change)}` }
+        }
+        return { label: "Cash" }
+      }
+      case "GCash": {
+        const isPending = tx.paymentStatus === "pending"
+        return {
+          label: "GCash",
+          detail: tx.paymentInfo ? `Ref: ${tx.paymentInfo.slice(0, 10)}...` : undefined,
+          status: isPending ? "pending" : "confirmed",
+        }
+      }
+      case "Tab":
+        return { label: "Tab", detail: tx.customer?.name }
+      case "Split": {
+        try {
+          const splitData = JSON.parse(tx.paymentInfo || "{}")
+          const components = splitData.components || []
+          const methods = components.map((c: { method: string }) => c.method).join("+")
+          return { label: "Split", detail: methods || undefined }
+        } catch {
+          return { label: "Split" }
+        }
+      }
+      default:
+        return { label: tx.paymentType }
+    }
   }
 
   function handleSearch() {
@@ -499,7 +540,26 @@ export default function TransactionsPage() {
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{tx.customer?.name || "Walk-in"}</TableCell>
                     <TableCell className="hidden md:table-cell">{tx.user?.fullname || "Unknown"}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{tx.paymentType || "-"}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {(() => {
+                        const payment = formatPaymentDisplay(tx)
+                        return (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span>{payment.label}</span>
+                              {payment.status === "pending" && (
+                                <Badge variant="outline" className="text-amber-600 border-amber-300 text-[10px] px-1 py-0">
+                                  Pending
+                                </Badge>
+                              )}
+                            </div>
+                            {payment.detail && (
+                              <div className="text-xs text-muted-foreground">{payment.detail}</div>
+                            )}
+                          </div>
+                        )
+                      })()}
+                    </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(tx.total)}
                     </TableCell>
@@ -654,7 +714,42 @@ export default function TransactionsPage() {
                 <div className="text-muted-foreground">Till:</div>
                 <div>{viewTransaction.tillNumber}</div>
                 <div className="text-muted-foreground">Payment:</div>
-                <div>{viewTransaction.paymentType || "-"}</div>
+                <div className="flex items-center gap-2">
+                  <span>{viewTransaction.paymentType || "-"}</span>
+                  {viewTransaction.paymentStatus === "pending" && (
+                    <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                      Pending
+                    </Badge>
+                  )}
+                </div>
+                {/* GCash reference */}
+                {viewTransaction.paymentType === "GCash" && viewTransaction.paymentInfo && (
+                  <>
+                    <div className="text-muted-foreground">GCash Ref:</div>
+                    <div className="font-mono text-xs">{viewTransaction.paymentInfo}</div>
+                  </>
+                )}
+                {/* Split payment breakdown */}
+                {viewTransaction.paymentType === "Split" && viewTransaction.paymentInfo && (
+                  <>
+                    <div className="text-muted-foreground">Split:</div>
+                    <div className="text-xs">
+                      {(() => {
+                        try {
+                          const split = JSON.parse(viewTransaction.paymentInfo)
+                          return split.components?.map((c: { method: string; amount: number; reference?: string }, i: number) => (
+                            <div key={i}>
+                              {c.method}: {formatCurrency(c.amount)}
+                              {c.reference && <span className="text-muted-foreground ml-1">({c.reference})</span>}
+                            </div>
+                          ))
+                        } catch {
+                          return viewTransaction.paymentInfo
+                        }
+                      })()}
+                    </div>
+                  </>
+                )}
                 {viewTransaction.refNumber && (
                   <>
                     <div className="text-muted-foreground">Ref #:</div>

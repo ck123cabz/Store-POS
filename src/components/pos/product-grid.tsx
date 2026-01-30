@@ -133,35 +133,37 @@ export function ProductGrid({
           )}
         </form>
 
-        {/* Grid size toggle */}
-        <div className="flex items-center border rounded-lg p-1 bg-muted/50">
+        {/* Grid size toggle - 44px minimum touch targets */}
+        <div className="hidden sm:flex items-center border rounded-lg p-1 bg-muted/50">
           <Button
             variant={gridSize === "normal" ? "secondary" : "ghost"}
             size="icon"
-            className="h-8 w-8"
+            className="h-11 w-11 min-h-11 min-w-11"
             onClick={() => setGridSize("normal")}
+            aria-label="Normal grid size"
           >
             <LayoutGrid className="h-4 w-4" />
           </Button>
           <Button
             variant={gridSize === "compact" ? "secondary" : "ghost"}
             size="icon"
-            className="h-8 w-8"
+            className="h-11 w-11 min-h-11 min-w-11"
             onClick={() => setGridSize("compact")}
+            aria-label="Compact grid size"
           >
             <Grid3X3 className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Category pills - horizontally scrollable */}
+      {/* Category pills - horizontally scrollable with 44px minimum touch targets */}
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex gap-2 pb-2">
           <Button
             variant={selectedCategory === null ? "default" : "outline"}
             onClick={() => setSelectedCategory(null)}
             className={cn(
-              "rounded-full h-9 px-4 font-medium transition-all",
+              "rounded-full h-11 min-h-11 px-4 font-medium transition-all",
               selectedCategory === null && "shadow-md"
             )}
           >
@@ -183,7 +185,7 @@ export function ProductGrid({
               variant={selectedCategory === category.id ? "default" : "outline"}
               onClick={() => setSelectedCategory(category.id)}
               className={cn(
-                "rounded-full h-9 px-4 font-medium transition-all",
+                "rounded-full h-11 min-h-11 px-4 font-medium transition-all",
                 selectedCategory === category.id && "shadow-md"
               )}
             >
@@ -210,7 +212,7 @@ export function ProductGrid({
         </p>
       )}
 
-      {/* Product Grid */}
+      {/* Product Grid - Responsive columns: 1-5 based on viewport width */}
       {filteredProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <Search className="h-12 w-12 mb-4 opacity-50" />
@@ -219,7 +221,7 @@ export function ProductGrid({
           {(searchQuery || selectedCategory !== null) && (
             <Button
               variant="outline"
-              className="mt-4"
+              className="mt-4 h-11 min-h-11"
               onClick={() => {
                 setSearchQuery("")
                 setSelectedCategory(null)
@@ -233,9 +235,10 @@ export function ProductGrid({
         <div
           className={cn(
             "grid gap-3",
+            // Responsive grid: 1 col on very small, 2 on small phones, up to 5 on large screens
             gridSize === "normal"
-              ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-              : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+              ? "grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+              : "grid-cols-2 min-[360px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
           )}
         >
           {filteredProducts.map((product) => (

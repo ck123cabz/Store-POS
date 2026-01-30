@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { Prisma } from "@prisma/client"
+import { validateCashPayment } from "@/lib/payment-validation"
+import { validateTabPayment } from "@/lib/credit-limit-validation"
 
 interface TransactionItem {
   id: number
@@ -114,6 +116,132 @@ export async function POST(request: Request) {
     const now = new Date()
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // PAYMENT VALIDATION (002-pos-mobile-payments)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // T067: Idempotency key handling for offline transaction deduplication
+    if (body.idempotencyKey) {
+      const existingTransaction = await prisma.transaction.findUnique({
+        where: { idempotencyKey: body.idempotencyKey },
+      })
+      if (existingTransaction) {
+        // Transaction already exists - return it instead of creating duplicate
+        return NextResponse.json(existingTransaction)
+      }
+    }
+
+    // T019/T020: Validate payment when completing a paid transaction (status=1)
+    if (body.status === 1) {
+      const paymentType = body.paymentType || ""
+      const total = Number(body.total)
+      const paidAmount = Number(body.paidAmount) || 0
+
+      // Cash payment validation: tendered amount must cover total
+      if (paymentType === "Cash") {
+        const validation = validateCashPayment(total, paidAmount)
+        if (!validation.valid) {
+          return NextResponse.json(
+            { error: validation.error || "Invalid cash payment" },
+            { status: 400 }
+          )
+        }
+      }
+
+      // GCash payment: must have reference number (validated in UI but double-check)
+      if (paymentType === "GCash") {
+        const reference = body.paymentInfo?.trim()
+        if (!reference || reference.length < 10) {
+          return NextResponse.json(
+            { error: "GCash reference number must be at least 10 characters" },
+            { status: 400 }
+          )
+        }
+      }
+
+      // Split payment: validate sum of components >= total
+      if (paymentType === "Split") {
+        try {
+          const splitData = JSON.parse(body.paymentInfo || "{}")
+          const splitTotal = splitData.totalPaid || 0
+          if (splitTotal < total) {
+            return NextResponse.json(
+              { error: `Split payment total (${splitTotal}) is less than transaction total (${total})` },
+              { status: 400 }
+            )
+          }
+        } catch {
+          return NextResponse.json(
+            { error: "Invalid split payment data" },
+            { status: 400 }
+          )
+        }
+      }
+
+      // T046/T047: Tab payment validation - credit limit and tab status
+      if (paymentType === "Tab") {
+        if (!body.customerId) {
+          return NextResponse.json(
+            { error: "Tab payment requires a customer selection" },
+            { status: 400 }
+          )
+        }
+
+        // Fetch customer tab info
+        const customer = await prisma.customer.findUnique({
+          where: { id: body.customerId },
+          select: {
+            id: true,
+            name: true,
+            tabBalance: true,
+            creditLimit: true,
+            tabStatus: true,
+          },
+        })
+
+        if (!customer) {
+          return NextResponse.json(
+            { error: "Customer not found" },
+            { status: 404 }
+          )
+        }
+
+        // Validate tab payment against credit limit and status
+        const tabValidation = validateTabPayment({
+          amount: total,
+          currentBalance: Number(customer.tabBalance),
+          creditLimit: Number(customer.creditLimit),
+          tabStatus: customer.tabStatus as "active" | "suspended" | "frozen",
+          allowOverride: body.overrideCreditLimit === true,
+        })
+
+        if (!tabValidation.valid) {
+          return NextResponse.json(
+            { error: tabValidation.error },
+            { status: 400 }
+          )
+        }
+
+        // Store override info in paymentInfo for audit purposes
+        if (tabValidation.overrideApplied) {
+          body.paymentInfo = JSON.stringify({
+            type: "credit_limit_override",
+            overriddenBy: session.user.id,
+            overriddenAt: new Date().toISOString(),
+            previousLimit: Number(customer.creditLimit),
+            newBalance: tabValidation.newBalance,
+          })
+        }
+      }
+    }
+
+    // Determine payment status (for GCash pending/confirmed workflow)
+    const paymentStatus = body.paymentType === "GCash"
+      ? (body.paymentStatus || "pending")
+      : body.status === 1
+        ? "confirmed"
+        : null
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // 10-LEVER ENHANCEMENTS
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -172,6 +300,10 @@ export async function POST(request: Request) {
           changeAmount: body.changeAmount,
           paymentType: body.paymentType || "",
           paymentInfo: body.paymentInfo || "",
+          // 002-pos-mobile-payments fields
+          paymentStatus,
+          gcashPhotoPath: body.gcashPhotoPath || null,
+          idempotencyKey: body.idempotencyKey || null,
           tillNumber: body.tillNumber || 1,
           macAddress: body.macAddress || "",
           // 10-Lever fields
@@ -317,6 +449,30 @@ export async function POST(request: Request) {
                 isRegular: newVisitCount >= 5,
               },
             })
+          }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // T046: Tab Payment - Atomic balance update (002-pos-mobile-payments)
+        // ═══════════════════════════════════════════════════════════════════════════
+        if (body.paymentType === "Tab" && body.customerId) {
+          // Update customer's tab balance atomically
+          await tx.customer.update({
+            where: { id: body.customerId },
+            data: {
+              tabBalance: {
+                increment: Number(body.total),
+              },
+            },
+          })
+
+          // T050: Log credit limit overrides to audit trail
+          if (body.overrideCreditLimit) {
+            // Create audit log entry for credit limit override
+            // This uses a generic audit pattern - could be enhanced with dedicated AuditLog model
+            console.log(
+              `[AUDIT] Credit limit override: User ${session.user.id} allowed customer ${body.customerId} to exceed limit by charging ${body.total}`
+            )
           }
         }
       }

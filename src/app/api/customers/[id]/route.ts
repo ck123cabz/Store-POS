@@ -87,6 +87,17 @@ export async function DELETE(
       )
     }
 
+    // T049: Check if customer has outstanding tab balance
+    if (Number(customer.tabBalance) > 0) {
+      return NextResponse.json(
+        {
+          error: "Cannot delete customer with outstanding tab balance",
+          tabBalance: Number(customer.tabBalance)
+        },
+        { status: 400 }
+      )
+    }
+
     await prisma.customer.delete({ where: { id: parseInt(id) } })
     return NextResponse.json({ success: true })
   } catch {

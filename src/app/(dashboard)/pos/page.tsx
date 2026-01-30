@@ -117,6 +117,9 @@ export default function POSPage() {
   const [customerOrdersModalOpen, setCustomerOrdersModalOpen] = useState(false)
   const [_currentOrderId, setCurrentOrderId] = useState<number | null>(null)
 
+  // Mobile view state - toggle between products and cart
+  const [showMobileCart, setShowMobileCart] = useState(false)
+
   const taxAmount = settings.chargeTax
     ? discountedSubtotal * (settings.taxPercentage / 100)
     : 0
@@ -352,10 +355,15 @@ export default function POSPage() {
     )
   }
 
+  const cartItemCount = cart.items.length
+
   return (
-    <div className="flex h-[calc(100vh-7rem)] gap-0">
-      {/* Product Grid Section */}
-      <div className="flex-1 flex flex-col min-w-0">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[calc(100vh-7rem)] gap-0">
+      {/* Product Grid Section - hidden on mobile when cart is shown */}
+      <div className={cn(
+        "flex-1 flex flex-col min-w-0",
+        showMobileCart && "hidden md:flex"
+      )}>
         {/* Header bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur sticky top-0 z-10">
           <div className="flex items-center gap-2">
@@ -405,11 +413,29 @@ export default function POSPage() {
             </Button>
           </div>
 
-          {/* Alert Bell */}
-          <POSAlertBell
-            currencySymbol={settings.currencySymbol}
-            onSetPrice={handleQuickSetPrice}
-          />
+          <div className="flex items-center gap-2">
+            {/* Alert Bell */}
+            <POSAlertBell
+              currencySymbol={settings.currencySymbol}
+              onSetPrice={handleQuickSetPrice}
+            />
+
+            {/* Mobile Cart Toggle - only show on small screens */}
+            <Button
+              variant="default"
+              size="sm"
+              className="md:hidden h-11 min-h-11 gap-2 px-4"
+              onClick={() => setShowMobileCart(true)}
+            >
+              <ShoppingBag className="h-5 w-5" />
+              <span>Cart</span>
+              {cartItemCount > 0 && (
+                <Badge variant="secondary" className="bg-white text-primary ml-1 px-1.5 py-0 text-xs">
+                  {cartItemCount}
+                </Badge>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Products */}
@@ -423,8 +449,15 @@ export default function POSPage() {
         </ScrollArea>
       </div>
 
-      {/* Cart Section */}
-      <div className="w-[380px] lg:w-[420px] flex-shrink-0 border-l">
+      {/* Cart Section - full width on mobile, fixed width on desktop */}
+      <div className={cn(
+        "flex-shrink-0 border-l bg-background",
+        // Desktop: fixed width sidebar
+        "md:w-[380px] lg:w-[420px]",
+        // Mobile: full width, shown/hidden based on state
+        "w-full absolute inset-0 md:relative md:inset-auto z-20",
+        !showMobileCart && "hidden md:block"
+      )}>
         <Cart
           cart={cart}
           subtotal={subtotal}
@@ -440,6 +473,8 @@ export default function POSPage() {
           onCancel={handleCancel}
           onHold={handleHold}
           onPay={handlePay}
+          onMobileBack={() => setShowMobileCart(false)}
+          isMobile={showMobileCart}
         />
       </div>
 
@@ -450,6 +485,17 @@ export default function POSPage() {
         total={total}
         currencySymbol={settings.currencySymbol}
         onConfirm={handlePaymentConfirm}
+        // T066: Offline queue integration props
+        cartItems={cart.items.map(item => ({
+          id: item.id,
+          productName: item.productName,
+          sku: item.sku,
+          price: item.price,
+          quantity: item.quantity,
+        }))}
+        subtotal={discountedSubtotal}
+        discount={cart.discount}
+        taxAmount={taxAmount}
       />
 
       <HoldModal

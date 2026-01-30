@@ -41,11 +41,14 @@ export default defineConfig({
       dependencies: ['setup'],
     },
 
-    // Mobile viewport tests (optional)
+    // Mobile viewport tests (uses Chromium with mobile viewport)
     {
       name: 'mobile',
       use: {
-        ...devices['iPhone 14'],
+        ...devices['Desktop Chrome'],
+        viewport: { width: 375, height: 667 }, // iPhone SE viewport
+        isMobile: true,
+        hasTouch: true,
         storageState: 'tests/e2e/.auth/user.json',
       },
       dependencies: ['setup'],

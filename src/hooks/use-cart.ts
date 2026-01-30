@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import type { SplitPaymentComponent } from "@/lib/payment-validation"
 
 export interface CartItem {
   id: number
@@ -12,12 +13,24 @@ export interface CartItem {
   stockChanged?: boolean // EC-05: True if stock level changed after adding to cart
 }
 
+export type PaymentType = "Cash" | "GCash" | "Tab" | "Split"
+
+export interface PaymentInfo {
+  type: PaymentType
+  amountTendered?: number
+  changeGiven?: number
+  gcashReference?: string
+  splitComponents?: SplitPaymentComponent[]
+}
+
 export interface Cart {
   items: CartItem[]
   discount: number
   customerId: number | null
   customerName: string
   refNumber: string
+  // Split payment support (002-pos-mobile-payments)
+  payment?: PaymentInfo
 }
 
 export function useCart() {
@@ -108,7 +121,17 @@ export function useCart() {
       customerId: null,
       customerName: "Walk in customer",
       refNumber: "",
+      payment: undefined,
     })
+  }, [])
+
+  // Payment info management (002-pos-mobile-payments)
+  const setPayment = useCallback((payment: PaymentInfo | undefined) => {
+    setCart((prev) => ({ ...prev, payment }))
+  }, [])
+
+  const clearPayment = useCallback(() => {
+    setCart((prev) => ({ ...prev, payment: undefined }))
   }, [])
 
   const loadOrder = useCallback((order: {
@@ -117,6 +140,7 @@ export function useCart() {
     customerId: number | null
     customerName: string
     refNumber: string
+    payment?: PaymentInfo
   }) => {
     setCart(order)
   }, [])
@@ -138,6 +162,10 @@ export function useCart() {
     setRefNumber,
     clearCart,
     loadOrder,
+    // Payment methods (002-pos-mobile-payments)
+    setPayment,
+    clearPayment,
+    // Calculated values
     subtotal,
     discountedSubtotal,
     itemCount: cart.items.length,
