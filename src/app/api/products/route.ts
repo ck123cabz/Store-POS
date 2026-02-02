@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { calculateProductAvailability } from "@/lib/product-availability"
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +23,22 @@ export async function GET(request: NextRequest) {
             quantity: true,
             parLevel: true,
             unit: true,
+            packageSize: true,
+            baseUnit: true,
+          },
+        },
+        recipeItems: {
+          include: {
+            ingredient: {
+              select: {
+                id: true,
+                name: true,
+                quantity: true,
+                packageSize: true,
+                baseUnit: true,
+                parLevel: true,
+              },
+            },
           },
         },
       },
@@ -46,12 +63,36 @@ export async function GET(request: NextRequest) {
         ingredientStockRatio = par > 0 ? Math.round(ratio * 100) : null
       }
 
+      // Calculate recipe-based availability (004-ingredient-unit-system)
+      const availability = calculateProductAvailability({
+        id: p.id,
+        name: p.name,
+        recipeItems: (p.recipeItems ?? []).map((ri) => ({
+          quantity: Number(ri.quantity),
+          ingredient: {
+            id: ri.ingredient.id,
+            name: ri.ingredient.name,
+            quantity: Number(ri.ingredient.quantity),
+            packageSize: Number(ri.ingredient.packageSize),
+          },
+        })),
+        linkedIngredient: p.linkedIngredient
+          ? {
+              id: p.linkedIngredient.id,
+              name: p.linkedIngredient.name,
+              quantity: Number(p.linkedIngredient.quantity),
+              packageSize: Number(p.linkedIngredient.packageSize ?? 1),
+            }
+          : undefined,
+      })
+
       return {
         id: p.id,
         name: p.name,
         price: Number(p.price),
         categoryId: p.categoryId,
         categoryName: p.category.name,
+        // DEPRECATED: trackStock and quantity are replaced by availability
         quantity: p.quantity,
         trackStock: p.trackStock,
         image: p.image,
@@ -65,10 +106,19 @@ export async function GET(request: NextRequest) {
               quantity: Number(p.linkedIngredient.quantity),
               parLevel: p.linkedIngredient.parLevel,
               unit: p.linkedIngredient.unit,
+              packageSize: Number(p.linkedIngredient.packageSize ?? 1),
+              baseUnit: p.linkedIngredient.baseUnit ?? null,
               stockStatus: ingredientStockStatus,
               stockRatio: ingredientStockRatio,
             }
           : null,
+        // NEW: Calculated availability from ingredients (004-ingredient-unit-system)
+        availability: {
+          status: availability.status,
+          maxProducible: availability.maxProducible,
+          limitingIngredient: availability.limitingIngredient,
+          warnings: availability.warnings,
+        },
         // Phase 5: Costing data (optional)
         ...(includeCosting && {
           trueCost: p.trueCost ? Number(p.trueCost) : null,
