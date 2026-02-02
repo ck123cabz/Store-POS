@@ -48,6 +48,13 @@ interface Product {
     stockStatus: "ok" | "low" | "critical" | "out" | null
     stockRatio: number | null
   } | null
+  // NEW: Ingredient-derived availability (004-ingredient-unit-system)
+  availability: {
+    status: "available" | "low" | "critical" | "out"
+    maxProducible: number | null
+    limitingIngredient: { id: number; name: string } | null
+    warnings: string[]
+  }
 }
 
 interface Category {
@@ -192,10 +199,23 @@ export default function POSPage() {
   }, [fetchData, fetchHoldOrders])
 
   const handleAddToCart = (product: Product) => {
-    if (product.trackStock && product.quantity <= 0) {
-      toast.error("Out of stock! This item is currently unavailable")
+    // Use ingredient-derived availability (004-ingredient-unit-system)
+    if (product.availability.status === "out") {
+      const reason = product.availability.limitingIngredient
+        ? `Out of ${product.availability.limitingIngredient.name}`
+        : "Out of stock"
+      toast.error(`${reason}! This item is currently unavailable`)
       return
     }
+
+    // Show warning for critical stock but still allow adding
+    if (product.availability.status === "critical") {
+      const limitMsg = product.availability.maxProducible
+        ? `Only ${product.availability.maxProducible} left`
+        : "Running very low"
+      toast.warning(limitMsg)
+    }
+
     addToCart(product)
     toast.success(`Added ${product.name}`, { duration: 1500 })
   }
