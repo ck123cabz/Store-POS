@@ -99,9 +99,19 @@ export function ProductGrid({
     if (!isNaN(sku)) {
       const product = products.find((p) => p.id === sku)
       if (product) {
-        if (product.trackStock && product.quantity <= 0) {
-          toast.error("Out of stock! This item is currently unavailable")
+        // Use availability system (004-ingredient-unit-system)
+        if (product.availability.status === "out") {
+          const reason = product.availability.limitingIngredient
+            ? `Out of ${product.availability.limitingIngredient.name}`
+            : "Out of stock"
+          toast.error(`${reason}! This item is currently unavailable`)
         } else {
+          if (product.availability.status === "critical") {
+            const limitMsg = product.availability.maxProducible
+              ? `Only ${product.availability.maxProducible} left`
+              : "Running very low"
+            toast.warning(limitMsg)
+          }
           onAddToCart(product)
           setSearchQuery("")
           toast.success(`Added ${product.name} to cart`)
