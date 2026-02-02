@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { Info } from "lucide-react"
+import Link from "next/link"
 
 interface Category {
   id: number
@@ -162,7 +163,7 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
             <Info className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
             <p className="text-sm text-muted-foreground">
               Stock is automatically calculated from ingredient availability.
-              Manage stock through the <a href="/ingredients" className="text-primary underline hover:no-underline">Ingredients</a> page,
+              Manage stock through the <Link href="/ingredients" className="text-primary underline hover:no-underline">Ingredients</Link> page,
               or set up a recipe using the chef hat icon in the products table.
             </p>
           </div>

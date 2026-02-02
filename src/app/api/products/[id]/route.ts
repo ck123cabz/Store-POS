@@ -59,8 +59,9 @@ export async function PUT(
         name: body.name,
         price: body.price,
         categoryId: body.categoryId,
-        quantity: body.quantity,
-        trackStock: body.trackStock,
+        // 004-ingredient-unit-system: quantity/trackStock are now optional (deprecated in favor of availability)
+        ...(body.quantity !== undefined && { quantity: body.quantity }),
+        ...(body.trackStock !== undefined && { trackStock: body.trackStock }),
         ...(body.image && { image: body.image }),
         // Phase 4: Support needsPricing and linkedIngredientId
         ...(body.needsPricing !== undefined && { needsPricing: body.needsPricing }),

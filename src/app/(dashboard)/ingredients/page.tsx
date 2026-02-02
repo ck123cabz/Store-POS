@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +22,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -36,25 +37,46 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Pencil, Trash2, RefreshCw, Package, ClipboardList } from "lucide-react"
+import { Plus, Pencil, Trash2, RefreshCw, Package, ClipboardList, Info } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { formatDualUnitDisplay, formatCurrency } from "@/lib/ingredient-utils"
+import { PURCHASE_UNITS, BASE_UNITS } from "@/types/ingredient"
 
 interface Ingredient {
   id: number
   name: string
   category: string
-  unit: string
-  costPerUnit: number
-  parLevel: number
+  // New unit system
+  baseUnit: string
+  packageSize: number
+  packageUnit: string
+  costPerPackage: number
+  costPerBaseUnit: number
+  // Stock
   quantity: number
+  totalBaseUnits: number
+  parLevel: number
   stockStatus: "ok" | "low" | "critical" | "out"
   stockRatio: number | null
+  countByBaseUnit: boolean
+  // Metadata
   vendorId: number | null
   vendorName: string | null
   lastRestockDate: string | null
   lastUpdated: string
   barcode: string | null
+  // Sellable
+  sellable: boolean
+  sellPrice: number | null
+  linkedProductId: number | null
+  syncStatus: string
+  // Overhead
+  isOverhead: boolean
+  overheadPerTransaction: number | null
+  // Legacy (deprecated)
+  unit: string
+  costPerUnit: number
 }
 
 interface Vendor {
@@ -71,10 +93,9 @@ const INGREDIENT_CATEGORIES = [
   "Condiments",
   "Spices",
   "Packaging",
+  "Supplies",
   "Other",
 ]
-
-const UNITS = ["kg", "g", "L", "mL", "pcs", "pack", "bottle", "can", "box"]
 
 export default function IngredientsPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
@@ -89,17 +110,33 @@ export default function IngredientsPage() {
   // Restock state
   const [restockIngredient, setRestockIngredient] = useState<Ingredient | null>(null)
   const [restockQuantity, setRestockQuantity] = useState("")
-  const [restockCost, setRestockCost] = useState("")
+  const [restockCostPerPackage, setRestockCostPerPackage] = useState("")
   const [restocking, setRestocking] = useState(false)
 
-  // Form state
+  // Form state - new dual-unit system
   const [name, setName] = useState("")
   const [category, setCategory] = useState("")
-  const [unit, setUnit] = useState("")
-  const [costPerUnit, setCostPerUnit] = useState("")
-  const [parLevel, setParLevel] = useState("")
-  const [quantity, setQuantity] = useState("")
   const [vendorId, setVendorId] = useState<string>("")
+  // Purchasing section
+  const [packageUnit, setPackageUnit] = useState("pack")
+  const [costPerPackage, setCostPerPackage] = useState("")
+  // Usage section
+  const [baseUnit, setBaseUnit] = useState("pcs")
+  const [packageSize, setPackageSize] = useState("1")
+  // Stock section
+  const [quantity, setQuantity] = useState("0")
+  const [parLevel, setParLevel] = useState("0")
+
+  // Calculated cost preview
+  const calculatedCostPerBaseUnit = useMemo(() => {
+    const cost = parseFloat(costPerPackage) || 0
+    const size = parseFloat(packageSize) || 1
+    if (size <= 0) return 0
+    return cost / size
+  }, [costPerPackage, packageSize])
+
+  // Whether units are the same (hide conversion section)
+  const showConversionSection = packageUnit !== baseUnit
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -126,11 +163,14 @@ export default function IngredientsPage() {
     setEditIngredient(ingredient || null)
     setName(ingredient?.name || "")
     setCategory(ingredient?.category || "")
-    setUnit(ingredient?.unit || "")
-    setCostPerUnit(ingredient?.costPerUnit?.toString() || "")
-    setParLevel(ingredient?.parLevel?.toString() || "0")
-    setQuantity(ingredient?.quantity?.toString() || "0")
     setVendorId(ingredient?.vendorId?.toString() || "")
+    // New unit system
+    setPackageUnit(ingredient?.packageUnit || "pack")
+    setCostPerPackage(ingredient?.costPerPackage?.toString() || "")
+    setBaseUnit(ingredient?.baseUnit || "pcs")
+    setPackageSize(ingredient?.packageSize?.toString() || "1")
+    setQuantity(ingredient?.quantity?.toString() || "0")
+    setParLevel(ingredient?.parLevel?.toString() || "0")
     setFormOpen(true)
   }
 
@@ -139,16 +179,25 @@ export default function IngredientsPage() {
     setEditIngredient(null)
     setName("")
     setCategory("")
-    setUnit("")
-    setCostPerUnit("")
-    setParLevel("0")
-    setQuantity("0")
     setVendorId("")
+    setPackageUnit("pack")
+    setCostPerPackage("")
+    setBaseUnit("pcs")
+    setPackageSize("1")
+    setQuantity("0")
+    setParLevel("0")
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim() || !category || !unit || !costPerUnit) {
+
+    const parsedPackageSize = parseFloat(packageSize) || 0
+    if (parsedPackageSize <= 0) {
+      toast.error("Package size must be greater than 0")
+      return
+    }
+
+    if (!name.trim() || !category || !packageUnit || !baseUnit) {
       toast.error("Please fill in all required fields")
       return
     }
@@ -166,21 +215,28 @@ export default function IngredientsPage() {
         body: JSON.stringify({
           name,
           category,
-          unit,
-          costPerUnit: parseFloat(costPerUnit),
-          parLevel: parseInt(parLevel) || 0,
-          quantity: parseFloat(quantity) || 0,
           vendorId: vendorId ? parseInt(vendorId) : null,
+          // New unit system
+          packageUnit,
+          costPerPackage: parseFloat(costPerPackage) || 0,
+          baseUnit,
+          packageSize: parsedPackageSize,
+          // Stock
+          quantity: parseFloat(quantity) || 0,
+          parLevel: parseInt(parLevel) || 0,
         }),
       })
 
-      if (!res.ok) throw new Error("Failed")
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to save")
+      }
 
       toast.success(editIngredient ? "Ingredient updated" : "Ingredient created")
       closeForm()
       fetchData()
-    } catch {
-      toast.error("Failed to save ingredient")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save ingredient")
     } finally {
       setSubmitting(false)
     }
@@ -214,16 +270,16 @@ export default function IngredientsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           quantity: parseFloat(restockQuantity),
-          costPerUnit: restockCost ? parseFloat(restockCost) : undefined,
+          costPerPackage: restockCostPerPackage ? parseFloat(restockCostPerPackage) : undefined,
           userId: 1, // TODO: Get from session
           userName: "Admin", // TODO: Get from session
         }),
       })
       if (!res.ok) throw new Error("Failed")
-      toast.success(`Restocked ${restockQuantity} ${restockIngredient.unit} of ${restockIngredient.name}`)
+      toast.success(`Restocked ${restockQuantity} ${restockIngredient.packageUnit}(s) of ${restockIngredient.name}`)
       setRestockIngredient(null)
       setRestockQuantity("")
-      setRestockCost("")
+      setRestockCostPerPackage("")
       fetchData()
     } catch {
       toast.error("Failed to restock ingredient")
@@ -266,10 +322,9 @@ export default function IngredientsPage() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead className="hidden sm:table-cell">Category</TableHead>
-            <TableHead className="text-right">Quantity</TableHead>
+            <TableHead className="text-right">Stock</TableHead>
             <TableHead className="text-right hidden md:table-cell">PAR Level</TableHead>
             <TableHead className="text-right hidden md:table-cell">Cost/Unit</TableHead>
-            <TableHead className="hidden sm:table-cell">Unit</TableHead>
             <TableHead className="hidden lg:table-cell">Vendor</TableHead>
             <TableHead className="w-24">Actions</TableHead>
           </TableRow>
@@ -277,29 +332,54 @@ export default function IngredientsPage() {
         <TableBody>
           {ingredients.map((ingredient) => (
             <TableRow key={ingredient.id}>
-              <TableCell className="font-medium">{ingredient.name}</TableCell>
+              <TableCell className="font-medium">
+                <div className="flex items-center gap-2">
+                  {ingredient.name}
+                  {ingredient.isOverhead && (
+                    <Badge variant="outline" className="text-xs">Overhead</Badge>
+                  )}
+                  {ingredient.sellable && (
+                    <Badge variant="outline" className="text-xs bg-green-50">Sellable</Badge>
+                  )}
+                </div>
+              </TableCell>
               <TableCell className="hidden sm:table-cell">
                 <Badge variant="outline">{ingredient.category}</Badge>
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <span>{ingredient.quantity} <span className="hidden sm:inline">{ingredient.unit}</span></span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-sm">
+                    {formatDualUnitDisplay(
+                      ingredient.quantity,
+                      ingredient.packageSize,
+                      ingredient.packageUnit,
+                      ingredient.baseUnit
+                    )}
+                  </span>
                   {ingredient.stockStatus === "critical" && (
-                    <Badge variant="destructive">Critical</Badge>
+                    <Badge variant="destructive" className="text-xs">Critical</Badge>
                   )}
                   {ingredient.stockStatus === "low" && (
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">Low</Badge>
+                    <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">Low</Badge>
                   )}
                   {ingredient.stockStatus === "out" && (
-                    <Badge variant="destructive">Out</Badge>
+                    <Badge variant="destructive" className="text-xs">Out</Badge>
                   )}
                 </div>
               </TableCell>
-              <TableCell className="text-right hidden md:table-cell">{ingredient.parLevel}</TableCell>
               <TableCell className="text-right hidden md:table-cell">
-                ₱{ingredient.costPerUnit.toFixed(2)}
+                {ingredient.parLevel} {ingredient.packageUnit}
               </TableCell>
-              <TableCell className="hidden sm:table-cell">{ingredient.unit}</TableCell>
+              <TableCell className="text-right hidden md:table-cell">
+                <div className="flex flex-col items-end">
+                  <span>{formatCurrency(ingredient.costPerBaseUnit)}/{ingredient.baseUnit}</span>
+                  {ingredient.packageSize !== 1 && (
+                    <span className="text-xs text-muted-foreground">
+                      {formatCurrency(ingredient.costPerPackage)}/{ingredient.packageUnit}
+                    </span>
+                  )}
+                </div>
+              </TableCell>
               <TableCell className="text-muted-foreground hidden lg:table-cell">
                 {ingredient.vendorName || "—"}
               </TableCell>
@@ -310,7 +390,7 @@ export default function IngredientsPage() {
                     variant="ghost"
                     onClick={() => {
                       setRestockIngredient(ingredient)
-                      setRestockCost(ingredient.costPerUnit.toString())
+                      setRestockCostPerPackage(ingredient.costPerPackage.toString())
                     }}
                     title="Restock"
                   >
@@ -328,7 +408,7 @@ export default function IngredientsPage() {
           ))}
           {ingredients.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                 No ingredients found. Add your first ingredient to start building recipes.
               </TableCell>
             </TableRow>
@@ -337,77 +417,175 @@ export default function IngredientsPage() {
       </Table>
       </div>
 
-      {/* Add/Edit Dialog */}
+      {/* Add/Edit Dialog - New Dual-Unit Form */}
       <Dialog open={formOpen} onOpenChange={closeForm}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editIngredient ? "Edit Ingredient" : "Add Ingredient"}
             </DialogTitle>
+            <DialogDescription>
+              Define how you purchase and use this ingredient
+            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Chicken Breast"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Info Section */}
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Category *</Label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INGREDIENT_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Unit *</Label>
-                <Select value={unit} onValueChange={setUnit}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UNITS.map((u) => (
-                      <SelectItem key={u} value={u}>
-                        {u}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="costPerUnit">Cost per Unit (₱) *</Label>
+                <Label htmlFor="name">Ingredient Name *</Label>
                 <Input
-                  id="costPerUnit"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={costPerUnit}
-                  onChange={(e) => setCostPerUnit(e.target.value)}
-                  placeholder="0.00"
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., Burger Patties"
                   required
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Category *</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INGREDIENT_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Vendor</Label>
+                  <Select value={vendorId || "__none__"} onValueChange={(v) => setVendorId(v === "__none__" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Optional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No vendor</SelectItem>
+                      {vendors.map((vendor) => (
+                        <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                          {vendor.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Purchasing Section */}
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+              <h3 className="font-medium text-sm">Purchasing</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>I buy this as *</Label>
+                  <Select value={packageUnit} onValueChange={(v) => {
+                    setPackageUnit(v)
+                    // If same as baseUnit, set packageSize to 1
+                    if (v === baseUnit) {
+                      setPackageSize("1")
+                    }
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PURCHASE_UNITS.map((u) => (
+                        <SelectItem key={u} value={u}>
+                          {u}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="costPerPackage">Cost per {packageUnit} (₱) *</Label>
+                  <Input
+                    id="costPerPackage"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={costPerPackage}
+                    onChange={(e) => setCostPerPackage(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Usage/Conversion Section - only show if units differ */}
+            {showConversionSection && (
+              <div className="space-y-3 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
+                <h3 className="font-medium text-sm">Usage (Conversion)</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Each {packageUnit} has</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={packageSize}
+                      onChange={(e) => setPackageSize(e.target.value)}
+                      placeholder="8"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Unit for recipes *</Label>
+                    <Select value={baseUnit} onValueChange={(v) => {
+                      setBaseUnit(v)
+                      // If same as packageUnit, set packageSize to 1
+                      if (v === packageUnit) {
+                        setPackageSize("1")
+                      }
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BASE_UNITS.map((u) => (
+                          <SelectItem key={u} value={u}>
+                            {u}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1">
+                      Cost per {baseUnit}
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </Label>
+                    <div className="h-9 px-3 flex items-center bg-green-50 border border-green-200 rounded-md text-green-700 font-medium">
+                      {formatCurrency(calculatedCostPerBaseUnit)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* When units are same, show simpler view */}
+            {!showConversionSection && (
+              <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Info className="h-4 w-4" />
+                  <span>Purchase unit and recipe unit are the same ({packageUnit})</span>
+                </div>
+                <input type="hidden" value="1" />
+              </div>
+            )}
+
+            {/* Stock Section */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="quantity">Current Quantity</Label>
+                <Label htmlFor="quantity">Current Stock ({packageUnit}s)</Label>
                 <Input
                   id="quantity"
                   type="number"
@@ -418,38 +596,21 @@ export default function IngredientsPage() {
                   placeholder="0"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="parLevel">PAR Level ({packageUnit}s)</Label>
+                <Input
+                  id="parLevel"
+                  type="number"
+                  min="0"
+                  value={parLevel}
+                  onChange={(e) => setParLevel(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="parLevel">PAR Level</Label>
-              <Input
-                id="parLevel"
-                type="number"
-                min="0"
-                value={parLevel}
-                onChange={(e) => setParLevel(e.target.value)}
-                placeholder="0"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Vendor</Label>
-              <Select value={vendorId} onValueChange={setVendorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vendor (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">No vendor</SelectItem>
-                  {vendors.map((vendor) => (
-                    <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                      {vendor.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={closeForm}>
                 Cancel
               </Button>
@@ -480,7 +641,7 @@ export default function IngredientsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Restock Dialog */}
+      {/* Restock Dialog - Updated for dual-unit system */}
       <Dialog open={!!restockIngredient} onOpenChange={() => setRestockIngredient(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -488,10 +649,15 @@ export default function IngredientsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              Current: {restockIngredient?.quantity} {restockIngredient?.unit}
+              Current: {restockIngredient && formatDualUnitDisplay(
+                restockIngredient.quantity,
+                restockIngredient.packageSize,
+                restockIngredient.packageUnit,
+                restockIngredient.baseUnit
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="restockQty">Quantity to Add *</Label>
+              <Label htmlFor="restockQty">{restockIngredient?.packageUnit}(s) to Add *</Label>
               <Input
                 id="restockQty"
                 type="number"
@@ -499,21 +665,31 @@ export default function IngredientsPage() {
                 min="0.01"
                 value={restockQuantity}
                 onChange={(e) => setRestockQuantity(e.target.value)}
-                placeholder={`Enter ${restockIngredient?.unit}`}
+                placeholder={`Enter number of ${restockIngredient?.packageUnit}s`}
                 autoFocus
               />
+              {restockIngredient && restockIngredient.packageSize !== 1 && restockQuantity && (
+                <p className="text-xs text-muted-foreground">
+                  = {(parseFloat(restockQuantity) * restockIngredient.packageSize).toFixed(1)} {restockIngredient.baseUnit}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="restockCost">New Cost per Unit (₱)</Label>
+              <Label htmlFor="restockCost">New Cost per {restockIngredient?.packageUnit} (₱)</Label>
               <Input
                 id="restockCost"
                 type="number"
                 step="0.01"
                 min="0"
-                value={restockCost}
-                onChange={(e) => setRestockCost(e.target.value)}
+                value={restockCostPerPackage}
+                onChange={(e) => setRestockCostPerPackage(e.target.value)}
                 placeholder="Leave blank to keep current"
               />
+              {restockIngredient && restockCostPerPackage && restockIngredient.packageSize > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  = {formatCurrency(parseFloat(restockCostPerPackage) / restockIngredient.packageSize)} per {restockIngredient.baseUnit}
+                </p>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setRestockIngredient(null)}>
