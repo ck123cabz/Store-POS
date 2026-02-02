@@ -10,6 +10,13 @@ import { Search, X, Grid3X3, LayoutGrid } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
+interface Availability {
+  status: "available" | "low" | "critical" | "out"
+  maxProducible: number | null
+  limitingIngredient: { id: number; name: string } | null
+  warnings: string[]
+}
+
 interface Product {
   id: number
   name: string
@@ -20,6 +27,7 @@ interface Product {
   categoryId: number
   linkedIngredientId?: number | null
   needsPricing?: boolean
+  availability: Availability
   linkedIngredient?: {
     id: number
     name: string

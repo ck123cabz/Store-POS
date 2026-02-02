@@ -2,6 +2,12 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import Image from "next/image"
 import { AlertTriangle, DollarSign, Package } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -21,6 +27,13 @@ interface LinkedIngredient {
   stockRatio: number | null
 }
 
+interface Availability {
+  status: "available" | "low" | "critical" | "out"
+  maxProducible: number | null
+  limitingIngredient: { id: number; name: string } | null
+  warnings: string[]
+}
+
 interface ProductCardProps {
   product: {
     id: number
@@ -32,6 +45,7 @@ interface ProductCardProps {
     image: string
     linkedIngredientId?: number | null
     needsPricing?: boolean
+    availability: Availability
     linkedIngredient?: LinkedIngredient | null
   }
   currencySymbol: string
@@ -45,13 +59,23 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
     parLevel: product.parLevel,
   })
 
+  // Use availability data (now required)
+  const { availability } = product
+  const availabilityStatus = availability.status
+
   const ingredientLow =
     product.linkedIngredient?.stockStatus === "low" ||
     product.linkedIngredient?.stockStatus === "critical"
   const ingredientOut = product.linkedIngredient?.stockStatus === "out"
 
-  const isDisabled = stockStatus.isOutOfStock || ingredientOut
-  const isLowStock = stockStatus.isLowStock && !stockStatus.isOutOfStock
+  // Determine disabled state: availability status is "out" takes precedence
+  const isDisabledByAvailability = availabilityStatus === "out"
+  const isDisabled = isDisabledByAvailability || stockStatus.isOutOfStock || ingredientOut
+
+  // Determine low stock from availability
+  const isLowByAvailability = availabilityStatus === "low" || availabilityStatus === "critical"
+  const isLowStock = isLowByAvailability && !isDisabled
+
   const needsPricing = product.needsPricing
 
   const ingredientPercentage = product.linkedIngredient
@@ -61,6 +85,79 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
       )
     : null
 
+  // Build tooltip text for availability
+  const getAvailabilityTooltip = (): string | null => {
+    const { status, limitingIngredient, maxProducible } = availability
+    if (status === "available") return null
+    if (status === "out" && limitingIngredient) {
+      return `Out of ${limitingIngredient.name}`
+    }
+    if (status === "critical" && limitingIngredient && maxProducible !== null) {
+      return `Only ${maxProducible} left (${limitingIngredient.name})`
+    }
+    if (status === "low" && limitingIngredient) {
+      return `Low on ${limitingIngredient.name}`
+    }
+    return null
+  }
+
+  const tooltipText = getAvailabilityTooltip()
+
+  // Helper to render availability badge
+  const renderAvailabilityBadge = () => {
+    if (availability.status === "available") return null
+
+    const { status, maxProducible, limitingIngredient } = availability
+
+    // Badge content and styling based on status
+    let badgeContent: React.ReactNode = null
+    let badgeClassName = ""
+
+    if (status === "low") {
+      badgeContent = "Low"
+      badgeClassName = "bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 border-yellow-500/30"
+    } else if (status === "critical") {
+      badgeContent = maxProducible !== null ? `Only ${maxProducible}` : "Critical"
+      badgeClassName = "bg-orange-500/20 text-orange-700 dark:text-orange-500 border-orange-500/30"
+    } else if (status === "out") {
+      // Out status is handled by overlay, don't show badge
+      return null
+    }
+
+    if (!badgeContent) return null
+
+    const badge = (
+      <Badge
+        variant="outline"
+        className={cn(
+          "text-[10px] px-1.5 py-0.5 shadow-sm font-medium",
+          badgeClassName
+        )}
+      >
+        {status === "low" && <AlertTriangle className="h-3 w-3 mr-0.5" />}
+        {badgeContent}
+      </Badge>
+    )
+
+    // Wrap with tooltip if we have tooltip text
+    if (tooltipText && limitingIngredient) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {badge}
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {tooltipText}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )
+    }
+
+    return badge
+  }
+
   return (
     <Card
       className={cn(
@@ -69,7 +166,9 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
         "cursor-pointer select-none",
         isDisabled && "opacity-60 cursor-not-allowed hover:scale-100",
         isLowStock && !isDisabled && "ring-2 ring-orange-400/70",
-        needsPricing && !isDisabled && "ring-2 ring-red-400/70 ring-dashed"
+        needsPricing && !isDisabled && "ring-2 ring-red-400/70 ring-dashed",
+        // Critical status gets a stronger ring
+        availabilityStatus === "critical" && !isDisabled && "ring-2 ring-orange-500/80"
       )}
       onClick={() => !isDisabled && onAddToCart()}
       aria-disabled={isDisabled}
@@ -91,34 +190,22 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
 
         {/* Right side badges */}
         <div className="flex flex-col gap-1 items-end">
-          {isLowStock && stockStatus.quantityLeft !== undefined && (
-            <Badge className="bg-orange-500 hover:bg-orange-500 text-white text-[10px] px-1.5 py-0.5 shadow-sm">
-              {stockStatus.quantityLeft} left
-            </Badge>
-          )}
-          {ingredientLow && !ingredientOut && (
-            <div className="bg-orange-500 text-white rounded-full p-1 shadow-sm" title="Linked ingredient low">
-              <AlertTriangle className="h-3 w-3" />
-            </div>
-          )}
+          {/* Availability-based badge */}
+          {renderAvailabilityBadge()}
         </div>
       </div>
 
-      {/* Out of stock overlay */}
-      {stockStatus.isOutOfStock && (
-        <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-[2px] flex items-center justify-center">
+      {/* Out of stock overlay - using availability status */}
+      {isDisabledByAvailability && (
+        <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-1">
           <Badge variant="destructive" className="text-xs font-bold px-3 py-1.5 shadow-lg">
             OUT OF STOCK
           </Badge>
-        </div>
-      )}
-
-      {/* Ingredient out overlay */}
-      {ingredientOut && !stockStatus.isOutOfStock && (
-        <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-[2px] flex items-center justify-center">
-          <Badge variant="destructive" className="text-xs font-bold px-3 py-1.5 shadow-lg">
-            UNAVAILABLE
-          </Badge>
+          {availability.limitingIngredient && (
+            <span className="text-[10px] text-muted-foreground">
+              Missing: {availability.limitingIngredient.name}
+            </span>
+          )}
         </div>
       )}
 
