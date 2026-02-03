@@ -55,11 +55,12 @@ model User {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  products  Product[]
+  id           Int       @id @default(autoincrement())
+  name         String
+  displayOrder Int       @default(0) @map("display_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  products     Product[]
 
   @@map("categories")
 }
@@ -312,18 +313,26 @@ model Ingredient {
   quantity          Decimal   @default(0) @db.Decimal(10, 2)    // number of packages in stock
   lastRestockDate   DateTime? @map("last_restock_date")
 
-  // NEW: Soft delete
+  // Soft delete
   isActive          Boolean   @default(true) @map("is_active")
 
-  // NEW: Barcode support
+  // Barcode support
   barcode           String?   @unique
 
-  // Phase 4: Auto-sync sellable ingredients to products
+  // ─── INVENTORY COUNT PREFERENCE (004-ingredient-unit-system) ───
+  countByBaseUnit   Boolean   @default(false) @map("count_by_base_unit")  // count in pieces vs packages
+
+  // ─── SELLABLE ITEMS (POS integration) ───
   sellable          Boolean   @default(false)
+  sellPrice         Decimal?  @map("sell_price") @db.Decimal(10, 2)  // selling price when sold at POS
   linkedProductId   Int?      @unique @map("linked_product_id")
   syncStatus        String    @default("synced") @map("sync_status")  // synced, pending, error
   syncError         String?   @map("sync_error")
   lastSyncAt        DateTime? @map("last_sync_at")
+
+  // ─── OVERHEAD ITEMS (004-ingredient-unit-system) ───
+  isOverhead              Boolean   @default(false) @map("is_overhead")  // deduct per transaction
+  overheadPerTransaction  Decimal?  @map("overhead_per_transaction") @db.Decimal(10, 3)  // base units per sale
 
   // Relations
   vendor         Vendor?       @relation(fields: [vendorId], references: [id])

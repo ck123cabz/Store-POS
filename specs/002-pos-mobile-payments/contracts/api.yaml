@@ -1,0 +1,548 @@
+openapi: 3.0.3
+info:
+  title: Store-POS Mobile Payments API
+  description: API contracts for POS mobile optimization and payment methods feature
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: Local API server
+
+paths:
+  /transactions:
+    post:
+      summary: Create a new transaction
+      description: |
+        Creates a transaction with specified payment method (Cash, GCash, Tab, or Split).
+        Handles stock decrement, customer tab updates, and offline sync via idempotency key.
+      operationId: createTransaction
+      tags: [Transactions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate transaction (idempotency key already exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '422':
+          description: Business rule violation (credit limit, insufficient stock)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/{id}/confirm:
+    post:
+      summary: Confirm GCash payment
+      description: Marks a pending GCash transaction as confirmed after payment verification.
+      operationId: confirmGCashPayment
+      tags: [Transactions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmGCashRequest'
+      responses:
+        '200':
+          description: Payment confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          description: Transaction not in pending state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/{id}/cancel:
+    post:
+      summary: Cancel pending GCash transaction
+      description: Cancels a pending GCash transaction if payment was not received.
+      operationId: cancelGCashTransaction
+      tags: [Transactions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Transaction cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          description: Cannot cancel (not pending or already confirmed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /customers/{id}:
+    get:
+      summary: Get customer details
+      description: Returns customer including tab balance and credit limit.
+      operationId: getCustomer
+      tags: [Customers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Customer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update customer
+      description: Updates customer details including credit limit (requires permSettings).
+      operationId: updateCustomer
+      tags: [Customers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
+      responses:
+        '200':
+          description: Customer updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '403':
+          description: Insufficient permissions for credit limit change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete customer
+      description: Deletes customer. Blocked if tab balance > 0.
+      operationId: deleteCustomer
+      tags: [Customers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Customer deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          description: Cannot delete (has outstanding tab balance)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /customers/{id}/tab:
+    get:
+      summary: Get customer tab history
+      description: Returns tab settlement history for a customer.
+      operationId: getCustomerTabHistory
+      tags: [Customers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Tab settlement history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TabSettlementResponse'
+
+    post:
+      summary: Settle tab balance
+      description: Process a payment to reduce customer's tab balance.
+      operationId: settleTab
+      tags: [Customers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TabSettlementRequest'
+      responses:
+        '201':
+          description: Tab settlement created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TabSettlementResponse'
+        '400':
+          description: Validation error (amount exceeds balance)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /uploads/gcash:
+    post:
+      summary: Upload GCash confirmation photo
+      description: Uploads photo proof of GCash payment confirmation screen.
+      operationId: uploadGCashPhoto
+      tags: [Uploads]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: JPEG/PNG image, max 5MB
+                transactionId:
+                  type: integer
+                  description: Associated transaction ID (optional)
+      responses:
+        '201':
+          description: Photo uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Invalid file type or size
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    head:
+      summary: Health check
+      description: Lightweight connectivity check for offline detection.
+      operationId: healthCheck
+      tags: [System]
+      responses:
+        '200':
+          description: Service is healthy
+
+components:
+  schemas:
+    CreateTransactionRequest:
+      type: object
+      required: [items, subtotal, total, paymentType, userId]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionItem'
+        subtotal:
+          type: number
+          format: decimal
+        discount:
+          type: number
+          format: decimal
+          default: 0
+        taxAmount:
+          type: number
+          format: decimal
+          default: 0
+        total:
+          type: number
+          format: decimal
+        paymentType:
+          type: string
+          enum: [Cash, GCash, Tab, Split]
+        paymentInfo:
+          type: string
+          description: GCash ref number, or JSON for split payments
+        amountTendered:
+          type: number
+          format: decimal
+          description: Required for Cash payments
+        customerId:
+          type: integer
+          description: Required for Tab payments
+        userId:
+          type: integer
+        overrideCreditLimit:
+          type: boolean
+          default: false
+          description: Manager override for credit limit
+        idempotencyKey:
+          type: string
+          description: Unique key for offline sync deduplication
+
+    TransactionItem:
+      type: object
+      required: [productId, productName, price, quantity]
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        sku:
+          type: string
+        price:
+          type: number
+          format: decimal
+        quantity:
+          type: integer
+
+    ConfirmGCashRequest:
+      type: object
+      required: [referenceNumber]
+      properties:
+        referenceNumber:
+          type: string
+          minLength: 10
+        gcashPhotoPath:
+          type: string
+          description: Path to uploaded confirmation photo
+
+    UpdateCustomerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        creditLimit:
+          type: number
+          format: decimal
+          description: Requires permSettings permission
+        tabStatus:
+          type: string
+          enum: [active, suspended, frozen]
+
+    TabSettlementRequest:
+      type: object
+      required: [amount, paymentType]
+      properties:
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+        paymentType:
+          type: string
+          enum: [Cash, GCash]
+        paymentInfo:
+          type: string
+          description: GCash reference number if applicable
+
+    TransactionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        orderNumber:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionItem'
+        subtotal:
+          type: number
+        discount:
+          type: number
+        taxAmount:
+          type: number
+        total:
+          type: number
+        paymentType:
+          type: string
+        paymentInfo:
+          type: string
+        paymentStatus:
+          type: string
+          enum: [pending, confirmed, cancelled]
+        amountTendered:
+          type: number
+        changeAmount:
+          type: number
+        gcashPhotoPath:
+          type: string
+        customerId:
+          type: integer
+        userId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CustomerResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        tabBalance:
+          type: number
+          format: decimal
+        creditLimit:
+          type: number
+          format: decimal
+        tabStatus:
+          type: string
+          enum: [active, suspended, frozen]
+        visitCount:
+          type: integer
+        lifetimeSpend:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+
+    TabSettlementResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        amount:
+          type: number
+        paymentType:
+          type: string
+        paymentInfo:
+          type: string
+        previousBalance:
+          type: number
+        newBalance:
+          type: number
+        userId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    UploadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        fileId:
+          type: string
+        url:
+          type: string
+        size:
+          type: integer
+        mimeType:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: boolean
+          enum: [true]
+        message:
+          type: string
+        code:
+          type: string
+          description: Machine-readable error code
+        details:
+          type: object
+          description: Additional error details
+
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+
+security:
+  - sessionAuth: []
+
+tags:
+  - name: Transactions
+    description: POS transaction operations
+  - name: Customers
+    description: Customer management and tab operations
+  - name: Uploads
+    description: File upload operations
+  - name: System
+    description: System health and status

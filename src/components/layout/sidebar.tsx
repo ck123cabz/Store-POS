@@ -10,8 +10,6 @@ import { Badge } from "@/components/ui/badge"
 import { formatBadgeCount, shouldShowBadge } from "@/lib/format-utils"
 import {
   ShoppingCart,
-  Package,
-  FolderTree,
   Users,
   Receipt,
   Settings,
@@ -24,36 +22,60 @@ import {
   History,
   Menu,
   X,
-  Calculator,
-  ChefHat,
+  CheckSquare,
+  LayoutGrid,
 } from "lucide-react"
 
 // T044: Badge configuration per nav item
-type BadgeKey = "ingredients" | "pricing" | "employee"
+type BadgeKey = "ingredients" | "employee"
 
-const navItems: Array<{
+interface NavItem {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
   permission: string | null
   badgeKey?: BadgeKey
-}> = [
-  { href: "/pos", label: "POS", icon: ShoppingCart, permission: null },
-  { href: "/transactions", label: "Transactions", icon: Receipt, permission: "permTransactions" },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, permission: null },
-  { href: "/calendar", label: "Calendar", icon: Calendar, permission: null },
-  { href: "/products", label: "Products", icon: Package, permission: "permProducts" },
-  { href: "/recipes", label: "Recipes", icon: ChefHat, permission: "permProducts" },
-  { href: "/pricing", label: "Pricing", icon: Calculator, permission: "permProducts", badgeKey: "pricing" },
-  { href: "/categories", label: "Categories", icon: FolderTree, permission: "permCategories" },
-  { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts", badgeKey: "ingredients" },
-  { href: "/ingredients/count", label: "Inventory Count", icon: ClipboardList, permission: "permProducts" },
-  { href: "/audit-log", label: "Audit Log", icon: History, permission: "permProducts" },
-  { href: "/waste", label: "Waste Log", icon: Trash2, permission: null },
-  { href: "/employee", label: "My Tasks", icon: ClipboardList, permission: null, badgeKey: "employee" },
-  { href: "/customers", label: "Customers", icon: UserCircle, permission: null },
-  { href: "/users", label: "Users", icon: Users, permission: "permUsers" },
-  { href: "/settings", label: "Settings", icon: Settings, permission: "permSettings" },
+}
+
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: "Sales",
+    items: [
+      { href: "/pos", label: "POS", icon: ShoppingCart, permission: null },
+      { href: "/transactions", label: "Transactions", icon: Receipt, permission: "permTransactions" },
+    ],
+  },
+  {
+    label: "Inventory",
+    items: [
+      { href: "/menu", label: "Menu", icon: LayoutGrid, permission: "permProducts" },
+      { href: "/ingredients", label: "Ingredients", icon: Carrot, permission: "permProducts", badgeKey: "ingredients" },
+      { href: "/ingredients/count", label: "Inventory Count", icon: ClipboardList, permission: "permProducts" },
+    ],
+  },
+  {
+    label: "Analytics",
+    items: [
+      { href: "/analytics", label: "Analytics", icon: BarChart3, permission: null },
+      { href: "/calendar", label: "Calendar", icon: Calendar, permission: null },
+      { href: "/audit-log", label: "Audit Log", icon: History, permission: "permProducts" },
+      { href: "/waste", label: "Waste Log", icon: Trash2, permission: null },
+    ],
+  },
+  {
+    label: "Management",
+    items: [
+      { href: "/customers", label: "Customers", icon: UserCircle, permission: null },
+      { href: "/users", label: "Users", icon: Users, permission: "permUsers" },
+      { href: "/employee", label: "Tasks", icon: CheckSquare, permission: null, badgeKey: "employee" },
+      { href: "/settings", label: "Settings", icon: Settings, permission: "permSettings" },
+    ],
+  },
 ]
 
 interface SidebarBadges {
@@ -158,8 +180,6 @@ export function Sidebar() {
     switch (badgeKey) {
       case "ingredients":
         return badges.lowStockIngredients
-      case "pricing":
-        return badges.needsPricingProducts
       case "employee":
         // For employee tasks, show remaining tasks
         return badges.taskProgress.total - badges.taskProgress.completed
@@ -174,9 +194,6 @@ export function Sidebar() {
     switch (badgeKey) {
       case "ingredients":
         // Low stock = warning (orange)
-        return "bg-orange-500 hover:bg-orange-500/80 text-white"
-      case "pricing":
-        // Needs pricing = warning (orange)
         return "bg-orange-500 hover:bg-orange-500/80 text-white"
       case "employee":
         // Remaining tasks = informational (blue)
@@ -223,47 +240,69 @@ export function Sidebar() {
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <nav className="p-2 space-y-1 pt-12 md:pt-2">
-          {navItems.map((item) => {
-            // Check permission
-            if (item.permission && session?.user) {
-              const hasPermission = session.user[item.permission as keyof typeof session.user]
-              if (!hasPermission) return null
-            }
+        <nav className="p-2 pt-12 md:pt-2">
+          {navGroups.map((group, groupIndex) => {
+            // Filter items based on permissions
+            const visibleItems = group.items.filter((item) => {
+              if (item.permission && session?.user) {
+                const hasPermission = session.user[item.permission as keyof typeof session.user]
+                return hasPermission
+              }
+              return true
+            })
 
-            const badgeCount = getBadgeCount(item.badgeKey)
-            const badgeColorClass = getBadgeColorClass(item.badgeKey)
+            // Don't render empty groups
+            if (visibleItems.length === 0) return null
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={closeSidebar}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  isActive(item.href)
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                <span className="flex-1">{item.label}</span>
-                {/* T050, EC-07, EC-08: Show badge if count > 0, format 99+ */}
-                {/* T052: aria-label and aria-live for screen readers (NFR-A05, NFR-A06) */}
-                {/* T053: Color-coded badges per Visual Design Specifications */}
-                {shouldShowBadge(badgeCount) && (
-                  <Badge
-                    className={cn(
-                      "h-5 min-w-[1.25rem] px-1.5 text-xs font-semibold",
-                      badgeColorClass
-                    )}
-                    aria-label={`${badgeCount} items need attention`}
-                    aria-live="polite"
-                  >
-                    {formatBadgeCount(badgeCount)}
-                  </Badge>
-                )}
-              </Link>
+              <div key={group.label} className={cn(groupIndex > 0 && "mt-4")}>
+                {/* Group label */}
+                <div className="px-3 py-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </span>
+                </div>
+
+                {/* Group items */}
+                <div className="space-y-1">
+                  {visibleItems.map((item) => {
+                    const badgeCount = getBadgeCount(item.badgeKey)
+                    const badgeColorClass = getBadgeColorClass(item.badgeKey)
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={closeSidebar}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                          isActive(item.href)
+                            ? "bg-accent text-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                        )}
+                      >
+                        <item.icon className="h-5 w-5" />
+                        <span className="flex-1">{item.label}</span>
+                        {/* T050, EC-07, EC-08: Show badge if count > 0, format 99+ */}
+                        {/* T052: aria-label and aria-live for screen readers (NFR-A05, NFR-A06) */}
+                        {/* T053: Color-coded badges per Visual Design Specifications */}
+                        {shouldShowBadge(badgeCount) && (
+                          <Badge
+                            className={cn(
+                              "h-5 min-w-[1.25rem] px-1.5 text-xs font-semibold",
+                              badgeColorClass
+                            )}
+                            aria-label={`${badgeCount} items need attention`}
+                            aria-live="polite"
+                          >
+                            {formatBadgeCount(badgeCount)}
+                          </Badge>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
             )
           })}
         </nav>

@@ -163,6 +163,11 @@ Test files:
 ## Active Technologies
 - TypeScript 5.x, React 19.2.3, Next.js 16.1.4 + Tailwind CSS 4.x, Radix UI, shadcn/ui components, Lucide React icons (001-ui-refinement)
 - PostgreSQL with Prisma ORM 7.2.0 (existing schema, no changes needed) (001-ui-refinement)
+- TypeScript 5.x, React 19, Next.js 16 + Prisma ORM, NextAuth.js v5, Radix UI, Tailwind CSS, Zod (002-pos-mobile-payments)
+- PostgreSQL with Prisma; local storage for offline queue (002-pos-mobile-payments)
+- TypeScript 5.x, React 19, Next.js 16 + Prisma ORM 7.2.0, NextAuth.js v5, Radix UI, Tailwind CSS 4.x (003-transaction-fixes)
+- TypeScript 5.x, React 19, Next.js 16 + Prisma ORM 7.x, Radix UI, Tailwind CSS 4.x, Zod (validation) (004-ingredient-unit-system)
+- PostgreSQL (existing schema has baseUnit, packageSize, packageUnit, costPerPackage fields) (004-ingredient-unit-system)
 
 ## Recent Changes
 - 001-ui-refinement: Added TypeScript 5.x, React 19.2.3, Next.js 16.1.4 + Tailwind CSS 4.x, Radix UI, shadcn/ui components, Lucide React icons

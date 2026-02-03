@@ -25,15 +25,21 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 
+interface Availability {
+  status: "available" | "low" | "critical" | "out"
+  maxProducible: number | null
+  limitingIngredient: { id: number; name: string } | null
+  warnings: string[]
+}
+
 interface Product {
   id: number
   name: string
   price: number
-  quantity: number
-  trackStock: boolean
   image: string
   categoryId: number
   categoryName: string
+  availability: Availability
 }
 
 interface ProductTableProps {
@@ -96,12 +102,43 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
                 <TableCell className="hidden md:table-cell">{product.categoryName || "—"}</TableCell>
                 <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
                 <TableCell className="text-right hidden sm:table-cell">
-                  {product.trackStock ? (
-                    <Badge variant={product.quantity > 0 ? "default" : "destructive"}>
-                      {product.quantity}
+                  {product.availability.status === "available" && (
+                    <span className="text-sm text-green-600 dark:text-green-500 font-medium">
+                      In Stock
+                    </span>
+                  )}
+                  {product.availability.status === "low" && (
+                    <Badge
+                      variant="outline"
+                      className="bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 border-yellow-300 dark:border-yellow-500/30"
+                    >
+                      Can make {product.availability.maxProducible}
                     </Badge>
-                  ) : (
-                    <Badge variant="secondary">N/A</Badge>
+                  )}
+                  {product.availability.status === "critical" && (
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge
+                        variant="outline"
+                        className="bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-500 border-orange-300 dark:border-orange-500/30"
+                      >
+                        Only {product.availability.maxProducible} left
+                      </Badge>
+                      {product.availability.limitingIngredient && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Low on {product.availability.limitingIngredient.name}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {product.availability.status === "out" && (
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge variant="destructive">Out of Stock</Badge>
+                      {product.availability.limitingIngredient && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Missing: {product.availability.limitingIngredient.name}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </TableCell>
                 <TableCell>

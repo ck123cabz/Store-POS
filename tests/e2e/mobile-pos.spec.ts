@@ -5,6 +5,7 @@
  */
 
 import { test, expect } from './fixtures/base'
+import type { Page } from '@playwright/test'
 
 // Mobile viewports to test
 const viewports = [
@@ -61,7 +62,7 @@ test.describe('US5: Mobile POS Interface @p1', () => {
 
   test.describe('Touch Targets (44px minimum)', () => {
     // Helper function to setup mobile POS page
-    const setupMobilePOS = async (page: any) => {
+    const setupMobilePOS = async (page: Page) => {
       await page.setViewportSize({ width: 375, height: 667 })
       await page.goto('/pos')
       await page.evaluate(() => {
@@ -160,7 +161,7 @@ test.describe('US5: Mobile POS Interface @p1', () => {
 
   test.describe('Mobile Cart Functionality', () => {
     // Helper function to setup mobile POS page
-    const setupMobilePOS = async (page: any, width = 375, height = 667) => {
+    const setupMobilePOS = async (page: Page, width = 375, height = 667) => {
       await page.setViewportSize({ width, height })
       await page.goto('/pos')
       await page.evaluate(() => {
@@ -243,7 +244,7 @@ test.describe('US5: Mobile POS Interface @p1', () => {
 
   test.describe('Product Grid Responsiveness', () => {
     // Helper function to setup POS page with specific viewport
-    const setupPOS = async (page: any, width: number, height: number) => {
+    const setupPOS = async (page: Page, width: number, height: number) => {
       await page.setViewportSize({ width, height })
       await page.goto('/pos')
       await page.evaluate(() => {

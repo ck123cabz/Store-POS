@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -20,6 +19,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { Info } from "lucide-react"
+import Link from "next/link"
 
 interface Category {
   id: number
@@ -30,8 +31,6 @@ interface ProductFormData {
   name: string
   price: string
   categoryId: number | null
-  quantity: number
-  trackStock: boolean
 }
 
 interface ProductFormProps {
@@ -43,8 +42,6 @@ interface ProductFormProps {
     id: number
     name: string
     price: number
-    quantity: number
-    trackStock: boolean
     image: string
     categoryId: number
   } | null
@@ -59,12 +56,8 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
       name: "",
       price: "",
       categoryId: null,
-      quantity: 0,
-      trackStock: false,
     },
   })
-
-  const trackStock = watch("trackStock")
 
   // Reset form when product changes
   useEffect(() => {
@@ -73,16 +66,12 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         name: product.name,
         price: product.price.toString(),
         categoryId: product.categoryId,
-        quantity: product.quantity,
-        trackStock: product.trackStock,
       })
     } else {
       reset({
         name: "",
         price: "",
         categoryId: null,
-        quantity: 0,
-        trackStock: false,
       })
     }
     setImageFile(null)
@@ -107,8 +96,6 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         name: data.name,
         price: parseFloat(data.price),
         categoryId: data.categoryId,
-        quantity: data.quantity,
-        trackStock: data.trackStock,
         ...(imageFilename && { image: imageFilename }),
       }
 
@@ -171,24 +158,15 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={trackStock}
-              onCheckedChange={(checked) => setValue("trackStock", checked)}
-            />
-            <Label>Track Stock</Label>
+          {/* Stock information message */}
+          <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-md border">
+            <Info className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+            <p className="text-sm text-muted-foreground">
+              Stock is automatically calculated from ingredient availability.
+              Manage stock through the <Link href="/ingredients" className="text-primary underline hover:no-underline">Ingredients</Link> page,
+              or set up a recipe using the chef hat icon in the products table.
+            </p>
           </div>
-
-          {trackStock && (
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                {...register("quantity", { valueAsNumber: true })}
-              />
-            </div>
-          )}
 
           <div className="space-y-2">
             <Label htmlFor="image">Product Image</Label>

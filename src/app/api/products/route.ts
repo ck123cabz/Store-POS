@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import {
+  calculateProductAvailability,
+  calculateEnhancedRecipeAvailability,
+  type EnhancedProductAvailability,
+} from "@/lib/product-availability"
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +27,22 @@ export async function GET(request: NextRequest) {
             quantity: true,
             parLevel: true,
             unit: true,
+            packageSize: true,
+            baseUnit: true,
+          },
+        },
+        recipeItems: {
+          include: {
+            ingredient: {
+              select: {
+                id: true,
+                name: true,
+                quantity: true,
+                packageSize: true,
+                baseUnit: true,
+                parLevel: true,
+              },
+            },
           },
         },
       },
@@ -46,6 +67,68 @@ export async function GET(request: NextRequest) {
         ingredientStockRatio = par > 0 ? Math.round(ratio * 100) : null
       }
 
+      // Calculate recipe-based availability with enhanced details
+      let availability: EnhancedProductAvailability;
+
+      if (p.recipeItems && p.recipeItems.length > 0) {
+        availability = calculateEnhancedRecipeAvailability(
+          (p.recipeItems ?? []).map((ri) => ({
+            quantity: Number(ri.quantity),
+            ingredient: {
+              id: ri.ingredient.id,
+              name: ri.ingredient.name,
+              quantity: Number(ri.ingredient.quantity),
+              packageSize: Number(ri.ingredient.packageSize),
+            },
+          }))
+        );
+      } else if (p.linkedIngredient) {
+        // For linked ingredients, use basic calculation
+        const basic = calculateProductAvailability({
+          id: p.id,
+          name: p.name,
+          linkedIngredient: {
+            id: p.linkedIngredient.id,
+            name: p.linkedIngredient.name,
+            quantity: Number(p.linkedIngredient.quantity),
+            packageSize: Number(p.linkedIngredient.packageSize ?? 1),
+          },
+        });
+        availability = {
+          ...basic,
+          missingIngredients: basic.status === "out" ? [{
+            id: p.linkedIngredient.id,
+            name: p.linkedIngredient.name,
+            have: 0,
+            needPerUnit: 1,
+            status: "missing" as const,
+          }] : [],
+          lowIngredients: basic.status === "low" || basic.status === "critical" ? [{
+            id: p.linkedIngredient.id,
+            name: p.linkedIngredient.name,
+            have: Number(p.linkedIngredient.quantity) * Number(p.linkedIngredient.packageSize ?? 1),
+            needPerUnit: 1,
+            status: "low" as const,
+          }] : [],
+          limitingIngredientDetails: basic.limitingIngredient ? {
+            ...basic.limitingIngredient,
+            have: Number(p.linkedIngredient.quantity) * Number(p.linkedIngredient.packageSize ?? 1),
+            needPerUnit: 1,
+            status: basic.status === "out" ? "missing" as const : "low" as const,
+          } : null,
+        };
+      } else {
+        availability = {
+          status: "available",
+          maxProducible: null,
+          limitingIngredient: null,
+          limitingIngredientDetails: null,
+          warnings: [],
+          missingIngredients: [],
+          lowIngredients: [],
+        };
+      }
+
       return {
         id: p.id,
         name: p.name,
@@ -55,7 +138,6 @@ export async function GET(request: NextRequest) {
         quantity: p.quantity,
         trackStock: p.trackStock,
         image: p.image,
-        // Phase 4: Ingredient link data
         linkedIngredientId: p.linkedIngredientId,
         needsPricing: p.needsPricing,
         linkedIngredient: p.linkedIngredient
@@ -65,11 +147,22 @@ export async function GET(request: NextRequest) {
               quantity: Number(p.linkedIngredient.quantity),
               parLevel: p.linkedIngredient.parLevel,
               unit: p.linkedIngredient.unit,
+              packageSize: Number(p.linkedIngredient.packageSize ?? 1),
+              baseUnit: p.linkedIngredient.baseUnit ?? null,
               stockStatus: ingredientStockStatus,
               stockRatio: ingredientStockRatio,
             }
           : null,
-        // Phase 5: Costing data (optional)
+        // Enhanced availability with all shortage details
+        availability: {
+          status: availability.status,
+          maxProducible: availability.maxProducible,
+          limitingIngredient: availability.limitingIngredient,
+          limitingIngredientDetails: availability.limitingIngredientDetails,
+          missingIngredients: availability.missingIngredients,
+          lowIngredients: availability.lowIngredients,
+          warnings: availability.warnings,
+        },
         ...(includeCosting && {
           trueCost: p.trueCost ? Number(p.trueCost) : null,
           trueMargin: p.trueMargin ? Number(p.trueMargin) : null,
