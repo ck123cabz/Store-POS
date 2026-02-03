@@ -12,27 +12,27 @@ datasource db {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model User {
-  id               Int           @id @default(autoincrement())
-  username         String        @unique
+  id               Int      @id @default(autoincrement())
+  username         String   @unique
   password         String
   fullname         String
-  permProducts     Boolean       @default(false) @map("perm_products")
-  permCategories   Boolean       @default(false) @map("perm_categories")
-  permTransactions Boolean       @default(false) @map("perm_transactions")
-  permUsers        Boolean       @default(false) @map("perm_users")
-  permSettings     Boolean       @default(false) @map("perm_settings")
-  permReports      Boolean       @default(false) @map("perm_reports")
-  permAuditLog     Boolean       @default(false) @map("perm_audit_log")
-  permVoid         Boolean       @default(false) @map("perm_void")
-  status           String        @default("")
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
+  permProducts     Boolean  @default(false) @map("perm_products")
+  permCategories   Boolean  @default(false) @map("perm_categories")
+  permTransactions Boolean  @default(false) @map("perm_transactions")
+  permUsers        Boolean  @default(false) @map("perm_users")
+  permSettings     Boolean  @default(false) @map("perm_settings")
+  permReports      Boolean  @default(false) @map("perm_reports")
+  permAuditLog     Boolean  @default(false) @map("perm_audit_log")
+  permVoid         Boolean  @default(false) @map("perm_void")
+  status           String   @default("")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   // LEVER 8: Labor Leverage
-  position         String?       // Kitchen Manager, Line Cook, Server, etc.
-  hourlyRate       Decimal?      @map("hourly_rate") @db.Decimal(10, 2)
-  startDate        DateTime?     @map("start_date")
-  employmentStatus String        @default("Active") @map("employment_status")
+  position         String? // Kitchen Manager, Line Cook, Server, etc.
+  hourlyRate       Decimal?  @map("hourly_rate") @db.Decimal(10, 2)
+  startDate        DateTime? @map("start_date")
+  employmentStatus String    @default("Active") @map("employment_status")
 
   // Relations
   transactions         Transaction[]
@@ -41,11 +41,11 @@ model User {
   inventoryCountDrafts InventoryCountDraft[]
 
   // Employee Task System
-  streak              UserStreak?
-  taskCompletions     TaskCompletion[]
-  createdTasks        EmployeeTask[]    @relation("CreatedTasks")
-  approvedTasks       EmployeeTask[]    @relation("ApprovedTasks")
-  assignedTasks       EmployeeTask[]    @relation("AssignedTasks")
+  streak          UserStreak?
+  taskCompletions TaskCompletion[]
+  createdTasks    EmployeeTask[]   @relation("CreatedTasks")
+  approvedTasks   EmployeeTask[]   @relation("ApprovedTasks")
+  assignedTasks   EmployeeTask[]   @relation("AssignedTasks")
 
   @@map("users")
 }
@@ -55,12 +55,13 @@ model User {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model Category {
-  id           Int       @id @default(autoincrement())
-  name         String
-  displayOrder Int       @default(0) @map("display_order")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  products     Product[]
+  id              Int       @id @default(autoincrement())
+  name            String
+  displayOrder    Int       @default(0) @map("display_order")
+  requiresKitchen Boolean   @default(false) @map("requires_kitchen")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  products        Product[]
 
   @@map("categories")
 }
@@ -81,23 +82,26 @@ model Product {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   // LEVER 1: Unit Economics - True Cost Calculation
-  prepTime           Int?     @map("prep_time")                              // minutes of staff time
-  laborCost          Decimal? @map("labor_cost") @db.Decimal(10, 2)          // prepTime × hourlyRate/60
+  prepTime           Int?     @map("prep_time") // minutes of staff time
+  laborCost          Decimal? @map("labor_cost") @db.Decimal(10, 2) // prepTime × hourlyRate/60
   overheadAllocation Decimal? @map("overhead_allocation") @db.Decimal(10, 2) // gas, packaging, etc.
-  trueCost           Decimal? @map("true_cost") @db.Decimal(10, 2)           // food + labor + overhead
-  trueMargin         Decimal? @map("true_margin") @db.Decimal(10, 2)         // price - trueCost
-  trueMarginPercent  Decimal? @map("true_margin_percent") @db.Decimal(5, 2)  // (price - trueCost) / price
+  trueCost           Decimal? @map("true_cost") @db.Decimal(10, 2) // food + labor + overhead
+  trueMargin         Decimal? @map("true_margin") @db.Decimal(10, 2) // price - trueCost
+  trueMarginPercent  Decimal? @map("true_margin_percent") @db.Decimal(5, 2) // (price - trueCost) / price
 
   // LEVER 4: Menu Focus
-  isHeroItem         Boolean  @default(false) @map("is_hero_item")           // highest margin item to push
-  speedRating        String?  @map("speed_rating")                           // Instant, Fast, Medium, Slow, Very Slow
-  ingredientSharing  String?  @map("ingredient_sharing")                     // High, Medium, Low overlap
-  menuDecision       String?  @map("menu_decision")                          // Star, Workhorse, Puzzle, Dog
-  weeklyUnitsSold    Int      @default(0) @map("weekly_units_sold")
+  isHeroItem        Boolean @default(false) @map("is_hero_item") // highest margin item to push
+  speedRating       String? @map("speed_rating") // Instant, Fast, Medium, Slow, Very Slow
+  ingredientSharing String? @map("ingredient_sharing") // High, Medium, Low overlap
+  menuDecision      String? @map("menu_decision") // Star, Workhorse, Puzzle, Dog
+  weeklyUnitsSold   Int     @default(0) @map("weekly_units_sold")
 
   // Phase 4: POS-Ingredient Integration
-  linkedIngredientId  Int?      @unique @map("linked_ingredient_id")
-  needsPricing        Boolean   @default(false) @map("needs_pricing")
+  linkedIngredientId Int?    @unique @map("linked_ingredient_id")
+  needsPricing       Boolean @default(false) @map("needs_pricing")
+
+  // Kitchen Order Board - override category default (null = use category setting)
+  requiresKitchen Boolean? @map("requires_kitchen")
 
   // Relations
   category         Category     @relation(fields: [categoryId], references: [id])
@@ -112,32 +116,32 @@ model Product {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model Customer {
-  id           Int           @id @default(autoincrement())
-  name         String
-  phone        String        @default("")
-  email        String        @default("")
-  address      String        @default("")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String   @default("")
+  email     String   @default("")
+  address   String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // LEVER 2: Traffic Source Clarity
-  customerType  String?      @map("customer_type")   // Pickleball Player, Companion, Walk-in, Destination, Referral
-  trafficSource String?      @map("traffic_source")  // How did they hear about us?
+  customerType  String? @map("customer_type") // Pickleball Player, Companion, Walk-in, Destination, Referral
+  trafficSource String? @map("traffic_source") // How did they hear about us?
 
   // LEVER 7: Repeat Rate
-  firstVisit    DateTime?    @map("first_visit")
-  lastVisit     DateTime?    @map("last_visit")
-  visitCount    Int          @default(0) @map("visit_count")
-  lifetimeSpend Decimal      @default(0) @map("lifetime_spend") @db.Decimal(10, 2)
-  avgTicket     Decimal?     @map("avg_ticket") @db.Decimal(10, 2)  // lifetimeSpend / visitCount
-  usualOrder    String?      @map("usual_order")                    // their go-to order
-  isRegular     Boolean      @default(false) @map("is_regular")     // 5+ visits
-  notes         String?                                              // preferences, allergies, etc.
+  firstVisit    DateTime? @map("first_visit")
+  lastVisit     DateTime? @map("last_visit")
+  visitCount    Int       @default(0) @map("visit_count")
+  lifetimeSpend Decimal   @default(0) @map("lifetime_spend") @db.Decimal(10, 2)
+  avgTicket     Decimal?  @map("avg_ticket") @db.Decimal(10, 2) // lifetimeSpend / visitCount
+  usualOrder    String?   @map("usual_order") // their go-to order
+  isRegular     Boolean   @default(false) @map("is_regular") // 5+ visits
+  notes         String? // preferences, allergies, etc.
 
   // Tab/Credit System (002-pos-mobile-payments)
-  tabBalance    Decimal      @default(0) @map("tab_balance") @db.Decimal(10, 2)
-  creditLimit   Decimal      @default(0) @map("credit_limit") @db.Decimal(10, 2)
-  tabStatus     String       @default("active") @map("tab_status")  // active, suspended, frozen
+  tabBalance  Decimal @default(0) @map("tab_balance") @db.Decimal(10, 2)
+  creditLimit Decimal @default(0) @map("credit_limit") @db.Decimal(10, 2)
+  tabStatus   String  @default("active") @map("tab_status") // active, suspended, frozen
 
   // Relations
   transactions   Transaction[]
@@ -151,56 +155,57 @@ model Customer {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model Transaction {
-  id            Int               @id @default(autoincrement())
-  orderNumber   Int               @unique @map("order_number")
-  refNumber     String            @default("") @map("ref_number")
-  discount      Decimal           @default(0) @db.Decimal(10, 2)
-  customerId    Int?              @map("customer_id")
-  userId        Int               @map("user_id")
-  status        Int               @default(0)
-  subtotal      Decimal           @db.Decimal(10, 2)
-  taxAmount     Decimal           @default(0) @map("tax_amount") @db.Decimal(10, 2)
-  total         Decimal           @db.Decimal(10, 2)
-  paidAmount    Decimal?          @map("paid_amount") @db.Decimal(10, 2)
-  changeAmount  Decimal?          @map("change_amount") @db.Decimal(10, 2)
-  paymentType   String            @default("") @map("payment_type")
-  paymentInfo   String            @default("") @map("payment_info")
-  tillNumber    Int               @default(1) @map("till_number")
-  macAddress    String            @default("") @map("mac_address")
-  createdAt     DateTime          @default(now()) @map("created_at")
-  updatedAt     DateTime          @updatedAt @map("updated_at")
+  id           Int      @id @default(autoincrement())
+  orderNumber  Int      @unique @map("order_number")
+  refNumber    String   @default("") @map("ref_number")
+  discount     Decimal  @default(0) @db.Decimal(10, 2)
+  customerId   Int?     @map("customer_id")
+  userId       Int      @map("user_id")
+  status       Int      @default(0)
+  subtotal     Decimal  @db.Decimal(10, 2)
+  taxAmount    Decimal  @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  total        Decimal  @db.Decimal(10, 2)
+  paidAmount   Decimal? @map("paid_amount") @db.Decimal(10, 2)
+  changeAmount Decimal? @map("change_amount") @db.Decimal(10, 2)
+  paymentType  String   @default("") @map("payment_type")
+  paymentInfo  String   @default("") @map("payment_info")
+  tillNumber   Int      @default(1) @map("till_number")
+  macAddress   String   @default("") @map("mac_address")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   // LEVER 2: Traffic Context
-  weather       String?           // Sunny, Cloudy, Rainy, Hot, Cool
-  courtStatus   String?           @map("court_status")  // Normal, Tournament, League Night, Private Event, Slow Day, Closed
-  dayType       String?           @map("day_type")      // Weekday, Weekend, Holiday
+  weather     String? // Sunny, Cloudy, Rainy, Hot, Cool
+  courtStatus String? @map("court_status") // Normal, Tournament, League Night, Private Event, Slow Day, Closed
+  dayType     String? @map("day_type") // Weekday, Weekend, Holiday
 
   // LEVER 3: Ticket Size Analysis
-  itemCount       Int             @default(0) @map("item_count")
-  isDrinkOnly     Boolean         @default(false) @map("is_drink_only")
-  hasFoodAttached Boolean         @default(false) @map("has_food_attached")
-  isGroupOrder    Boolean         @default(false) @map("is_group_order")  // 3+ items or ₱250+
+  itemCount       Int     @default(0) @map("item_count")
+  isDrinkOnly     Boolean @default(false) @map("is_drink_only")
+  hasFoodAttached Boolean @default(false) @map("has_food_attached")
+  isGroupOrder    Boolean @default(false) @map("is_group_order") // 3+ items or ₱250+
 
   // LEVER 5: Daypart Economics
-  daypart       String?           // Morning, Midday, Afternoon, Evening
+  daypart String? // Morning, Midday, Afternoon, Evening
 
   // Payment Enhancements (002-pos-mobile-payments)
-  paymentStatus   String?         @map("payment_status")      // pending, confirmed, cancelled (for GCash)
-  gcashPhotoPath  String?         @map("gcash_photo_path")    // Path to GCash confirmation photo
-  idempotencyKey  String?         @unique @map("idempotency_key")  // For offline transaction deduplication
+  paymentStatus  String? @map("payment_status") // pending, confirmed, cancelled (for GCash)
+  gcashPhotoPath String? @map("gcash_photo_path") // Path to GCash confirmation photo
+  idempotencyKey String? @unique @map("idempotency_key") // For offline transaction deduplication
 
   // Void tracking (003-transaction-fixes)
-  isVoided      Boolean           @default(false) @map("is_voided")
-  voidedAt      DateTime?         @map("voided_at")
-  voidedById    Int?              @map("voided_by_id")
-  voidedByName  String?           @map("voided_by_name")
-  voidReason    String?           @map("void_reason")
+  isVoided     Boolean   @default(false) @map("is_voided")
+  voidedAt     DateTime? @map("voided_at")
+  voidedById   Int?      @map("voided_by_id")
+  voidedByName String?   @map("voided_by_name")
+  voidReason   String?   @map("void_reason")
 
   // Relations
   customer      Customer?         @relation(fields: [customerId], references: [id])
   user          User              @relation(fields: [userId], references: [id])
   items         TransactionItem[]
   voidedBy      User?             @relation("VoidedTransactions", fields: [voidedById], references: [id])
+  kitchenOrders KitchenOrder[]
 
   @@index([isVoided])
   @@map("transactions")
@@ -240,20 +245,20 @@ model Settings {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Business Setup
-  cuisineType          String?  @map("cuisine_type")           // American, Asian, Italian, etc.
-  serviceStyle         String?  @map("service_style")          // Full-Service, Fast-Casual, Counter Service
+  cuisineType          String?  @map("cuisine_type") // American, Asian, Italian, etc.
+  serviceStyle         String?  @map("service_style") // Full-Service, Fast-Casual, Counter Service
   seats                Int?
   operatingDaysPerWeek Int?     @map("operating_days_per_week")
   monthlyRent          Decimal? @map("monthly_rent") @db.Decimal(10, 2)
 
   // Target Benchmarks (10-Lever targets)
-  targetFoodCostPercent    Decimal? @map("target_food_cost_percent") @db.Decimal(5, 2)     // Target: 28-35%
-  targetLaborCostPercent   Decimal? @map("target_labor_cost_percent") @db.Decimal(5, 2)   // Target: 25-35%
-  targetNetProfitPercent   Decimal? @map("target_net_profit_percent") @db.Decimal(5, 2)   // Target: 10-15%
-  avgHourlyLaborCost       Decimal? @map("avg_hourly_labor_cost") @db.Decimal(10, 2)      // Average wage
-  targetTicketSize         Decimal? @map("target_ticket_size") @db.Decimal(10, 2)         // Lever 3 goal
-  targetRevPerLaborHour    Decimal? @map("target_rev_per_labor_hour") @db.Decimal(10, 2)  // Lever 8: ₱300+
-  targetRepeatRate         Decimal? @map("target_repeat_rate") @db.Decimal(5, 2)          // Lever 7: 40%+
+  targetFoodCostPercent    Decimal? @map("target_food_cost_percent") @db.Decimal(5, 2) // Target: 28-35%
+  targetLaborCostPercent   Decimal? @map("target_labor_cost_percent") @db.Decimal(5, 2) // Target: 25-35%
+  targetNetProfitPercent   Decimal? @map("target_net_profit_percent") @db.Decimal(5, 2) // Target: 10-15%
+  avgHourlyLaborCost       Decimal? @map("avg_hourly_labor_cost") @db.Decimal(10, 2) // Average wage
+  targetTicketSize         Decimal? @map("target_ticket_size") @db.Decimal(10, 2) // Lever 3 goal
+  targetRevPerLaborHour    Decimal? @map("target_rev_per_labor_hour") @db.Decimal(10, 2) // Lever 8: ₱300+
+  targetRepeatRate         Decimal? @map("target_repeat_rate") @db.Decimal(5, 2) // Lever 7: 40%+
   targetDestinationPercent Decimal? @map("target_destination_percent") @db.Decimal(5, 2) // Lever 2: 25%+
   targetTrueMarginPercent  Decimal? @map("target_true_margin_percent") @db.Decimal(5, 2) // Lever 1: 65%+
 
@@ -265,83 +270,106 @@ model Settings {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model Vendor {
-  id           Int          @id @default(autoincrement())
-  name         String
-  category     String                                          // Food - Protein, Produce, Dairy, Beverage, Supplies, etc.
-  contactName  String?      @map("contact_name")
-  phone        String?
-  email        String?
-  paymentTerms String?      @map("payment_terms")              // COD, Net 7, Net 15, Net 30
-  accountNumber String?     @map("account_number")
-  notes        String?
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
+  id            Int      @id @default(autoincrement())
+  name          String
+  category      String // Food - Protein, Produce, Dairy, Beverage, Supplies, etc.
+  contactName   String?  @map("contact_name")
+  phone         String?
+  email         String?
+  paymentTerms  String?  @map("payment_terms") // COD, Net 7, Net 15, Net 30
+  accountNumber String?  @map("account_number")
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   // Relations
-  ingredients  Ingredient[]
-  purchases    Purchase[]
+  ingredients Ingredient[]
+  purchases   Purchase[]
 
   @@map("vendors")
 }
 
 model Ingredient {
-  id          Int           @id @default(autoincrement())
-  name        String
-  category    String                                            // Protein, Produce, Dairy, Dry Goods, Frozen, Beverage, Condiments
+  id       Int    @id @default(autoincrement())
+  name     String
+  category String // Protein, Produce, Dairy, Dry Goods, Frozen, Beverage, Condiments
 
   // ─── STANDARDIZED UNIT SYSTEM ───
   // Base unit: fundamental measurement for recipes (kg, g, L, ml, pcs)
   // Package: how you purchase (pack, box, bottle, bundle, sack, container)
   // Example: Burger Patties - baseUnit="pcs", packageSize=8, packageUnit="pack"
   //          Buy 3 packs @ ₱420/pack = 24 pieces, ₱52.50/piece for recipes
-  baseUnit        String        @default("pcs") @map("base_unit")     // kg, g, L, ml, pcs
-  packageSize     Decimal       @default(1) @map("package_size") @db.Decimal(10, 3)  // base units per package
-  packageUnit     String        @default("each") @map("package_unit") // pack, box, bottle, bundle, sack, bag, container, can, gallon, tank
-  costPerPackage  Decimal       @default(0) @map("cost_per_package") @db.Decimal(10, 2)  // cost to buy one package
+  baseUnit       String  @default("pcs") @map("base_unit") // kg, g, L, ml, pcs
+  packageSize    Decimal @default(1) @map("package_size") @db.Decimal(10, 3) // base units per package
+  packageUnit    String  @default("each") @map("package_unit") // pack, box, bottle, bundle, sack, bag, container, can, gallon, tank
+  costPerPackage Decimal @default(0) @map("cost_per_package") @db.Decimal(10, 2) // cost to buy one package
 
   // Legacy field (deprecated, use costPerPackage / packageSize for base unit cost)
-  unit            String        @default("")                          // @deprecated - kept for migration
-  costPerUnit     Decimal       @default(0) @map("cost_per_unit") @db.Decimal(10, 2) // @deprecated
+  unit        String  @default("") // @deprecated - kept for migration
+  costPerUnit Decimal @default(0) @map("cost_per_unit") @db.Decimal(10, 2) // @deprecated
 
-  parLevel    Int           @default(0) @map("par_level")       // minimum stock level (in packages)
-  lastUpdated DateTime?     @map("last_updated")
-  vendorId    Int?          @map("vendor_id")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  parLevel    Int       @default(0) @map("par_level") // minimum stock level (in packages)
+  lastUpdated DateTime? @map("last_updated")
+  vendorId    Int?      @map("vendor_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Stock tracking (quantity is in PACKAGES, not base units)
-  quantity          Decimal   @default(0) @db.Decimal(10, 2)    // number of packages in stock
-  lastRestockDate   DateTime? @map("last_restock_date")
+  quantity        Decimal   @default(0) @db.Decimal(10, 2) // number of packages in stock
+  lastRestockDate DateTime? @map("last_restock_date")
 
   // Soft delete
-  isActive          Boolean   @default(true) @map("is_active")
+  isActive Boolean @default(true) @map("is_active")
 
   // Barcode support
-  barcode           String?   @unique
+  barcode String? @unique
 
   // ─── INVENTORY COUNT PREFERENCE (004-ingredient-unit-system) ───
-  countByBaseUnit   Boolean   @default(false) @map("count_by_base_unit")  // count in pieces vs packages
+  countByBaseUnit Boolean @default(false) @map("count_by_base_unit") // count in pieces vs packages
 
   // ─── SELLABLE ITEMS (POS integration) ───
-  sellable          Boolean   @default(false)
-  sellPrice         Decimal?  @map("sell_price") @db.Decimal(10, 2)  // selling price when sold at POS
-  linkedProductId   Int?      @unique @map("linked_product_id")
-  syncStatus        String    @default("synced") @map("sync_status")  // synced, pending, error
-  syncError         String?   @map("sync_error")
-  lastSyncAt        DateTime? @map("last_sync_at")
+  sellable        Boolean   @default(false)
+  sellPrice       Decimal?  @map("sell_price") @db.Decimal(10, 2) // selling price when sold at POS
+  linkedProductId Int?      @unique @map("linked_product_id")
+  syncStatus      String    @default("synced") @map("sync_status") // synced, pending, error
+  syncError       String?   @map("sync_error")
+  lastSyncAt      DateTime? @map("last_sync_at")
 
   // ─── OVERHEAD ITEMS (004-ingredient-unit-system) ───
-  isOverhead              Boolean   @default(false) @map("is_overhead")  // deduct per transaction
-  overheadPerTransaction  Decimal?  @map("overhead_per_transaction") @db.Decimal(10, 3)  // base units per sale
+  isOverhead             Boolean  @default(false) @map("is_overhead") // deduct per transaction
+  overheadPerTransaction Decimal? @map("overhead_per_transaction") @db.Decimal(10, 3) // base units per sale
+
+  // ─── YIELD FACTOR (cooking expansion) ───
+  yieldFactor Decimal? @map("yield_factor") @db.Decimal(5, 2) // e.g., 3.0 for rice (raw to cooked)
 
   // Relations
-  vendor         Vendor?       @relation(fields: [vendorId], references: [id])
-  recipeItems    RecipeItem[]
-  wasteLogs      WasteLog[]
-  history        IngredientHistory[]
-  linkedProduct  Product?      @relation("ProductIngredient")
+  vendor        Vendor?               @relation(fields: [vendorId], references: [id])
+  recipeItems   RecipeItem[]
+  wasteLogs     WasteLog[]
+  history       IngredientHistory[]
+  linkedProduct Product?              @relation("ProductIngredient")
+  unitAliases   IngredientUnitAlias[]
 
   @@map("ingredients")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INGREDIENT UNIT ALIASES - Custom units for recipe entry
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model IngredientUnitAlias {
+  id                 Int      @id @default(autoincrement())
+  ingredientId       Int      @map("ingredient_id")
+  name               String // "cup", "tbsp", "serving"
+  baseUnitMultiplier Decimal  @map("base_unit_multiplier") @db.Decimal(10, 4) // 1 cup = X base units
+  description        String? // "1 cup = 200g"
+  isDefault          Boolean  @default(false) @map("is_default")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([ingredientId, name])
+  @@map("ingredient_unit_aliases")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -349,18 +377,18 @@ model Ingredient {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model InventoryCountDraft {
-  id              Int       @id @default(autoincrement())
-  userId          Int       @map("user_id")
-  userName        String    @map("user_name")
+  id       Int    @id @default(autoincrement())
+  userId   Int    @map("user_id")
+  userName String @map("user_name")
 
   // Draft data stored as JSON array
   // [{ingredientId, expected, actual, confirmed, reason, reasonNote}]
-  counts          Json      @default("[]")
+  counts Json @default("[]")
 
-  startedAt       DateTime  @default(now()) @map("started_at")
-  lastUpdatedAt   DateTime  @updatedAt @map("last_updated_at")
+  startedAt     DateTime @default(now()) @map("started_at")
+  lastUpdatedAt DateTime @updatedAt @map("last_updated_at")
 
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("inventory_count_drafts")
 }
@@ -370,24 +398,24 @@ model InventoryCountDraft {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model IngredientHistory {
-  id              Int        @id @default(autoincrement())
-  ingredientId    Int        @map("ingredient_id")
-  ingredientName  String     @map("ingredient_name")
-  changeId        String     @map("change_id")
+  id             Int    @id @default(autoincrement())
+  ingredientId   Int    @map("ingredient_id")
+  ingredientName String @map("ingredient_name")
+  changeId       String @map("change_id")
 
-  field           String                              // quantity, costPerUnit
-  oldValue        String     @map("old_value")
-  newValue        String     @map("new_value")
+  field    String // quantity, costPerUnit
+  oldValue String @map("old_value")
+  newValue String @map("new_value")
 
-  source          String                              // manual_edit, sale, inventory_count, restock
-  reason          String?                             // waste, breakage, theft, miscount, etc.
-  reasonNote      String?    @map("reason_note")
+  source     String // manual_edit, sale, inventory_count, restock
+  reason     String? // waste, breakage, theft, miscount, etc.
+  reasonNote String? @map("reason_note")
 
-  userId          Int        @map("user_id")
-  userName        String     @map("user_name")
-  createdAt       DateTime   @default(now()) @map("created_at")
+  userId    Int      @map("user_id")
+  userName  String   @map("user_name")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  ingredient      Ingredient @relation(fields: [ingredientId], references: [id])
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
 
   @@index([ingredientId])
   @@index([createdAt])
@@ -396,16 +424,18 @@ model IngredientHistory {
 }
 
 model RecipeItem {
-  id           Int        @id @default(autoincrement())
-  productId    Int        @map("product_id")
-  ingredientId Int        @map("ingredient_id")
-  quantity     Decimal    @db.Decimal(10, 3)                    // amount of ingredient used
-  portionNote  String?    @map("portion_note")                  // e.g., "2 slices", "1/4 cup"
-  createdAt    DateTime   @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  productId    Int      @map("product_id")
+  ingredientId Int      @map("ingredient_id")
+  quantity     Decimal  @db.Decimal(10, 3) // amount in CHOSEN unit
+  baseQuantity Decimal  @default(0) @map("base_quantity") @db.Decimal(10, 3) // converted amount in base units
+  unit         String   @default("") // chosen unit name (empty = base unit)
+  portionNote  String?  @map("portion_note") // e.g., "2 slices", "1/4 cup"
+  createdAt    DateTime @default(now()) @map("created_at")
 
   // Relations
-  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
 
   @@unique([productId, ingredientId])
   @@map("recipe_items")
@@ -416,18 +446,18 @@ model RecipeItem {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model WasteLog {
-  id            Int        @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   date          DateTime
-  ingredientId  Int        @map("ingredient_id")
-  quantity      Decimal    @db.Decimal(10, 2)
-  reason        String                                          // Expired, Overproduction, Spoiled, Damaged, Over-portioning, Customer Return, Staff Meal, Other
-  estimatedCost Decimal    @map("estimated_cost") @db.Decimal(10, 2)
-  preventable   Boolean    @default(false)
+  ingredientId  Int      @map("ingredient_id")
+  quantity      Decimal  @db.Decimal(10, 2)
+  reason        String // Expired, Overproduction, Spoiled, Damaged, Over-portioning, Customer Return, Staff Meal, Other
+  estimatedCost Decimal  @map("estimated_cost") @db.Decimal(10, 2)
+  preventable   Boolean  @default(false)
   notes         String?
-  createdAt     DateTime   @default(now()) @map("created_at")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   // Relations
-  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
 
   @@map("waste_logs")
 }
@@ -436,16 +466,16 @@ model Purchase {
   id            Int       @id @default(autoincrement())
   date          DateTime
   vendorId      Int?      @map("vendor_id")
-  category      String                                          // Food, Beverage, Alcohol, Supplies, Equipment
+  category      String // Food, Beverage, Alcohol, Supplies, Equipment
   description   String
   amount        Decimal   @db.Decimal(10, 2)
-  paymentMethod String?   @map("payment_method")                // Cash, Check, Credit Card, Account
+  paymentMethod String?   @map("payment_method") // Cash, Check, Credit Card, Account
   paymentStatus String    @default("Paid") @map("payment_status") // Paid, Pending, Due
   dueDate       DateTime? @map("due_date")
   createdAt     DateTime  @default(now()) @map("created_at")
 
   // Relations
-  vendor        Vendor?   @relation(fields: [vendorId], references: [id])
+  vendor Vendor? @relation(fields: [vendorId], references: [id])
 
   @@map("purchases")
 }
@@ -465,7 +495,7 @@ model LaborLog {
   createdAt   DateTime @default(now()) @map("created_at")
 
   // Relations
-  user        User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@map("labor_logs")
 }
@@ -475,75 +505,75 @@ model LaborLog {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model EmployeeTask {
-  id              Int       @id @default(autoincrement())
-  name            String
-  type            String                    // action, inventory, custom
-  description     String?
-  icon            String    @default("📋")
-  sortOrder       Int       @default(0) @map("sort_order")
+  id          Int     @id @default(autoincrement())
+  name        String
+  type        String // action, inventory, custom
+  description String?
+  icon        String  @default("📋")
+  sortOrder   Int     @default(0) @map("sort_order")
 
   // Schedule
-  deadlineTime    String    @map("deadline_time")           // "08:30", "21:00"
-  deadlineType    String    @default("daily") @map("deadline_type")
-  daysOfWeek      Int[]     @default([0,1,2,3,4,5,6]) @map("days_of_week")
+  deadlineTime String @map("deadline_time") // "08:30", "21:00"
+  deadlineType String @default("daily") @map("deadline_type")
+  daysOfWeek   Int[]  @default([0, 1, 2, 3, 4, 5, 6]) @map("days_of_week")
 
   // Assignment
-  assignmentType  String    @default("anyone") @map("assignment_type")
-  assignedToId    Int?      @map("assigned_to_id")
-  allowDelegation Boolean   @default(false) @map("allow_delegation")
+  assignmentType  String  @default("anyone") @map("assignment_type")
+  assignedToId    Int?    @map("assigned_to_id")
+  allowDelegation Boolean @default(false) @map("allow_delegation")
 
   // Rules
-  required        Boolean   @default(false)
-  streakBreaking  Boolean   @default(false) @map("streak_breaking")
-  notifyIfOverdue Boolean   @default(false) @map("notify_if_overdue")
-  notifyAfterMins Int       @default(30) @map("notify_after_mins")
+  required        Boolean @default(false)
+  streakBreaking  Boolean @default(false) @map("streak_breaking")
+  notifyIfOverdue Boolean @default(false) @map("notify_if_overdue")
+  notifyAfterMins Int     @default(30) @map("notify_after_mins")
 
   // Approval workflow
-  status          String    @default("approved")            // pending, approved, rejected
-  createdById     Int       @map("created_by_id")
-  approvedById    Int?      @map("approved_by_id")
-  approvedAt      DateTime? @map("approved_at")
-  rejectionNote   String?   @map("rejection_note")
+  status        String    @default("approved") // pending, approved, rejected
+  createdById   Int       @map("created_by_id")
+  approvedById  Int?      @map("approved_by_id")
+  approvedAt    DateTime? @map("approved_at")
+  rejectionNote String?   @map("rejection_note")
 
-  isActive        Boolean   @default(true) @map("is_active")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  completions     TaskCompletion[]
-  createdBy       User      @relation("CreatedTasks", fields: [createdById], references: [id])
-  approvedBy      User?     @relation("ApprovedTasks", fields: [approvedById], references: [id])
-  assignedTo      User?     @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  completions TaskCompletion[]
+  createdBy   User             @relation("CreatedTasks", fields: [createdById], references: [id])
+  approvedBy  User?            @relation("ApprovedTasks", fields: [approvedById], references: [id])
+  assignedTo  User?            @relation("AssignedTasks", fields: [assignedToId], references: [id])
 
   @@map("employee_tasks")
 }
 
 model TaskCompletion {
-  id              Int       @id @default(autoincrement())
-  date            DateTime  @db.Date
-  taskId          Int       @map("task_id")
-  taskName        String    @map("task_name")
-  taskType        String    @map("task_type")
+  id       Int      @id @default(autoincrement())
+  date     DateTime @db.Date
+  taskId   Int      @map("task_id")
+  taskName String   @map("task_name")
+  taskType String   @map("task_type")
 
   // Completion
-  status          String    @default("pending")             // pending, in_progress, completed, missed
+  status          String    @default("pending") // pending, in_progress, completed, missed
   startedAt       DateTime? @map("started_at")
   completedAt     DateTime? @map("completed_at")
   completedById   Int?      @map("completed_by_id")
   completedByName String?   @map("completed_by_name")
 
   // Streak tracking
-  deadlineTime    String    @map("deadline_time")
-  wasOnTime       Boolean?  @map("was_on_time")
+  deadlineTime String   @map("deadline_time")
+  wasOnTime    Boolean? @map("was_on_time")
 
   // Task-specific data (JSON for flexibility)
-  data            Json?
+  data Json?
 
-  createdAt       DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  task            EmployeeTask @relation(fields: [taskId], references: [id])
-  completedBy     User?     @relation(fields: [completedById], references: [id])
+  task        EmployeeTask @relation(fields: [taskId], references: [id])
+  completedBy User?        @relation(fields: [completedById], references: [id])
 
   @@unique([date, taskId])
   @@index([date])
@@ -552,9 +582,9 @@ model TaskCompletion {
 }
 
 model UserStreak {
-  id                Int       @id @default(autoincrement())
-  userId            Int       @unique @map("user_id")
-  userName          String    @map("user_name")
+  id       Int    @id @default(autoincrement())
+  userId   Int    @unique @map("user_id")
+  userName String @map("user_name")
 
   currentStreak     Int       @default(0) @map("current_streak")
   longestStreak     Int       @default(0) @map("longest_streak")
@@ -562,11 +592,11 @@ model UserStreak {
   streakStartedDate DateTime? @map("streak_started_date") @db.Date
 
   // Milestones achieved
-  milestones        Json      @default("[]")
+  milestones Json @default("[]")
 
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  user              User      @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@map("user_streaks")
 }
@@ -583,61 +613,61 @@ model DailyPulse {
   avgTicket        Decimal  @map("avg_ticket") @db.Decimal(10, 2)
   upsellsAttempted Int      @default(0) @map("upsells_attempted")
   upsellsConverted Int      @default(0) @map("upsells_converted")
-  weather          String?                                        // Sunny, Cloudy, Rainy
-  courtStatus      String?  @map("court_status")                  // Normal, Tournament, League Night, etc.
+  weather          String? // Sunny, Cloudy, Rainy
+  courtStatus      String?  @map("court_status") // Normal, Tournament, League Night, etc.
   bestSeller       String?  @map("best_seller")
-  waste            String?                                        // Quick note on what was wasted
-  vibe             String?                                        // Crushed it, Good, Meh, Rough
-  oneThing         String?  @map("one_thing")                     // One thing to do differently tomorrow
+  waste            String? // Quick note on what was wasted
+  vibe             String? // Crushed it, Good, Meh, Rough
+  oneThing         String?  @map("one_thing") // One thing to do differently tomorrow
   createdAt        DateTime @default(now()) @map("created_at")
 
   @@map("daily_pulse")
 }
 
 model WeeklyScorecard {
-  id                 Int      @id @default(autoincrement())
-  weekStarting       DateTime @unique @map("week_starting")       // Monday of the week
+  id           Int      @id @default(autoincrement())
+  weekStarting DateTime @unique @map("week_starting") // Monday of the week
 
   // LEVER 1: Unit Economics
-  totalRevenue       Decimal  @map("total_revenue") @db.Decimal(10, 2)
-  foodCostPercent    Decimal? @map("food_cost_percent") @db.Decimal(5, 2)
+  totalRevenue    Decimal  @map("total_revenue") @db.Decimal(10, 2)
+  foodCostPercent Decimal? @map("food_cost_percent") @db.Decimal(5, 2)
 
   // LEVER 3: Ticket Size
-  totalTransactions  Int      @map("total_transactions")
-  avgTicket          Decimal  @map("avg_ticket") @db.Decimal(10, 2)
+  totalTransactions Int     @map("total_transactions")
+  avgTicket         Decimal @map("avg_ticket") @db.Decimal(10, 2)
 
   // LEVER 5: Daypart Economics
-  bestDaypart        String?  @map("best_daypart")                // Morning, Midday, Afternoon, Evening
-  worstDaypart       String?  @map("worst_daypart")
+  bestDaypart  String? @map("best_daypart") // Morning, Midday, Afternoon, Evening
+  worstDaypart String? @map("worst_daypart")
 
   // LEVER 6: Cash Conversion
-  wasteCost          Decimal? @map("waste_cost") @db.Decimal(10, 2)
-  spoilagePercent    Decimal? @map("spoilage_percent") @db.Decimal(5, 2)
+  wasteCost       Decimal? @map("waste_cost") @db.Decimal(10, 2)
+  spoilagePercent Decimal? @map("spoilage_percent") @db.Decimal(5, 2)
 
   // LEVER 7: Repeat Rate
-  repeatCustomers    Int?     @map("repeat_customers")
-  repeatRatePercent  Decimal? @map("repeat_rate_percent") @db.Decimal(5, 2)
+  repeatCustomers   Int?     @map("repeat_customers")
+  repeatRatePercent Decimal? @map("repeat_rate_percent") @db.Decimal(5, 2)
 
   // LEVER 8: Labor Leverage
-  laborHours         Decimal? @map("labor_hours") @db.Decimal(6, 2)
-  revPerLaborHour    Decimal? @map("rev_per_labor_hour") @db.Decimal(10, 2)
+  laborHours      Decimal? @map("labor_hours") @db.Decimal(6, 2)
+  revPerLaborHour Decimal? @map("rev_per_labor_hour") @db.Decimal(10, 2)
 
   // LEVER 2: Traffic Source (Destination %)
   destinationPercent Decimal? @map("destination_percent") @db.Decimal(5, 2)
 
   // LEVER 3: Upsell Tracking
-  upsellAttempts     Int?     @map("upsell_attempts")
-  upsellConversions  Int?     @map("upsell_conversions")
-  upsellRatePercent  Decimal? @map("upsell_rate_percent") @db.Decimal(5, 2)
+  upsellAttempts    Int?     @map("upsell_attempts")
+  upsellConversions Int?     @map("upsell_conversions")
+  upsellRatePercent Decimal? @map("upsell_rate_percent") @db.Decimal(5, 2)
 
   // LEVER 10: Sequencing & Focus
-  weekFocus          String?  @map("week_focus")                  // Which lever are you focusing on this week?
-  heroItemPushed     String?  @map("hero_item_pushed")            // Which item did you actively promote?
-  winOfWeek          String?  @map("win_of_week")
-  problemToSolve     String?  @map("problem_to_solve")
-  overallHealth      String?  @map("overall_health")              // Great, Okay, Struggling
+  weekFocus      String? @map("week_focus") // Which lever are you focusing on this week?
+  heroItemPushed String? @map("hero_item_pushed") // Which item did you actively promote?
+  winOfWeek      String? @map("win_of_week")
+  problemToSolve String? @map("problem_to_solve")
+  overallHealth  String? @map("overall_health") // Great, Okay, Struggling
 
-  createdAt          DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("weekly_scorecards")
 }
@@ -648,7 +678,7 @@ model WeeklyScorecard {
 
 model Benchmark {
   id          Int      @id @default(autoincrement())
-  metric      String   @unique                                    // Food Cost %, Labor Cost %, etc.
+  metric      String   @unique // Food Cost %, Labor Cost %, etc.
   lowGood     Decimal? @map("low_good") @db.Decimal(5, 2)
   target      Decimal? @db.Decimal(5, 2)
   highWarning Decimal? @map("high_warning") @db.Decimal(5, 2)
@@ -664,20 +694,63 @@ model Benchmark {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model TabSettlement {
-  id              Int       @id @default(autoincrement())
-  customerId      Int       @map("customer_id")
-  amount          Decimal   @db.Decimal(10, 2)
-  paymentType     String    @map("payment_type")              // Cash, GCash
-  paymentInfo     String?   @map("payment_info")              // GCash ref number if applicable
-  previousBalance Decimal   @map("previous_balance") @db.Decimal(10, 2)
-  newBalance      Decimal   @map("new_balance") @db.Decimal(10, 2)
-  userId          Int       @map("user_id")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  customerId      Int      @map("customer_id")
+  amount          Decimal  @db.Decimal(10, 2)
+  paymentType     String   @map("payment_type") // Cash, GCash
+  paymentInfo     String?  @map("payment_info") // GCash ref number if applicable
+  previousBalance Decimal  @map("previous_balance") @db.Decimal(10, 2)
+  newBalance      Decimal  @map("new_balance") @db.Decimal(10, 2)
+  userId          Int      @map("user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   // Relations
-  customer        Customer  @relation(fields: [customerId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
 
   @@index([customerId])
   @@index([createdAt])
   @@map("tab_settlements")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KITCHEN ORDER BOARD - Order tracking for kitchen display
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model KitchenOrder {
+  id            Int       @id @default(autoincrement())
+  transactionId Int       @map("transaction_id")
+  orderNumber   Int       @map("order_number")
+
+  // Status: new → cooking → ready → served → cancelled
+  status        String    @default("new")
+
+  // Timestamps
+  sentAt        DateTime  @default(now()) @map("sent_at")
+  cookingAt     DateTime? @map("cooking_at")
+  readyAt       DateTime? @map("ready_at")
+  servedAt      DateTime? @map("served_at")
+
+  // Priority
+  isRush        Boolean   @default(false) @map("is_rush")
+  displayOrder  Int       @default(0) @map("display_order")
+
+  // Relations
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  items         KitchenOrderItem[]
+
+  @@index([status])
+  @@index([sentAt])
+  @@map("kitchen_orders")
+}
+
+model KitchenOrderItem {
+  id             Int      @id @default(autoincrement())
+  kitchenOrderId Int      @map("kitchen_order_id")
+  productId      Int      @map("product_id")
+  productName    String   @map("product_name")
+  quantity       Int
+
+  kitchenOrder   KitchenOrder @relation(fields: [kitchenOrderId], references: [id], onDelete: Cascade)
+
+  @@map("kitchen_order_items")
 }
