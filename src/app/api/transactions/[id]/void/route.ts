@@ -96,6 +96,17 @@ export async function PATCH(
       },
     })
 
+    // Cancel any associated kitchen orders (don't change already served orders)
+    await prisma.kitchenOrder.updateMany({
+      where: {
+        transactionId: transactionId,
+        status: { not: "served" },
+      },
+      data: {
+        status: "cancelled",
+      },
+    })
+
     return NextResponse.json(voidedTransaction)
   } catch (error) {
     console.error("Failed to void transaction:", error)
