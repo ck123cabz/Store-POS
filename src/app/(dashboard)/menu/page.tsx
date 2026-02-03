@@ -8,6 +8,13 @@ import { ProductsTab } from "./components/products-tab"
 import { ProductPanel } from "./components/product-panel"
 import { CategoriesTab } from "./components/categories-tab"
 import { ProductForm } from "@/components/products/product-form"
+import { RecipeEditor } from "./components/recipe-editor"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 interface IngredientShortage {
@@ -76,6 +83,7 @@ export default function MenuPage() {
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
+  const [editTab, setEditTab] = useState<"basic" | "recipe">("basic")
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -160,6 +168,7 @@ export default function MenuPage() {
   const handleCloseForm = () => {
     setFormOpen(false)
     setEditMode(false)
+    setEditTab("basic")
   }
 
   const handleFormSuccess = () => {
@@ -236,20 +245,207 @@ export default function MenuPage() {
         </div>
       )}
 
-      {/* Product Form Dialog */}
+      {/* Add New Product Dialog */}
       <ProductForm
-        open={formOpen || editMode}
+        open={formOpen}
         onClose={handleCloseForm}
         onSuccess={handleFormSuccess}
         categories={categories.map(c => ({ id: c.id, name: c.name }))}
-        product={editMode && selectedProduct ? {
-          id: selectedProduct.id,
-          name: selectedProduct.name,
-          price: selectedProduct.price,
-          image: selectedProduct.image,
-          categoryId: selectedProduct.categoryId,
-        } : undefined}
       />
+
+      {/* Edit Product Dialog with Tabs */}
+      <Dialog open={editMode} onOpenChange={(open) => !open && handleCloseForm()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              Edit Product: {selectedProduct?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <Tabs
+            value={editTab}
+            onValueChange={(v) => setEditTab(v as "basic" | "recipe")}
+            className="flex-1 flex flex-col overflow-hidden"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="recipe">Recipe</TabsTrigger>
+            </TabsList>
+
+            <div className="flex-1 overflow-y-auto mt-4">
+              <TabsContent value="basic" className="m-0">
+                {selectedProduct && (
+                  <ProductFormInline
+                    product={{
+                      id: selectedProduct.id,
+                      name: selectedProduct.name,
+                      price: selectedProduct.price,
+                      image: selectedProduct.image,
+                      categoryId: selectedProduct.categoryId,
+                    }}
+                    categories={categories.map(c => ({ id: c.id, name: c.name }))}
+                    onSuccess={handleFormSuccess}
+                    onCancel={handleCloseForm}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="recipe" className="m-0">
+                {selectedProduct && (
+                  <RecipeEditor
+                    productId={selectedProduct.id}
+                    productName={selectedProduct.name}
+                    productPrice={selectedProduct.price}
+                    targetMargin={settings.targetTrueMarginPercent}
+                    onSave={() => {
+                      void fetchData()
+                    }}
+                  />
+                )}
+              </TabsContent>
+            </div>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+/**
+ * Inline ProductForm for the edit dialog (no dialog wrapper)
+ */
+function ProductFormInline({
+  product,
+  categories,
+  onSuccess,
+  onCancel,
+}: {
+  product: {
+    id: number
+    name: string
+    price: number
+    image: string
+    categoryId: number
+  }
+  categories: { id: number; name: string }[]
+  onSuccess: () => void
+  onCancel: () => void
+}) {
+  const [submitting, setSubmitting] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [formData, setFormData] = useState({
+    name: product.name,
+    price: product.price.toString(),
+    categoryId: product.categoryId,
+  })
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      let imageFilename = null
+
+      if (imageFile) {
+        const formDataUpload = new FormData()
+        formDataUpload.append("file", imageFile)
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: formDataUpload })
+        if (!uploadRes.ok) throw new Error("Image upload failed")
+        const { filename } = await uploadRes.json()
+        imageFilename = filename
+      }
+
+      const body = {
+        name: formData.name,
+        price: parseFloat(formData.price),
+        categoryId: formData.categoryId,
+        ...(imageFilename && { image: imageFilename }),
+      }
+
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) throw new Error("Failed to save")
+
+      onSuccess()
+    } catch {
+      console.error("Failed to save product")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <label htmlFor="name" className="text-sm font-medium">Name</label>
+        <input
+          id="name"
+          type="text"
+          required
+          value={formData.name}
+          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="price" className="text-sm font-medium">Price</label>
+        <input
+          id="price"
+          type="number"
+          step="0.01"
+          required
+          value={formData.price}
+          onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Category</label>
+        <select
+          value={formData.categoryId}
+          onChange={(e) => setFormData(prev => ({ ...prev, categoryId: parseInt(e.target.value) }))}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="image" className="text-sm font-medium">Product Image</label>
+        <input
+          id="image"
+          type="file"
+          accept="image/*"
+          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+        >
+          {submitting ? "Saving..." : "Save"}
+        </button>
+      </div>
+    </form>
   )
 }
