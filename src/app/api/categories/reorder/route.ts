@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 
 /**
  * PUT /api/categories/reorder
@@ -17,6 +18,14 @@ import { prisma } from "@/lib/prisma"
  */
 export async function PUT(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (!session.user.permCategories) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 })
+    }
+
     const body = await request.json()
 
     if (!body.orders || !Array.isArray(body.orders)) {
