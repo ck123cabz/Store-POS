@@ -54,7 +54,8 @@ interface CartProps {
   onSetCustomer: (customerId: number | null, customerName: string) => void
   onCancel: () => void
   onHold: () => void
-  onPay: () => void
+  onPayNow: () => void
+  onPayLater: () => void
   // Mobile-specific props
   onMobileBack?: () => void
   isMobile?: boolean
@@ -74,7 +75,8 @@ export function Cart({
   onSetCustomer,
   onCancel,
   onHold,
-  onPay,
+  onPayNow,
+  onPayLater,
   onMobileBack,
   isMobile,
 }: CartProps) {
@@ -297,15 +299,26 @@ export function Cart({
 
         {/* Action buttons - 44px minimum touch targets */}
         <div className="p-4 pt-0 space-y-2">
-          {/* Pay button - prominent, 56px for primary action */}
-          <Button
-            className="w-full h-14 min-h-14 text-lg font-bold"
-            onClick={onPay}
-            disabled={cart.items.length === 0}
-          >
-            <CreditCard className="h-5 w-5 mr-2" />
-            Pay {currencySymbol}{total.toFixed(2)}
-          </Button>
+          {/* Pay buttons - prominent, split into Pay Now and Pay Later */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              className="h-14 min-h-14 text-base font-bold"
+              onClick={onPayNow}
+              disabled={cart.items.length === 0}
+            >
+              <CreditCard className="h-5 w-5 mr-2" />
+              Pay Now {currencySymbol}{total.toFixed(2)}
+            </Button>
+            <Button
+              variant="outline"
+              className="h-14 min-h-14 text-base font-bold"
+              onClick={onPayLater}
+              disabled={cart.items.length === 0}
+            >
+              <User className="h-5 w-5 mr-2" />
+              Pay Later
+            </Button>
+          </div>
 
           {/* Secondary actions - 44px minimum touch targets */}
           <div className="grid grid-cols-2 gap-2">

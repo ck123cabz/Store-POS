@@ -5,6 +5,7 @@ import { ProductGrid } from "@/components/pos/product-grid"
 import { Cart } from "@/components/pos/cart"
 import { PaymentModal } from "@/components/pos/payment-modal"
 import { HoldModal } from "@/components/pos/hold-modal"
+import { PayLaterModal, PayLaterResult } from "@/components/pos/pay-later-modal"
 import { POSAlertBell } from "@/components/pos/pos-alert-bell"
 import { useCart } from "@/hooks/use-cart"
 import { toast } from "sonner"
@@ -120,6 +121,7 @@ export default function POSPage() {
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [holdModalOpen, setHoldModalOpen] = useState(false)
+  const [payLaterModalOpen, setPayLaterModalOpen] = useState(false)
   const [holdOrdersModalOpen, setHoldOrdersModalOpen] = useState(false)
   const [customerOrdersModalOpen, setCustomerOrdersModalOpen] = useState(false)
   const [_currentOrderId, setCurrentOrderId] = useState<number | null>(null)
@@ -270,12 +272,20 @@ export default function POSPage() {
     }
   }
 
-  const handlePay = () => {
+  const handlePayNow = () => {
     if (cart.items.length === 0) {
       toast.error("Add items before paying")
       return
     }
     setPaymentModalOpen(true)
+  }
+
+  const handlePayLater = () => {
+    if (cart.items.length === 0) {
+      toast.error("Add items before paying")
+      return
+    }
+    setPayLaterModalOpen(true)
   }
 
   const handlePaymentConfirm = async (data: {
@@ -318,6 +328,47 @@ export default function POSPage() {
     } catch {
       toast.error("Failed to process payment")
       return null
+    }
+  }
+
+  const handlePayLaterConfirm = async (data: PayLaterResult): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          refNumber: cart.refNumber,
+          customerId: data.customerId,
+          status: 1, // Mark as paid (adds to tab)
+          subtotal: discountedSubtotal,
+          taxAmount,
+          total,
+          discount: cart.discount,
+          paidAmount: total, // Full amount goes to tab
+          changeAmount: 0,
+          paymentType: "Tab",
+          paymentInfo: "",
+          items: cart.items,
+          tillNumber: 1,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to add to tab")
+      }
+
+      clearCart()
+      setCurrentOrderId(null)
+      setPayLaterModalOpen(false)
+      fetchData()
+      fetchHoldOrders()
+      toast.success(`Order added to ${data.customerName}'s tab`)
+
+      return true
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add to tab")
+      return false
     }
   }
 
@@ -492,7 +543,8 @@ export default function POSPage() {
           onSetCustomer={setCustomer}
           onCancel={handleCancel}
           onHold={handleHold}
-          onPay={handlePay}
+          onPayNow={handlePayNow}
+          onPayLater={handlePayLater}
           onMobileBack={() => setShowMobileCart(false)}
           isMobile={showMobileCart}
         />
@@ -524,6 +576,14 @@ export default function POSPage() {
         customers={customers}
         currentCustomerId={cart.customerId}
         onConfirm={handleHoldConfirm}
+      />
+
+      <PayLaterModal
+        open={payLaterModalOpen}
+        onClose={() => setPayLaterModalOpen(false)}
+        total={total}
+        currencySymbol={settings.currencySymbol}
+        onConfirm={handlePayLaterConfirm}
       />
 
       {/* Hold Orders Modal */}
