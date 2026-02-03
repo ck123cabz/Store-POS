@@ -386,7 +386,7 @@ export function calculateEnhancedRecipeAvailability(
         ? Infinity
         : Math.floor(totalBaseUnits / recipeQuantity);
 
-    // Track missing (0 stock) vs low (some stock but limiting)
+    // Track missing (0 stock)
     if (totalBaseUnits <= 0) {
       missingIngredients.push({
         id: ingredient.id,
@@ -395,11 +395,6 @@ export function calculateEnhancedRecipeAvailability(
         needPerUnit: recipeQuantity,
         status: "missing",
       });
-    } else if (possibleUnits < minPossible) {
-      // This is the new limiting ingredient
-      if (limitingIngredientDetails && limitingIngredientDetails.status === "low") {
-        // Previous limiter was low, it stays low
-      }
     }
 
     // Track the limiting ingredient
@@ -447,8 +442,8 @@ export function calculateEnhancedRecipeAvailability(
 
       const possibleUnits = Math.floor(totalBaseUnits / recipeQuantity);
 
-      // Consider "low" if it's the limiting ingredient (can only make <= maxProducible units)
-      if (possibleUnits === maxProducible) {
+      // Consider "low" if this ingredient can only make 20 or fewer units
+      if (possibleUnits <= 20) {
         lowIngredients.push({
           id: ingredient.id,
           name: ingredient.name,

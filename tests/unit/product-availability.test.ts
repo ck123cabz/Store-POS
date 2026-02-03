@@ -782,12 +782,20 @@ describe("calculateEnhancedRecipeAvailability", () => {
     expect(result.status).toBe("critical");
     expect(result.maxProducible).toBe(4);
     expect(result.missingIngredients).toHaveLength(0);
-    expect(result.lowIngredients).toHaveLength(1);
+    // Both ingredients are "low" since both can make <= 20 units (4 and 20 respectively)
+    expect(result.lowIngredients).toHaveLength(2);
     expect(result.lowIngredients[0]).toEqual({
       id: 1,
       name: "Buns",
       have: 8,
       needPerUnit: 2,
+      status: "low",
+    });
+    expect(result.lowIngredients[1]).toEqual({
+      id: 2,
+      name: "Patty",
+      have: 20,
+      needPerUnit: 1,
       status: "low",
     });
     expect(result.limitingIngredientDetails).toEqual({
