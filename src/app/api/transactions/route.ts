@@ -14,6 +14,27 @@ interface TransactionItem {
   categoryId?: number
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// KITCHEN ORDER BOARD - Check if a product requires kitchen preparation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function productRequiresKitchen(productId: number): Promise<boolean> {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { category: true },
+  })
+
+  if (!product) return false
+
+  // Product-level override takes precedence
+  if (product.requiresKitchen !== null) {
+    return product.requiresKitchen
+  }
+
+  // Fall back to category default
+  return product.category?.requiresKitchen ?? false
+}
+
 // Determine daypart based on hour
 function getDaypart(date: Date): string {
   const hour = date.getHours()
@@ -336,6 +357,40 @@ export async function POST(request: Request) {
         },
       })
 
+      // ═══════════════════════════════════════════════════════════════════════════
+      // KITCHEN ORDER BOARD - Auto-create kitchen order for food items
+      // ═══════════════════════════════════════════════════════════════════════════
+
+      // Check which items require kitchen preparation
+      const kitchenItems: { productId: number; productName: string; quantity: number }[] = []
+
+      for (const item of body.items) {
+        const requiresKitchen = await productRequiresKitchen(item.id)
+        if (requiresKitchen) {
+          kitchenItems.push({
+            productId: item.id,
+            productName: item.productName,
+            quantity: item.quantity,
+          })
+        }
+      }
+
+      // Create kitchen order if there are kitchen items and order is being paid
+      let kitchenOrderId: number | null = null
+      if (kitchenItems.length > 0 && body.status === 1) {
+        const kitchenOrder = await tx.kitchenOrder.create({
+          data: {
+            transactionId: newTransaction.id,
+            orderNumber: newTransaction.orderNumber,
+            status: "new",
+            items: {
+              create: kitchenItems,
+            },
+          },
+        })
+        kitchenOrderId = kitchenOrder.id
+      }
+
       // Decrement stock if paid (all within same transaction for atomicity)
       if (body.status === 1 && body.paidAmount >= body.total) {
         for (const item of body.items) {
@@ -483,10 +538,13 @@ export async function POST(request: Request) {
         }
       }
 
-      return newTransaction
+      return { ...newTransaction, kitchenOrderId }
     })
 
-    return NextResponse.json(transaction)
+    return NextResponse.json({
+      ...transaction,
+      kitchenStatus: transaction.kitchenOrderId ? "new" : null,
+    })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: "Failed to create transaction" }, { status: 500 })
