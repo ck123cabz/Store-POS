@@ -35,10 +35,57 @@ export async function PUT(
     return NextResponse.json({ error: "Name is required" }, { status: 400 })
   }
 
+  // Build update data
+  const updateData: { name: string; requiresKitchen?: boolean } = { name }
+
+  // Add requiresKitchen if provided
+  if (body.requiresKitchen !== undefined) {
+    updateData.requiresKitchen = body.requiresKitchen
+  }
+
   try {
     const category = await prisma.category.update({
       where: { id: parseInt(id) },
-      data: { name },
+      data: updateData,
+    })
+
+    return NextResponse.json(category)
+  } catch {
+    return NextResponse.json({ error: "Failed to update category" }, { status: 500 })
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const body = await request.json()
+
+  // Build update data for partial updates
+  const updateData: { name?: string; requiresKitchen?: boolean } = {}
+
+  if (body.name !== undefined) {
+    const name = typeof body.name === "string" ? body.name.trim() : ""
+    if (!name) {
+      return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 })
+    }
+    updateData.name = name
+  }
+
+  if (body.requiresKitchen !== undefined) {
+    updateData.requiresKitchen = body.requiresKitchen
+  }
+
+  // Ensure at least one field is being updated
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
+  }
+
+  try {
+    const category = await prisma.category.update({
+      where: { id: parseInt(id) },
+      data: updateData,
     })
 
     return NextResponse.json(category)

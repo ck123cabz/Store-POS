@@ -66,6 +66,8 @@ export async function PUT(
         // Phase 4: Support needsPricing and linkedIngredientId
         ...(body.needsPricing !== undefined && { needsPricing: body.needsPricing }),
         ...(body.linkedIngredientId !== undefined && { linkedIngredientId: body.linkedIngredientId }),
+        // Kitchen Order Board: requiresKitchen override (null = use category default)
+        ...(body.requiresKitchen !== undefined && { requiresKitchen: body.requiresKitchen }),
       },
     })
 
@@ -79,6 +81,7 @@ export async function PUT(
       image: product.image,
       needsPricing: product.needsPricing,
       linkedIngredientId: product.linkedIngredientId,
+      requiresKitchen: product.requiresKitchen,
     })
   } catch {
     return NextResponse.json({ error: "Failed to update product" }, { status: 500 })

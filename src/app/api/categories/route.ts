@@ -35,6 +35,7 @@ interface CategoryResponse {
   id: number
   name: string
   displayOrder: number
+  requiresKitchen: boolean
   createdAt: Date
   updatedAt: Date
   productCount: number
@@ -134,6 +135,7 @@ export async function GET() {
         id: category.id,
         name: category.name,
         displayOrder: category.displayOrder,
+        requiresKitchen: category.requiresKitchen,
         createdAt: category.createdAt,
         updatedAt: category.updatedAt,
         productCount: category._count.products,
@@ -166,7 +168,10 @@ export async function POST(request: NextRequest) {
     }
 
     const category = await prisma.category.create({
-      data: { name: body.name.trim() },
+      data: {
+        name: body.name.trim(),
+        requiresKitchen: body.requiresKitchen ?? false,
+      },
     })
 
     return NextResponse.json(category, { status: 201 })

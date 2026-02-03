@@ -200,6 +200,7 @@ export async function POST(request: NextRequest) {
         image: body.image || "",
         linkedIngredientId: body.linkedIngredientId || null,
         needsPricing: body.needsPricing || false,
+        requiresKitchen: body.requiresKitchen ?? null, // null means use category default
       },
       include: { linkedIngredient: true },
     })
@@ -215,6 +216,7 @@ export async function POST(request: NextRequest) {
         image: product.image,
         linkedIngredientId: product.linkedIngredientId,
         needsPricing: product.needsPricing,
+        requiresKitchen: product.requiresKitchen,
       },
       { status: 201 }
     )
