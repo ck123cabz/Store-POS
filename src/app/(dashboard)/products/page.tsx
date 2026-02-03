@@ -6,15 +6,21 @@ import { Plus } from "lucide-react"
 import { ProductTable } from "@/components/products/product-table"
 import { ProductForm } from "@/components/products/product-form"
 
+interface Availability {
+  status: "available" | "low" | "critical" | "out"
+  maxProducible: number | null
+  limitingIngredient: { id: number; name: string } | null
+  warnings: string[]
+}
+
 interface Product {
   id: number
   name: string
   price: number
-  quantity: number
-  trackStock: boolean
   image: string
   categoryId: number
   categoryName: string
+  availability: Availability
 }
 
 interface Category {

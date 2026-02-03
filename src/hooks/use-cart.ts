@@ -46,8 +46,7 @@ export function useCart() {
     id: number
     name: string
     price: number
-    quantity: number
-    trackStock: boolean
+    availability: { maxProducible: number | null }
   }) => {
     setCart((prev) => {
       const existingIndex = prev.items.findIndex((item) => item.id === product.id)
@@ -72,7 +71,7 @@ export function useCart() {
           sku: String(product.id),
           price: product.price,
           quantity: 1,
-          maxQuantity: product.trackStock ? product.quantity : null,
+          maxQuantity: product.availability.maxProducible,
         }
         return { ...prev, items: [...prev.items, newItem] }
       }

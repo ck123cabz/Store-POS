@@ -25,15 +25,21 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 
+interface Availability {
+  status: "available" | "low" | "critical" | "out"
+  maxProducible: number | null
+  limitingIngredient: { id: number; name: string } | null
+  warnings: string[]
+}
+
 interface Product {
   id: number
   name: string
   price: number
-  quantity: number
-  trackStock: boolean
   image: string
   categoryId: number
   categoryName: string
+  availability: Availability
 }
 
 interface ProductTableProps {
@@ -96,12 +102,21 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
                 <TableCell className="hidden md:table-cell">{product.categoryName || "—"}</TableCell>
                 <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
                 <TableCell className="text-right hidden sm:table-cell">
-                  {product.trackStock ? (
-                    <Badge variant={product.quantity > 0 ? "default" : "destructive"}>
-                      {product.quantity}
+                  {product.availability.status === "available" && (
+                    <Badge variant="default">In Stock</Badge>
+                  )}
+                  {product.availability.status === "low" && (
+                    <Badge className="bg-yellow-500 hover:bg-yellow-500">
+                      Low {product.availability.maxProducible !== null ? `(${product.availability.maxProducible})` : ""}
                     </Badge>
-                  ) : (
-                    <Badge variant="secondary">N/A</Badge>
+                  )}
+                  {product.availability.status === "critical" && (
+                    <Badge className="bg-orange-500 hover:bg-orange-500">
+                      Critical {product.availability.maxProducible !== null ? `(${product.availability.maxProducible})` : ""}
+                    </Badge>
+                  )}
+                  {product.availability.status === "out" && (
+                    <Badge variant="destructive">Out</Badge>
                   )}
                 </TableCell>
                 <TableCell>

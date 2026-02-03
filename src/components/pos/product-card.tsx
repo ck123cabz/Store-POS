@@ -11,21 +11,6 @@ import {
 import Image from "next/image"
 import { AlertTriangle, DollarSign, Package } from "lucide-react"
 import { cn } from "@/lib/utils"
-import {
-  getStockStatus,
-  getIngredientStockPercentage,
-  getStockPercentageColor,
-} from "@/lib/stock-status"
-
-interface LinkedIngredient {
-  id: number
-  name: string
-  quantity: number
-  parLevel: number
-  unit: string
-  stockStatus: "ok" | "low" | "critical" | "out" | null
-  stockRatio: number | null
-}
 
 interface Availability {
   status: "available" | "low" | "critical" | "out"
@@ -39,51 +24,24 @@ interface ProductCardProps {
     id: number
     name: string
     price: number
-    quantity: number
-    trackStock: boolean
-    parLevel?: number
     image: string
-    linkedIngredientId?: number | null
     needsPricing?: boolean
     availability: Availability
-    linkedIngredient?: LinkedIngredient | null
   }
   currencySymbol: string
   onAddToCart: () => void
 }
 
 export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCardProps) {
-  const stockStatus = getStockStatus({
-    quantity: product.quantity,
-    trackStock: product.trackStock,
-    parLevel: product.parLevel,
-  })
-
-  // Use availability data (now required)
   const { availability } = product
-  const availabilityStatus = availability.status
 
-  const ingredientLow =
-    product.linkedIngredient?.stockStatus === "low" ||
-    product.linkedIngredient?.stockStatus === "critical"
-  const ingredientOut = product.linkedIngredient?.stockStatus === "out"
-
-  // Determine disabled state: availability status is "out" takes precedence
-  const isDisabledByAvailability = availabilityStatus === "out"
-  const isDisabled = isDisabledByAvailability || stockStatus.isOutOfStock || ingredientOut
+  // Determine disabled state based on availability
+  const isDisabled = availability.status === "out"
 
   // Determine low stock from availability
-  const isLowByAvailability = availabilityStatus === "low" || availabilityStatus === "critical"
-  const isLowStock = isLowByAvailability && !isDisabled
+  const isLowStock = (availability.status === "low" || availability.status === "critical") && !isDisabled
 
   const needsPricing = product.needsPricing
-
-  const ingredientPercentage = product.linkedIngredient
-    ? getIngredientStockPercentage(
-        product.linkedIngredient.quantity,
-        product.linkedIngredient.parLevel
-      )
-    : null
 
   // Build tooltip text for availability
   const getAvailabilityTooltip = (): string | null => {
@@ -168,7 +126,7 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
         isLowStock && !isDisabled && "ring-2 ring-orange-400/70",
         needsPricing && !isDisabled && "ring-2 ring-red-400/70 ring-dashed",
         // Critical status gets a stronger ring
-        availabilityStatus === "critical" && !isDisabled && "ring-2 ring-orange-500/80"
+        availability.status === "critical" && !isDisabled && "ring-2 ring-orange-500/80"
       )}
       onClick={() => !isDisabled && onAddToCart()}
       aria-disabled={isDisabled}
@@ -196,7 +154,7 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
       </div>
 
       {/* Out of stock overlay - using availability status */}
-      {isDisabledByAvailability && (
+      {isDisabled && (
         <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-1">
           <Badge variant="destructive" className="text-xs font-bold px-3 py-1.5 shadow-lg">
             OUT OF STOCK
@@ -237,47 +195,7 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
             <span className="text-lg font-bold text-primary">
               {currencySymbol}{product.price.toFixed(2)}
             </span>
-
-            {/* Stock indicator */}
-            {product.trackStock && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-[10px] px-1.5 py-0",
-                  stockStatus.isOutOfStock && "border-destructive/50 text-destructive",
-                  stockStatus.isLowStock && !stockStatus.isOutOfStock && "border-orange-400/50 text-orange-600",
-                  !stockStatus.isOutOfStock && !stockStatus.isLowStock && "border-muted text-muted-foreground"
-                )}
-              >
-                {product.quantity} in stock
-              </Badge>
-            )}
           </div>
-
-          {/* Linked ingredient indicator */}
-          {product.linkedIngredient && ingredientPercentage !== null && (
-            <div className="flex items-center gap-1.5">
-              <div
-                className={cn(
-                  "h-1.5 flex-1 rounded-full bg-muted overflow-hidden"
-                )}
-              >
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all",
-                    ingredientOut ? "bg-destructive" : getStockPercentageColor(ingredientPercentage).replace("text-", "bg-").replace("-600", "-500")
-                  )}
-                  style={{ width: `${Math.min(ingredientPercentage, 100)}%` }}
-                />
-              </div>
-              <span className={cn(
-                "text-[10px] font-medium tabular-nums",
-                ingredientOut ? "text-destructive" : getStockPercentageColor(ingredientPercentage)
-              )}>
-                {ingredientOut ? "0%" : `${ingredientPercentage}%`}
-              </span>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
