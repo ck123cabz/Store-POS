@@ -7,6 +7,7 @@ import { Plus } from "lucide-react"
 import { ProductsTab } from "./components/products-tab"
 import { ProductPanel } from "./components/product-panel"
 import { CategoriesTab } from "./components/categories-tab"
+import { ProductForm } from "@/components/products/product-form"
 import { cn } from "@/lib/utils"
 
 interface IngredientShortage {
@@ -73,8 +74,8 @@ export default function MenuPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null)
-  // Edit mode will be implemented in Phase 5
-  const [, setEditMode] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -156,6 +157,21 @@ export default function MenuPage() {
     setCategoryFilter(null)
   }
 
+  const handleCloseForm = () => {
+    setFormOpen(false)
+    setEditMode(false)
+  }
+
+  const handleFormSuccess = () => {
+    handleCloseForm()
+    void fetchData()
+  }
+
+  const handleAddProduct = () => {
+    setSelectedProduct(null)
+    setFormOpen(true)
+  }
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Main Content */}
@@ -170,7 +186,7 @@ export default function MenuPage() {
               <TabsTrigger value="categories">Categories</TabsTrigger>
             </TabsList>
 
-            <Button>
+            <Button onClick={activeTab === "products" ? handleAddProduct : undefined}>
               <Plus className="h-4 w-4 mr-2" />
               {activeTab === "products" ? "Add Product" : "Add Category"}
             </Button>
@@ -209,7 +225,7 @@ export default function MenuPage() {
       </div>
 
       {/* Slide-out Panel */}
-      {selectedProduct && (
+      {selectedProduct && !editMode && (
         <div className="w-full md:w-96 lg:w-[450px] shrink-0">
           <ProductPanel
             product={selectedProduct}
@@ -219,6 +235,21 @@ export default function MenuPage() {
           />
         </div>
       )}
+
+      {/* Product Form Dialog */}
+      <ProductForm
+        open={formOpen || editMode}
+        onClose={handleCloseForm}
+        onSuccess={handleFormSuccess}
+        categories={categories.map(c => ({ id: c.id, name: c.name }))}
+        product={editMode && selectedProduct ? {
+          id: selectedProduct.id,
+          name: selectedProduct.name,
+          price: selectedProduct.price,
+          image: selectedProduct.image,
+          categoryId: selectedProduct.categoryId,
+        } : undefined}
+      />
     </div>
   )
 }
