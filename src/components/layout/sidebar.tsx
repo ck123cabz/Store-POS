@@ -24,6 +24,7 @@ import {
   X,
   CheckSquare,
   LayoutGrid,
+  ChefHat,
 } from "lucide-react"
 
 // T044: Badge configuration per nav item
@@ -47,6 +48,7 @@ const navGroups: NavGroup[] = [
     label: "Sales",
     items: [
       { href: "/pos", label: "POS", icon: ShoppingCart, permission: null },
+      { href: "/orders", label: "Orders", icon: ChefHat, permission: null },
       { href: "/transactions", label: "Transactions", icon: Receipt, permission: "permTransactions" },
     ],
   },
