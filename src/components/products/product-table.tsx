@@ -103,20 +103,42 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
                 <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
                 <TableCell className="text-right hidden sm:table-cell">
                   {product.availability.status === "available" && (
-                    <Badge variant="default">In Stock</Badge>
+                    <span className="text-sm text-green-600 dark:text-green-500 font-medium">
+                      In Stock
+                    </span>
                   )}
                   {product.availability.status === "low" && (
-                    <Badge className="bg-yellow-500 hover:bg-yellow-500">
-                      Low {product.availability.maxProducible !== null ? `(${product.availability.maxProducible})` : ""}
+                    <Badge
+                      variant="outline"
+                      className="bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 border-yellow-300 dark:border-yellow-500/30"
+                    >
+                      Can make {product.availability.maxProducible}
                     </Badge>
                   )}
                   {product.availability.status === "critical" && (
-                    <Badge className="bg-orange-500 hover:bg-orange-500">
-                      Critical {product.availability.maxProducible !== null ? `(${product.availability.maxProducible})` : ""}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge
+                        variant="outline"
+                        className="bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-500 border-orange-300 dark:border-orange-500/30"
+                      >
+                        Only {product.availability.maxProducible} left
+                      </Badge>
+                      {product.availability.limitingIngredient && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Low on {product.availability.limitingIngredient.name}
+                        </span>
+                      )}
+                    </div>
                   )}
                   {product.availability.status === "out" && (
-                    <Badge variant="destructive">Out</Badge>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge variant="destructive">Out of Stock</Badge>
+                      {product.availability.limitingIngredient && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Missing: {product.availability.limitingIngredient.name}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </TableCell>
                 <TableCell>

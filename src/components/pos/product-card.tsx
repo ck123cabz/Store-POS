@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import Image from "next/image"
-import { AlertTriangle, DollarSign, Package } from "lucide-react"
+import { DollarSign, Package } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Availability {
@@ -43,77 +43,75 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
 
   const needsPricing = product.needsPricing
 
-  // Build tooltip text for availability
-  const getAvailabilityTooltip = (): string | null => {
-    const { status, limitingIngredient, maxProducible } = availability
-    if (status === "available") return null
-    if (status === "out" && limitingIngredient) {
-      return `Out of ${limitingIngredient.name}`
-    }
-    if (status === "critical" && limitingIngredient && maxProducible !== null) {
-      return `Only ${maxProducible} left (${limitingIngredient.name})`
-    }
-    if (status === "low" && limitingIngredient) {
-      return `Low on ${limitingIngredient.name}`
-    }
-    return null
-  }
-
-  const tooltipText = getAvailabilityTooltip()
-
-  // Helper to render availability badge
-  const renderAvailabilityBadge = () => {
-    if (availability.status === "available") return null
-
+  // Helper to render availability indicator
+  const renderAvailabilityIndicator = () => {
     const { status, maxProducible, limitingIngredient } = availability
 
-    // Badge content and styling based on status
-    let badgeContent: React.ReactNode = null
-    let badgeClassName = ""
-
-    if (status === "low") {
-      badgeContent = "Low"
-      badgeClassName = "bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 border-yellow-500/30"
-    } else if (status === "critical") {
-      badgeContent = maxProducible !== null ? `Only ${maxProducible}` : "Critical"
-      badgeClassName = "bg-orange-500/20 text-orange-700 dark:text-orange-500 border-orange-500/30"
-    } else if (status === "out") {
-      // Out status is handled by overlay, don't show badge
-      return null
-    }
-
-    if (!badgeContent) return null
-
-    const badge = (
-      <Badge
-        variant="outline"
-        className={cn(
-          "text-[10px] px-1.5 py-0.5 shadow-sm font-medium",
-          badgeClassName
-        )}
-      >
-        {status === "low" && <AlertTriangle className="h-3 w-3 mr-0.5" />}
-        {badgeContent}
-      </Badge>
-    )
-
-    // Wrap with tooltip if we have tooltip text
-    if (tooltipText && limitingIngredient) {
+    // For "available" status (maxProducible > 20 or null) - subtle green text
+    if (status === "available") {
       return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              {badge}
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              {tooltipText}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <span className="text-[10px] text-green-600 dark:text-green-500 font-medium">
+          In Stock
+        </span>
       )
     }
 
-    return badge
+    // For "out" status - handled by overlay, don't show badge here
+    if (status === "out") {
+      return null
+    }
+
+    // For "low" status (maxProducible 6-20) - yellow badge with count
+    if (status === "low") {
+      const badge = (
+        <Badge
+          variant="outline"
+          className="bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 border-yellow-300 dark:border-yellow-500/30 text-[10px] px-1.5 py-0.5 shadow-sm font-medium"
+        >
+          Can make {maxProducible}
+        </Badge>
+      )
+
+      if (limitingIngredient) {
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {badge}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                Low on {limitingIngredient.name}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      }
+
+      return badge
+    }
+
+    // For "critical" status (maxProducible 1-5) - orange badge with count and ingredient info
+    if (status === "critical") {
+      const badge = (
+        <div className="flex flex-col items-end gap-0.5">
+          <Badge
+            variant="outline"
+            className="bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-500 border-orange-300 dark:border-orange-500/30 text-[10px] px-1.5 py-0.5 shadow-sm font-medium"
+          >
+            Only {maxProducible} left
+          </Badge>
+          {limitingIngredient && (
+            <span className="text-[9px] text-muted-foreground">
+              Low on {limitingIngredient.name}
+            </span>
+          )}
+        </div>
+      )
+
+      return badge
+    }
+
+    return null
   }
 
   return (
@@ -148,8 +146,8 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
 
         {/* Right side badges */}
         <div className="flex flex-col gap-1 items-end">
-          {/* Availability-based badge */}
-          {renderAvailabilityBadge()}
+          {/* Availability-based indicator */}
+          {renderAvailabilityIndicator()}
         </div>
       </div>
 
