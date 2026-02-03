@@ -731,3 +731,71 @@ describe("getProductsNeedingAttention", () => {
     );
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Enhanced Recipe Availability Tests
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { calculateEnhancedRecipeAvailability } from "@/lib/product-availability";
+
+describe("calculateEnhancedRecipeAvailability", () => {
+  test("returns all missing ingredients when multiple are out", () => {
+    const recipeItems: AvailabilityRecipeItem[] = [
+      {
+        quantity: 2,
+        ingredient: { id: 1, name: "Buns", quantity: 0, packageSize: 8 },
+      },
+      {
+        quantity: 1,
+        ingredient: { id: 2, name: "Patty", quantity: 0, packageSize: 4 },
+      },
+      {
+        quantity: 1,
+        ingredient: { id: 3, name: "Lettuce", quantity: 5, packageSize: 1 },
+      },
+    ];
+
+    const result = calculateEnhancedRecipeAvailability(recipeItems);
+
+    expect(result.status).toBe("out");
+    expect(result.missingIngredients).toHaveLength(2);
+    expect(result.missingIngredients[0].name).toBe("Buns");
+    expect(result.missingIngredients[0].needPerUnit).toBe(2);
+    expect(result.missingIngredients[1].name).toBe("Patty");
+    expect(result.lowIngredients).toHaveLength(0);
+  });
+
+  test("returns low ingredients with per-unit info", () => {
+    const recipeItems: AvailabilityRecipeItem[] = [
+      {
+        quantity: 2,
+        ingredient: { id: 1, name: "Buns", quantity: 1, packageSize: 8 }, // 8 base = 4 products
+      },
+      {
+        quantity: 1,
+        ingredient: { id: 2, name: "Patty", quantity: 5, packageSize: 4 }, // 20 base = 20 products
+      },
+    ];
+
+    const result = calculateEnhancedRecipeAvailability(recipeItems);
+
+    expect(result.status).toBe("critical");
+    expect(result.maxProducible).toBe(4);
+    expect(result.missingIngredients).toHaveLength(0);
+    expect(result.lowIngredients).toHaveLength(1);
+    expect(result.lowIngredients[0]).toEqual({
+      id: 1,
+      name: "Buns",
+      have: 8,
+      needPerUnit: 2,
+      status: "low",
+    });
+    expect(result.limitingIngredientDetails).toEqual({
+      id: 1,
+      name: "Buns",
+      have: 8,
+      needPerUnit: 2,
+      status: "low",
+    });
+  });
+});

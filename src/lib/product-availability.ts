@@ -334,6 +334,146 @@ export function calculateProductAvailability(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Enhanced Recipe Availability
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Calculate enhanced availability with all missing/low ingredients
+ */
+export function calculateEnhancedRecipeAvailability(
+  recipeItems: AvailabilityRecipeItem[]
+): EnhancedProductAvailability {
+  const warnings: string[] = [];
+  const missingIngredients: IngredientShortage[] = [];
+  const lowIngredients: IngredientShortage[] = [];
+
+  // No recipe items means unlimited availability
+  if (!recipeItems || recipeItems.length === 0) {
+    return {
+      status: "available",
+      maxProducible: null,
+      limitingIngredient: null,
+      limitingIngredientDetails: null,
+      warnings: [],
+      missingIngredients: [],
+      lowIngredients: [],
+    };
+  }
+
+  let minPossible = Infinity;
+  let limitingIngredientDetails: IngredientShortage | null = null;
+
+  for (const recipeItem of recipeItems) {
+    const { ingredient, quantity: recipeQuantity } = recipeItem;
+
+    if (!ingredient) {
+      warnings.push(`Recipe item missing ingredient data`);
+      continue;
+    }
+
+    if (ingredient.packageSize <= 0) {
+      warnings.push(`${ingredient.name}: Invalid package size`);
+      continue;
+    }
+
+    const totalBaseUnits = calculateTotalBaseUnits(
+      ingredient.quantity,
+      ingredient.packageSize
+    );
+
+    const possibleUnits =
+      recipeQuantity <= 0
+        ? Infinity
+        : Math.floor(totalBaseUnits / recipeQuantity);
+
+    // Track missing (0 stock) vs low (some stock but limiting)
+    if (totalBaseUnits <= 0) {
+      missingIngredients.push({
+        id: ingredient.id,
+        name: ingredient.name,
+        have: 0,
+        needPerUnit: recipeQuantity,
+        status: "missing",
+      });
+    } else if (possibleUnits < minPossible) {
+      // This is the new limiting ingredient
+      if (limitingIngredientDetails && limitingIngredientDetails.status === "low") {
+        // Previous limiter was low, it stays low
+      }
+    }
+
+    // Track the limiting ingredient
+    if (possibleUnits < minPossible) {
+      minPossible = possibleUnits;
+      limitingIngredientDetails = {
+        id: ingredient.id,
+        name: ingredient.name,
+        have: totalBaseUnits,
+        needPerUnit: recipeQuantity,
+        status: totalBaseUnits <= 0 ? "missing" : "low",
+      };
+    }
+  }
+
+  if (minPossible === Infinity) {
+    return {
+      status: "out",
+      maxProducible: 0,
+      limitingIngredient: null,
+      limitingIngredientDetails: null,
+      warnings: warnings.length > 0 ? warnings : ["No valid ingredients in recipe"],
+      missingIngredients,
+      lowIngredients,
+    };
+  }
+
+  const maxProducible = minPossible;
+  const status = getStatusFromCount(maxProducible);
+
+  // Build low ingredients list only if we're not completely out
+  // (if missing ingredients exist, low ingredients don't matter)
+  if (missingIngredients.length === 0) {
+    for (const recipeItem of recipeItems) {
+      const { ingredient, quantity: recipeQuantity } = recipeItem;
+      if (!ingredient || ingredient.packageSize <= 0 || recipeQuantity <= 0) continue;
+
+      const totalBaseUnits = calculateTotalBaseUnits(
+        ingredient.quantity,
+        ingredient.packageSize
+      );
+
+      // Skip if no stock
+      if (totalBaseUnits <= 0) continue;
+
+      const possibleUnits = Math.floor(totalBaseUnits / recipeQuantity);
+
+      // Consider "low" if it's the limiting ingredient (can only make <= maxProducible units)
+      if (possibleUnits === maxProducible) {
+        lowIngredients.push({
+          id: ingredient.id,
+          name: ingredient.name,
+          have: totalBaseUnits,
+          needPerUnit: recipeQuantity,
+          status: "low",
+        });
+      }
+    }
+  }
+
+  return {
+    status,
+    maxProducible,
+    limitingIngredient: limitingIngredientDetails
+      ? { id: limitingIngredientDetails.id, name: limitingIngredientDetails.name }
+      : null,
+    limitingIngredientDetails,
+    warnings,
+    missingIngredients,
+    lowIngredients,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Batch Operations
 // ═══════════════════════════════════════════════════════════════════════════════
 
