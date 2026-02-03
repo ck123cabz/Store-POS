@@ -51,7 +51,8 @@ export default function MenuPage() {
   const [settings, setSettings] = useState<Settings>({ targetTrueMarginPercent: 65, currency: "₱" })
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
-  const [editMode, setEditMode] = useState(false)
+  // Edit mode will be implemented in Phase 5
+  const [, setEditMode] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
