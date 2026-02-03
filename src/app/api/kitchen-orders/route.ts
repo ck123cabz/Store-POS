@@ -72,3 +72,47 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+
+    if (!body.transactionId || !body.orderNumber || !body.items?.length) {
+      return NextResponse.json(
+        { error: "transactionId, orderNumber, and items are required" },
+        { status: 400 }
+      )
+    }
+
+    const kitchenOrder = await prisma.kitchenOrder.create({
+      data: {
+        transactionId: body.transactionId,
+        orderNumber: body.orderNumber,
+        status: "new",
+        items: {
+          create: body.items.map((item: { productId: number; productName: string; quantity: number }) => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    })
+
+    return NextResponse.json(kitchenOrder)
+  } catch (error) {
+    console.error("Failed to create kitchen order:", error)
+    return NextResponse.json(
+      { error: "Failed to create kitchen order" },
+      { status: 500 }
+    )
+  }
+}
