@@ -3,6 +3,7 @@
  * Extends Playwright's test with custom fixtures
  */
 
+/* eslint-disable react-hooks/rules-of-hooks */
 import { test as base, expect } from '@playwright/test'
 
 // Custom fixture types

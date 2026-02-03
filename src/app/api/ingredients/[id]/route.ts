@@ -6,7 +6,6 @@ import {
   calculateTotalBaseUnits,
   calculateStockStatus,
   calculateStockRatio,
-  ingredientFormSchema,
 } from "@/lib/ingredient-utils"
 
 /**

@@ -10,8 +10,6 @@ import { Badge } from "@/components/ui/badge"
 import { formatBadgeCount, shouldShowBadge } from "@/lib/format-utils"
 import {
   ShoppingCart,
-  Package,
-  FolderTree,
   Users,
   Receipt,
   Settings,
@@ -24,7 +22,6 @@ import {
   History,
   Menu,
   X,
-  ChefHat,
   CheckSquare,
   LayoutGrid,
 } from "lucide-react"

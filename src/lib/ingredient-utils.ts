@@ -10,8 +10,6 @@ import { z } from "zod";
 import type {
   StockStatus,
   Ingredient,
-  IngredientFormInput,
-  CreateIngredientRequest,
 } from "@/types/ingredient";
 import { PURCHASE_UNITS, BASE_UNITS } from "@/types/ingredient";
 

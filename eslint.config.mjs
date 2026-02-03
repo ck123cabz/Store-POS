@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Worktrees have their own .next directories
+    ".worktrees/**",
   ]),
   // Allow underscore-prefixed variables to be unused (common convention)
   {
