@@ -44,6 +44,29 @@ export interface ProductAvailability {
 }
 
 /**
+ * Detailed ingredient shortage information (per-unit)
+ */
+export interface IngredientShortage {
+  id: number;
+  name: string;
+  have: number; // base units in stock
+  needPerUnit: number; // base units required per product
+  status: "missing" | "low";
+}
+
+/**
+ * Enhanced availability with all shortage details
+ */
+export interface EnhancedProductAvailability extends ProductAvailability {
+  /** All ingredients that are completely out of stock */
+  missingIngredients: IngredientShortage[];
+  /** All ingredients that are low (can't meet full demand) */
+  lowIngredients: IngredientShortage[];
+  /** Detailed limiting ingredient info */
+  limitingIngredientDetails: IngredientShortage | null;
+}
+
+/**
  * Ingredient data needed for availability calculation
  */
 export interface AvailabilityIngredient {
