@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { ProductsTab } from "./components/products-tab"
 import { ProductPanel } from "./components/product-panel"
+import { CategoriesTab } from "./components/categories-tab"
 import { cn } from "@/lib/utils"
 
 interface IngredientShortage {
@@ -34,9 +35,29 @@ interface Product {
   }
 }
 
+interface StockHealth {
+  available: number
+  low: number
+  critical: number
+  out: number
+}
+
+interface CategoryProduct {
+  id: number
+  name: string
+  price: number
+  availability: {
+    status: "available" | "low" | "critical" | "out"
+  }
+}
+
 interface Category {
   id: number
   name: string
+  displayOrder: number
+  productCount: number
+  stockHealth: StockHealth
+  products?: CategoryProduct[]
 }
 
 interface Settings {
@@ -51,6 +72,7 @@ export default function MenuPage() {
   const [settings, setSettings] = useState<Settings>({ targetTrueMarginPercent: 65, currency: "₱" })
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
+  const [categoryFilter, setCategoryFilter] = useState<number | null>(null)
   // Edit mode will be implemented in Phase 5
   const [, setEditMode] = useState(false)
 
@@ -95,6 +117,45 @@ export default function MenuPage() {
     // Panel will be implemented in Phase 4
   }
 
+  const handleReorderCategories = async (orders: { id: number; displayOrder: number }[]) => {
+    try {
+      const res = await fetch("/api/categories/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orders }),
+      })
+
+      if (!res.ok) {
+        console.error("Failed to reorder categories")
+        return
+      }
+
+      // Refetch categories to get updated order
+      await fetchData()
+    } catch (error) {
+      console.error("Failed to reorder categories:", error)
+    }
+  }
+
+  const handleEditCategory = (category: Category) => {
+    // Placeholder - will be implemented in Phase 5
+    console.log("Edit category:", category)
+  }
+
+  const handleDeleteCategory = (category: Category) => {
+    // Placeholder - will be implemented in Phase 5
+    console.log("Delete category:", category)
+  }
+
+  const handleFilterByCategory = (categoryId: number) => {
+    setCategoryFilter(categoryId)
+    setActiveTab("products")
+  }
+
+  const handleClearCategoryFilter = () => {
+    setCategoryFilter(null)
+  }
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Main Content */}
@@ -125,12 +186,24 @@ export default function MenuPage() {
                 selectedProductId={selectedProduct?.id ?? null}
                 onSelectProduct={handleSelectProduct}
                 targetMargin={settings.targetTrueMarginPercent}
+                externalCategoryFilter={categoryFilter}
+                onClearExternalFilter={handleClearCategoryFilter}
               />
             )}
           </TabsContent>
 
           <TabsContent value="categories" className="mt-4">
-            <div className="text-muted-foreground">Categories tab content (coming soon)</div>
+            {loading ? (
+              <div className="text-center py-12 text-muted-foreground">Loading...</div>
+            ) : (
+              <CategoriesTab
+                categories={categories}
+                onReorder={handleReorderCategories}
+                onEdit={handleEditCategory}
+                onDelete={handleDeleteCategory}
+                onFilterByCategory={handleFilterByCategory}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </div>

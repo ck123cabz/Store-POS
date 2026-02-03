@@ -49,6 +49,8 @@ interface ProductsTabProps {
   selectedProductId: number | null
   onSelectProduct: (product: Product) => void
   targetMargin?: number
+  externalCategoryFilter?: number | null
+  onClearExternalFilter?: () => void
 }
 
 export function ProductsTab({
@@ -57,10 +59,26 @@ export function ProductsTab({
   selectedProductId,
   onSelectProduct,
   targetMargin = 65,
+  externalCategoryFilter,
+  onClearExternalFilter,
 }: ProductsTabProps) {
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+
+  // Apply external category filter when set
+  const effectiveCategoryFilter = externalCategoryFilter !== null && externalCategoryFilter !== undefined
+    ? String(externalCategoryFilter)
+    : categoryFilter
+
+  // Sync internal state with external filter for UI consistency
+  const handleCategoryChange = (value: string) => {
+    setCategoryFilter(value)
+    // Clear external filter when user manually changes category
+    if (onClearExternalFilter && externalCategoryFilter !== null && externalCategoryFilter !== undefined) {
+      onClearExternalFilter()
+    }
+  }
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -69,8 +87,8 @@ export function ProductsTab({
         return false
       }
 
-      // Category filter
-      if (categoryFilter !== "all" && p.categoryId !== Number(categoryFilter)) {
+      // Category filter (use effective filter which includes external filter)
+      if (effectiveCategoryFilter !== "all" && p.categoryId !== Number(effectiveCategoryFilter)) {
         return false
       }
 
@@ -81,7 +99,7 @@ export function ProductsTab({
 
       return true
     })
-  }, [products, search, categoryFilter, statusFilter])
+  }, [products, search, effectiveCategoryFilter, statusFilter])
 
   return (
     <div className="space-y-4">
@@ -97,7 +115,7 @@ export function ProductsTab({
           />
         </div>
 
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <Select value={effectiveCategoryFilter} onValueChange={handleCategoryChange}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Category" />
           </SelectTrigger>

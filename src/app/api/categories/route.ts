@@ -16,6 +16,18 @@ interface StockHealth {
 }
 
 /**
+ * Product summary for category expanded view
+ */
+interface ProductSummary {
+  id: number
+  name: string
+  price: number
+  availability: {
+    status: AvailabilityStatus
+  }
+}
+
+/**
  * Category response with enhanced data
  */
 interface CategoryResponse {
@@ -26,6 +38,7 @@ interface CategoryResponse {
   updatedAt: Date
   productCount: number
   stockHealth: StockHealth
+  products: ProductSummary[]
 }
 
 export async function GET() {
@@ -61,15 +74,17 @@ export async function GET() {
       },
     })
 
-    // Transform categories to include stockHealth
+    // Transform categories to include stockHealth and products
     const categoriesWithHealth: CategoryResponse[] = categories.map((category) => {
-      // Calculate stock health counts
+      // Calculate stock health counts and build product summaries
       const stockHealth: StockHealth = {
         available: 0,
         low: 0,
         critical: 0,
         out: 0,
       }
+
+      const productSummaries: ProductSummary[] = []
 
       for (const product of category.products) {
         // Transform product data for availability calculation
@@ -99,6 +114,14 @@ export async function GET() {
         const status: AvailabilityStatus = availability.status
 
         stockHealth[status]++
+
+        // Add product summary for expanded view
+        productSummaries.push({
+          id: product.id,
+          name: product.name,
+          price: Number(product.price),
+          availability: { status },
+        })
       }
 
       return {
@@ -109,6 +132,7 @@ export async function GET() {
         updatedAt: category.updatedAt,
         productCount: category._count.products,
         stockHealth,
+        products: productSummaries,
       }
     })
 
