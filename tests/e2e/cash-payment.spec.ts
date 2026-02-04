@@ -8,44 +8,45 @@ import { test, expect } from './fixtures/base'
 
 test.describe('US1: Cash Payment @p1', () => {
   test('complete cash sale with exact amount', async ({ page, posPage }) => {
-    // Step 1: Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    // Step 1: Add product to cart (click first available product card)
+    const availableProduct = page.locator('[role="button"][aria-disabled="false"]').first()
+    await availableProduct.click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Step 2: Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
 
     // Step 3: Verify payment modal opens with Cash tab selected
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /Cash/i })).toHaveAttribute('data-state', 'active')
+    await expect(page.getByRole('tab', { name: 'Cash', exact: true })).toHaveAttribute('data-state', 'active')
 
     // Step 4: Use "Exact" quick amount button
     await page.getByRole('button', { name: 'Exact' }).click()
 
-    // Step 5: Verify change shows 0
+    // Step 5: Verify change shows 0 (use blue change display)
     await expect(page.getByText(/Change/i)).toBeVisible()
-    await expect(page.getByText(/₱?0\.00/)).toBeVisible()
+    await expect(page.locator('.text-blue-600').filter({ hasText: '₱0.00' })).toBeVisible()
 
     // Step 6: Complete payment
     await page.getByRole('button', { name: /Confirm/i }).click()
 
     // Step 7: Verify success
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
 
     // Step 8: Close modal
     await page.getByRole('button', { name: 'Done' }).click()
 
     // Step 9: Cart should be cleared
-    await expect(page.getByText(/Cart \(0\)/)).toBeVisible()
+    await expect(page.getByText(/0 items/)).toBeVisible()
   })
 
   test('cash sale with change calculation', async ({ page, posPage }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
     // Enter amount using quick amount button (₱100)
@@ -59,17 +60,17 @@ test.describe('US1: Cash Payment @p1', () => {
     await page.getByRole('button', { name: /Confirm/i }).click()
 
     // Verify success shows change amount
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
     await expect(page.getByText(/Change:/i)).toBeVisible()
   })
 
   test('cash sale using numpad input', async ({ page, posPage }) => {
     // Add product to cart
     await page.locator('.grid > div').first().click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
     // Use numpad to enter amount
@@ -85,16 +86,16 @@ test.describe('US1: Cash Payment @p1', () => {
     await page.getByRole('button', { name: /Confirm/i }).click()
 
     // Verify success
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
   })
 
   test('cannot complete cash sale with insufficient amount', async ({ page, posPage }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
     // Enter insufficient amount
@@ -112,12 +113,12 @@ test.describe('US1: Cash Payment @p1', () => {
     // Add multiple products
     const productCards = page.locator('.grid > div')
     await productCards.nth(0).click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
     await productCards.nth(0).click() // Add same product again
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible() // Still 1 item, but qty 2
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible() // Still 1 item, but qty 2
 
     // Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
     // Verify total amount is displayed
@@ -130,10 +131,10 @@ test.describe('US1: Cash Payment @p1', () => {
   test('backspace removes digits from amount', async ({ page, posPage }) => {
     // Add product to cart
     await page.locator('.grid > div').first().click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
     // Enter amount using numpad
@@ -156,13 +157,13 @@ test.describe('US1: Cash Payment @p1', () => {
 
   test('receipt options available after payment', async ({ page, posPage }) => {
     // Add product and complete payment
-    await page.getByText('Burger Steak').click()
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('button', { name: 'Exact' }).click()
     await page.getByRole('button', { name: /Confirm/i }).click()
 
     // Wait for success
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
 
     // Verify receipt options
     await expect(page.getByRole('button', { name: /Download Receipt/i })).toBeVisible()
@@ -171,11 +172,11 @@ test.describe('US1: Cash Payment @p1', () => {
 
   test('cancel returns to POS without completing sale', async ({ page, posPage }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
     // Cancel
@@ -183,6 +184,6 @@ test.describe('US1: Cash Payment @p1', () => {
 
     // Modal should close, cart should still have items
     await expect(page.getByRole('dialog', { name: 'Payment' })).not.toBeVisible()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
   })
 })

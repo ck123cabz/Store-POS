@@ -4,7 +4,68 @@
  */
 
 /* eslint-disable react-hooks/rules-of-hooks */
-import { test as base, expect } from '@playwright/test'
+import { test as base, expect, type Page, type Locator } from '@playwright/test'
+
+/**
+ * POS Page Object - centralizes selectors for POS UI elements
+ */
+export class POSPage {
+  constructor(private page: Page) {}
+
+  /**
+   * Get the cart item count badge locator
+   * UI shows: "N item" (singular) or "N items" (plural/zero)
+   */
+  cartItemCount(count: number): Locator {
+    if (count === 1) {
+      return this.page.getByText(/1 item(?!s)/)
+    }
+    return this.page.getByText(new RegExp(`${count} items`))
+  }
+
+  /**
+   * Get the Pay Now button - used for immediate payment
+   */
+  payNowButton(): Locator {
+    return this.page.getByRole('button', { name: /Pay Now/ })
+  }
+
+  /**
+   * Get the Pay Later button - used for kitchen orders/deferred payment
+   */
+  payLaterButton(): Locator {
+    return this.page.getByRole('button', { name: /Pay Later/ })
+  }
+
+  /**
+   * Assert cart shows specific item count
+   */
+  async expectCartItemCount(count: number): Promise<void> {
+    await expect(this.cartItemCount(count)).toBeVisible()
+  }
+
+  /**
+   * Open payment modal by clicking Pay Now
+   */
+  async openPaymentModal(): Promise<void> {
+    await this.payNowButton().click()
+    await expect(this.page.getByRole('dialog')).toBeVisible()
+  }
+
+  /**
+   * Add a product to cart by clicking its name
+   */
+  async addProductByName(name: string): Promise<void> {
+    await this.page.getByText(name, { exact: true }).click()
+  }
+
+  /**
+   * Add first available product to cart
+   */
+  async addFirstProduct(): Promise<void> {
+    await this.page.locator('[data-testid="product-card"]').first().click()
+  }
+}
 
 // Custom fixture types
 interface TestFixtures {
@@ -12,6 +73,11 @@ interface TestFixtures {
    * Navigate to POS page and wait for products to load
    */
   posPage: void
+
+  /**
+   * POS page object with helper methods
+   */
+  pos: POSPage
 
   /**
    * Navigate to products page
@@ -53,6 +119,10 @@ export const test = base.extend<TestFixtures>({
     await use()
   },
 
+  pos: async ({ page }, use) => {
+    await use(new POSPage(page))
+  },
+
   productsPage: async ({ page }, use) => {
     await page.goto('/products')
     await expect(page.getByRole('heading', { name: /products/i })).toBeVisible()
@@ -77,4 +147,4 @@ export const test = base.extend<TestFixtures>({
   },
 })
 
-export { expect }
+export { expect, POSPage }

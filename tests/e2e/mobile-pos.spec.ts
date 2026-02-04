@@ -209,7 +209,7 @@ test.describe('US5: Mobile POS Interface @p1', () => {
       await page.getByRole('button', { name: /Confirm/i }).click()
 
       // Success should show - use first() to handle multiple matching elements
-      await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText(/Payment Successful/i).first().first()).toBeVisible({ timeout: 10000 })
     })
 
     test('payment modal scrolls properly on small screens', async ({ page }) => {

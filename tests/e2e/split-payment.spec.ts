@@ -13,11 +13,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('open payment modal and select Split tab', async ({ page }) => {
     // Step 1: Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Step 2: Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
     // Step 3: Click Split tab
@@ -33,11 +33,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('enter cash and GCash amounts in split payment', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
     await expect(page.getByRole('tab', { name: /Split/i })).toHaveAttribute('data-state', 'active')
 
@@ -60,11 +60,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('verify total updates correctly as amounts are entered', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Get total amount displayed
@@ -91,11 +91,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('GCash reference required when GCash amount > 0', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter cash amount
@@ -127,11 +127,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('GCash reference not required when GCash amount is 0', async ({ page }) => {
     // Add product to cart (assuming Burger Steak is around 75-85 pesos)
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter only cash amount (enough to cover total)
@@ -154,11 +154,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('complete split payment flow with cash and GCash', async ({ page }) => {
     // Step 1: Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Step 2: Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
     // Step 3: Switch to Split tab
@@ -186,7 +186,7 @@ test.describe('US7: Split Payment @p2', () => {
     await confirmBtn.click()
 
     // Step 8: Verify success
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
 
     // Step 9: Verify split payment info in success message
     await expect(page.getByText(/Split Payment/i).or(
@@ -197,16 +197,16 @@ test.describe('US7: Split Payment @p2', () => {
     await page.getByRole('button', { name: 'Done' }).click()
 
     // Step 11: Cart should be cleared
-    await expect(page.getByText(/Cart \(0\)/)).toBeVisible()
+    await expect(page.getByText(/0 items/)).toBeVisible()
   })
 
   test('verify cash change calculated correctly in split payment', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter cash amount tendered (more than needed for cash portion)
@@ -241,11 +241,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('transaction recorded with split payment details', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter split amounts
@@ -264,7 +264,7 @@ test.describe('US7: Split Payment @p2', () => {
 
     // Complete payment
     await page.getByRole('button', { name: /Confirm/i }).click()
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
 
     // Close success modal
     await page.getByRole('button', { name: 'Done' }).click()
@@ -284,11 +284,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('split payment insufficient total shows error', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter insufficient amounts
@@ -314,11 +314,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('cancel split payment returns to POS without completing', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter amounts
@@ -337,16 +337,16 @@ test.describe('US7: Split Payment @p2', () => {
 
     // Modal should close, cart should still have items
     await expect(page.getByRole('dialog', { name: 'Payment' })).not.toBeVisible()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
   })
 
   test('receipt options available after split payment', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and complete split payment
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     const cashInput = page.getByLabel(/Cash Amount/i).or(
@@ -363,7 +363,7 @@ test.describe('US7: Split Payment @p2', () => {
     await page.getByRole('button', { name: /Confirm/i }).click()
 
     // Wait for success
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
 
     // Verify receipt options are available
     await expect(page.getByRole('button', { name: /Download Receipt/i })).toBeVisible()
@@ -372,11 +372,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('split payment with GCash only (cash = 0)', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter 0 for cash
@@ -400,16 +400,16 @@ test.describe('US7: Split Payment @p2', () => {
     await confirmBtn.click()
 
     // Verify success
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
   })
 
   test('split payment with cash only (gcash = 0)', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter full amount as cash
@@ -431,16 +431,16 @@ test.describe('US7: Split Payment @p2', () => {
     await confirmBtn.click()
 
     // Verify success
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
   })
 
   test('GCash reference validation in split payment - too short', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter amounts
@@ -467,11 +467,11 @@ test.describe('US7: Split Payment @p2', () => {
 
   test('GCash reference validation in split payment - special characters rejected', async ({ page }) => {
     // Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal and switch to Split tab
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /Split/i }).click()
 
     // Enter amounts

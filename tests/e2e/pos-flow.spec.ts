@@ -9,13 +9,13 @@ import { test, expect } from './fixtures/base'
 test.describe('POS Sales Flow @p0', () => {
   test('complete cash sale transaction', async ({ page, posPage }) => {
     // Step 1: Add product to cart
-    await page.getByText('Burger Steak').click()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
 
     // Verify cart updated
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Step 2: Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
 
     // Step 3: Payment modal should be visible
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
@@ -31,31 +31,31 @@ test.describe('POS Sales Flow @p0', () => {
     await page.getByRole('button', { name: 'Confirm Payment' }).click()
 
     // Step 6: Wait for success notification and cart to clear
-    await expect(page.getByText(/Cart \(0\)/)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/0 items/)).toBeVisible({ timeout: 5000 })
   })
 
   test('add multiple products to cart', async ({ page, posPage }) => {
     // Add first product
     const products = page.locator('.grid > div')
     await products.nth(0).click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Add second product (if available)
     const productCount = await products.count()
     if (productCount > 1) {
       await products.nth(1).click()
-      await expect(page.getByText(/Cart \(2\)/)).toBeVisible()
+      await expect(page.getByText(/2 items/)).toBeVisible()
     }
 
     // Add same product again (quantity increase)
     await products.nth(0).click()
-    await expect(page.getByText(/Cart \([2-3]\)/)).toBeVisible()
+    await expect(page.getByText(/[23] items/)).toBeVisible()
   })
 
   test('apply discount to cart', async ({ page, posPage }) => {
     // Add product
     await page.locator('.grid > div').first().click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Find discount input
     const discountInput = page.locator('input').filter({ hasText: /discount/i })
@@ -74,8 +74,8 @@ test.describe('POS Sales Flow @p0', () => {
 
   test('hold and recall order', async ({ page, posPage }) => {
     // Add product
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Click Hold button (exact match to avoid matching "Hold Orders")
     await page.getByRole('button', { name: 'Hold', exact: true }).click()
@@ -88,7 +88,7 @@ test.describe('POS Sales Flow @p0', () => {
     }
 
     // Cart should be cleared
-    await expect(page.getByText(/Cart \(0\)/)).toBeVisible()
+    await expect(page.getByText(/0 items/)).toBeVisible()
 
     // Verify hold orders count increased
     await expect(page.getByRole('button', { name: /Hold Orders \([1-9]\d*\)/i })).toBeVisible()
@@ -97,13 +97,13 @@ test.describe('POS Sales Flow @p0', () => {
   test('cancel transaction clears cart', async ({ page, posPage }) => {
     // Add product
     await page.locator('.grid > div').first().click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Click Cancel button
     await page.getByRole('button', { name: 'Cancel' }).click()
 
     // Cart should be cleared
-    await expect(page.getByText(/Cart \(0\)/)).toBeVisible()
+    await expect(page.getByText(/0 items/)).toBeVisible()
   })
 
   test('category filter works', async ({ page, posPage }) => {

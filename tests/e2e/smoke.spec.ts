@@ -77,9 +77,9 @@ test.describe('Smoke Tests @smoke @p0', () => {
     await page.goto('/pos')
     await ensureTourDismissed(page)
 
-    // Test navigation to key pages
-    await page.getByRole('link', { name: 'Products' }).click()
-    await expect(page).toHaveURL('/products')
+    // Test navigation to key pages (sidebar uses "Menu" not "Products")
+    await page.getByRole('link', { name: 'Menu' }).click()
+    await expect(page).toHaveURL('/menu')
 
     await page.getByRole('link', { name: 'Transactions' }).click()
     await expect(page).toHaveURL('/transactions')
@@ -95,13 +95,13 @@ test.describe('Smoke Tests @smoke @p0', () => {
     await expect(page.getByText('0 items')).toBeVisible()
 
     // Click first product to add to cart
-    await page.getByText('Burger Steak').click()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
 
     // Cart should update to show 1 item
     await expect(page.getByText('1 item')).toBeVisible()
 
-    // Pay button should be enabled (now shows "Pay ₱X.XX")
-    const payButton = page.getByRole('button', { name: /Pay/ })
+    // Pay Now button should be enabled (now shows "Pay Now ₱X.XX")
+    const payButton = page.getByRole('button', { name: /Pay Now/ })
     await expect(payButton).toBeEnabled()
   })
 })

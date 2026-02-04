@@ -32,8 +32,8 @@ test.describe('Phase 8: Offline Sync @p1', () => {
 
   test('transaction queued when offline and syncs when online', async ({ page, context }) => {
     // Step 1: Add product to cart
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Step 2: Simulate going offline by intercepting network requests
     // We'll block the transactions API to simulate offline
@@ -50,7 +50,7 @@ test.describe('Phase 8: Offline Sync @p1', () => {
     })
 
     // Step 3: Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
     // Step 4: Select Cash payment with exact amount
@@ -73,7 +73,7 @@ test.describe('Phase 8: Offline Sync @p1', () => {
     await page.getByRole('button', { name: 'Done' }).click()
 
     // Step 8: Cart should be cleared even when offline
-    await expect(page.getByText(/Cart \(0\)/)).toBeVisible()
+    await expect(page.getByText(/0 items/)).toBeVisible()
 
     // Step 9: Restore online status - unroute the blocked endpoints
     await context.unroute('**/api/transactions')
@@ -89,15 +89,15 @@ test.describe('Phase 8: Offline Sync @p1', () => {
 
   test('offline indicator shows pending count', async ({ page, context }) => {
     // First, add a product and go offline
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Block network
     await context.route('**/api/transactions', (route) => route.abort('internetdisconnected'))
     await context.route('**/api/health', (route) => route.abort('internetdisconnected'))
 
     // Complete payment offline
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('button', { name: 'Exact' }).click()
     await page.getByRole('button', { name: /Confirm/i }).click()
 
@@ -115,14 +115,14 @@ test.describe('Phase 8: Offline Sync @p1', () => {
     // For this test, we'll just verify the UX by checking if the error appears
 
     // Add product
-    await page.getByText('Burger Steak').click()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
 
     // Block network
     await context.route('**/api/transactions', (route) => route.abort('internetdisconnected'))
     await context.route('**/api/health', (route) => route.abort('internetdisconnected'))
 
     // Open payment modal
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
 
     // Tab should be disabled without a customer selected
     const tabButton = page.getByRole('tab', { name: /Tab/i })
@@ -131,15 +131,15 @@ test.describe('Phase 8: Offline Sync @p1', () => {
 
   test('GCash payment can be queued offline', async ({ page, context }) => {
     // Add product
-    await page.getByText('Burger Steak').click()
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Block network
     await context.route('**/api/transactions', (route) => route.abort('internetdisconnected'))
     await context.route('**/api/health', (route) => route.abort('internetdisconnected'))
 
     // Open payment and switch to GCash
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('tab', { name: /GCash/i }).click()
 
     // Enter reference number
@@ -175,13 +175,13 @@ test.describe('Phase 8: Offline Sync @p1', () => {
     })
 
     // Add product and complete payment
-    await page.getByText('Burger Steak').click()
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('button', { name: 'Exact' }).click()
     await page.getByRole('button', { name: /Confirm/i }).click()
 
     // Wait for success
-    await expect(page.getByText(/Payment Successful/i)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 10000 })
 
     // Verify a transaction was created
     expect(transactionRequests.length).toBeGreaterThanOrEqual(1)
@@ -193,8 +193,8 @@ test.describe('Phase 8: Offline Sync @p1', () => {
     await context.route('**/api/health', (route) => route.abort('internetdisconnected'))
 
     // Queue first transaction
-    await page.getByText('Burger Steak').click()
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('button', { name: 'Exact' }).click()
     await page.getByRole('button', { name: /Confirm/i }).click()
     await expect(page.getByText(/Transaction Queued/i)).toBeVisible({ timeout: 10000 })
@@ -202,8 +202,8 @@ test.describe('Phase 8: Offline Sync @p1', () => {
 
     // Queue second transaction
     await page.locator('.grid > div').nth(1).click() // Add different product
-    await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('button', { name: 'Exact' }).click()
     await page.getByRole('button', { name: /Confirm/i }).click()
 
@@ -223,7 +223,7 @@ test.describe('Offline Sync Error Handling @p2', () => {
     await expect(page.getByRole('button', { name: 'All' })).toBeVisible()
 
     // Add product
-    await page.getByText('Burger Steak').click()
+    await page.locator('[role="button"][aria-disabled="false"]').first().click()
 
     // Block network with temporary failure (500 error)
     let requestCount = 0
@@ -244,7 +244,7 @@ test.describe('Offline Sync Error Handling @p2', () => {
     await context.route('**/api/health', (route) => route.abort('internetdisconnected'))
 
     // Complete payment (will be queued due to offline)
-    await page.getByRole('button', { name: 'Pay' }).click()
+    await page.getByRole('button', { name: /Pay Now/ }).click()
     await page.getByRole('button', { name: 'Exact' }).click()
     await page.getByRole('button', { name: /Confirm/i }).click()
 

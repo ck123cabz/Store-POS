@@ -381,31 +381,32 @@ async function main() {
   // ═══════════════════════════════════════════════════════════════════════════════
 
   const ingredients = [
-    // Proteins
-    { name: 'Ground Beef', category: 'Protein', unit: 'kg', costPerUnit: 280, vendorId: 2 },
-    { name: 'Tocino (Pork)', category: 'Protein', unit: 'kg', costPerUnit: 220, vendorId: 2 },
-    { name: 'Eggs', category: 'Protein', unit: 'each', costPerUnit: 8, vendorId: 1 },
-    { name: 'Bacon Bits', category: 'Protein', unit: 'kg', costPerUnit: 350, vendorId: 2 },
+    // Proteins - quantity = packages in stock (sufficient for ~100 servings each)
+    { name: 'Ground Beef', category: 'Protein', unit: 'kg', costPerUnit: 280, vendorId: 2, quantity: 50 },
+    { name: 'Tocino (Pork)', category: 'Protein', unit: 'kg', costPerUnit: 220, vendorId: 2, quantity: 50 },
+    { name: 'Eggs', category: 'Protein', unit: 'each', costPerUnit: 8, vendorId: 1, quantity: 200 },
+    { name: 'Bacon Bits', category: 'Protein', unit: 'kg', costPerUnit: 350, vendorId: 2, quantity: 20 },
     // Produce & Dry Goods
-    { name: 'Garlic Rice', category: 'Dry Goods', unit: 'kg', costPerUnit: 55, vendorId: 1 },
-    { name: 'Potatoes (Fries)', category: 'Produce', unit: 'kg', costPerUnit: 45, vendorId: 1 },
-    { name: 'Onions', category: 'Produce', unit: 'kg', costPerUnit: 60, vendorId: 1 },
-    { name: 'Cheese (shredded)', category: 'Dairy', unit: 'kg', costPerUnit: 380, vendorId: 1 },
+    { name: 'Garlic Rice', category: 'Dry Goods', unit: 'kg', costPerUnit: 55, vendorId: 1, quantity: 50 },
+    { name: 'Potatoes (Fries)', category: 'Produce', unit: 'kg', costPerUnit: 45, vendorId: 1, quantity: 50 },
+    { name: 'Onions', category: 'Produce', unit: 'kg', costPerUnit: 60, vendorId: 1, quantity: 30 },
+    { name: 'Cheese (shredded)', category: 'Dairy', unit: 'kg', costPerUnit: 380, vendorId: 1, quantity: 20 },
     // Condiments
-    { name: 'Mushroom Gravy', category: 'Condiments', unit: 'liter', costPerUnit: 120, vendorId: 1 },
-    { name: 'Sour Cream', category: 'Condiments', unit: 'kg', costPerUnit: 280, vendorId: 1 },
-    // Beverages (for cost tracking)
-    { name: 'Gatorade (wholesale)', category: 'Beverage', unit: 'each', costPerUnit: 28, vendorId: 3 },
-    { name: 'Pocari (wholesale)', category: 'Beverage', unit: 'each', costPerUnit: 30, vendorId: 3 },
-    { name: 'Coffee Beans', category: 'Beverage', unit: 'kg', costPerUnit: 450, vendorId: 1 },
-    { name: 'Milk', category: 'Dairy', unit: 'liter', costPerUnit: 85, vendorId: 1 },
+    { name: 'Mushroom Gravy', category: 'Condiments', unit: 'liter', costPerUnit: 120, vendorId: 1, quantity: 30 },
+    { name: 'Sour Cream', category: 'Condiments', unit: 'kg', costPerUnit: 280, vendorId: 1, quantity: 20 },
+    // Beverages (for cost tracking) - bottles/units in stock
+    { name: 'Gatorade (wholesale)', category: 'Beverage', unit: 'each', costPerUnit: 28, vendorId: 3, quantity: 100 },
+    { name: 'Pocari (wholesale)', category: 'Beverage', unit: 'each', costPerUnit: 30, vendorId: 3, quantity: 100 },
+    { name: 'Coffee Beans', category: 'Beverage', unit: 'kg', costPerUnit: 450, vendorId: 1, quantity: 10 },
+    { name: 'Milk', category: 'Dairy', unit: 'liter', costPerUnit: 85, vendorId: 1, quantity: 50 },
   ]
 
   for (let i = 0; i < ingredients.length; i++) {
+    const ing = ingredients[i]
     await prisma.ingredient.upsert({
       where: { id: i + 1 },
-      update: {},
-      create: { id: i + 1, ...ingredients[i] },
+      update: { quantity: ing.quantity }, // Reset stock on reseed
+      create: { id: i + 1, ...ing },
     })
   }
 

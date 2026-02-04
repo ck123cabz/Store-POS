@@ -11,10 +11,10 @@ test.describe('US3: Tab Payment Flow @p2', () => {
     test('can select Tab payment method in payment modal', async ({ page }) => {
       // Add product to cart
       await page.locator('.grid > div').first().click()
-      await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+      await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
       // Open payment modal
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
       // Select Tab payment
@@ -27,10 +27,10 @@ test.describe('US3: Tab Payment Flow @p2', () => {
     test('Tab payment requires customer selection', async ({ page }) => {
       // Add product to cart
       await page.locator('.grid > div').first().click()
-      await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+      await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
       // Open payment modal
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
       // Select Tab payment
@@ -46,10 +46,10 @@ test.describe('US3: Tab Payment Flow @p2', () => {
     test('shows customer tab balance when selected', async ({ page }) => {
       // Add product to cart
       await page.locator('.grid > div').first().click()
-      await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+      await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
       // Open payment modal and select Tab
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await page.getByRole('tab', { name: /Tab/i }).click()
 
       // Select a customer from dropdown
@@ -71,7 +71,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
       await page.locator('.grid > div').first().click()
 
       // Open payment modal and select Tab
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await page.getByRole('tab', { name: /Tab/i }).click()
 
       // Look for credit limit display (may show after customer selection)
@@ -87,7 +87,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
       // This test verifies the UI displays warnings
       // The actual limit check happens on the server
       await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await page.getByRole('tab', { name: /Tab/i }).click()
 
       // Warning indicator should appear in the UI structure
@@ -101,7 +101,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
       await page.locator('.grid > div').first().click()
 
       // Open payment modal and select Tab
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await page.getByRole('tab', { name: /Tab/i }).click()
 
       // UI should exist for handling credit limit exceeded state
@@ -114,10 +114,10 @@ test.describe('US3: Tab Payment Flow @p2', () => {
     test('completes tab payment successfully', async ({ page }) => {
       // Add product to cart
       await page.locator('.grid > div').first().click()
-      await expect(page.getByText(/Cart \(1\)/)).toBeVisible()
+      await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
       // Open payment modal
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
 
       // Select Tab payment
@@ -145,7 +145,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
             // Should show success or redirect
             await expect(
               page.getByText(/Payment Successful|Success/i)
-                .or(page.getByText(/Cart \(0\)/))
+                .or(page.getByText(/0 items/))
             ).toBeVisible({ timeout: 10000 })
           }
         }
@@ -156,7 +156,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
       // This test verifies the balance update happens
       // The actual verification would require checking the customer record
       await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
 
       // Tab payment option should be available
       const tabOption = page.getByRole('tab', { name: /Tab/i })
@@ -168,7 +168,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
     test('prevents payment to suspended tab', async ({ page }) => {
       // Add product and open payment modal
       await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await page.getByRole('tab', { name: /Tab/i }).click()
 
       // If a customer with suspended tab is selected,
@@ -179,7 +179,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
 
     test('shows appropriate message for frozen tab', async ({ page }) => {
       await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await page.getByRole('tab', { name: /Tab/i }).click()
 
       // Tab payment UI should be visible
@@ -192,7 +192,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
     test('shows override option for managers when limit exceeded', async ({ page }) => {
       // Navigate to POS
       await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay/i }).click()
+      await page.getByRole('button', { name: /Pay Now/i }).click()
       await page.getByRole('tab', { name: /Tab/i }).click()
 
       // Override UI would appear when limit is exceeded
