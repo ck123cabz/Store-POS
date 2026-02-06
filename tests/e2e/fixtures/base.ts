@@ -147,4 +147,4 @@ export const test = base.extend<TestFixtures>({
   },
 })
 
-export { expect, POSPage }
+export { expect }
