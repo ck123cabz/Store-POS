@@ -71,7 +71,6 @@ export function ProductsTable({
           <TableHead className="w-20 hidden md:table-cell">Price</TableHead>
           <TableHead className="w-20 hidden lg:table-cell">Cost</TableHead>
           <TableHead className="w-20 hidden lg:table-cell">Margin</TableHead>
-          <TableHead className="w-20 hidden md:table-cell">Recipe</TableHead>
           <TableHead className="w-40">Stock</TableHead>
         </TableRow>
       </TableHeader>
@@ -140,14 +139,6 @@ export function ProductsTable({
                   </span>
                 ) : (
                   "-"
-                )}
-              </TableCell>
-
-              <TableCell className="hidden md:table-cell">
-                {product.recipeItemCount != null && product.recipeItemCount > 0 ? (
-                  <Badge variant="secondary">{product.recipeItemCount} items</Badge>
-                ) : (
-                  <span className="text-muted-foreground">None</span>
                 )}
               </TableCell>
 

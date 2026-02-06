@@ -16,6 +16,14 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { Progress } from "@/components/ui/progress"
 import {
   ArrowLeft,
@@ -264,13 +272,23 @@ export default function CustomerProfilePage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-4xl mx-auto">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/customers">Customers</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{customer.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/customers">
-          <Button variant="ghost" size="icon" className="min-h-11 min-w-11">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{customer.name}</h1>
           <div className="flex items-center gap-2 mt-1">

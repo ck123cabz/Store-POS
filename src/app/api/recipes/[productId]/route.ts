@@ -12,7 +12,15 @@ export async function GET(
       where: { id: parseInt(productId) },
       include: {
         recipeItems: {
-          include: { ingredient: true },
+          include: {
+            ingredient: {
+              include: {
+                unitAliases: {
+                  orderBy: { createdAt: "asc" },
+                },
+              },
+            },
+          },
         },
       },
     })
@@ -21,9 +29,11 @@ export async function GET(
       return NextResponse.json({ error: "Product not found" }, { status: 404 })
     }
 
-    // Calculate food cost from recipe
+    // Calculate food cost from recipe (use baseQuantity for cost calculation)
     const foodCost = product.recipeItems.reduce((sum, ri) => {
-      return sum + Number(ri.quantity) * Number(ri.ingredient.costPerUnit)
+      // Use baseQuantity for cost calculation (already in base units)
+      const qty = ri.baseQuantity ? Number(ri.baseQuantity) : Number(ri.quantity)
+      return sum + qty * Number(ri.ingredient.costPerUnit)
     }, 0)
 
     // Get hourly rate from settings for labor cost calculation
@@ -43,15 +53,32 @@ export async function GET(
       price: price,
       prepTime: product.prepTime,
       overheadAllocation: overheadCost,
-      ingredients: product.recipeItems.map((ri) => ({
-        ingredientId: ri.ingredientId,
-        ingredientName: ri.ingredient.name,
-        unit: ri.ingredient.unit,
-        quantity: Number(ri.quantity),
-        portionNote: ri.portionNote,
-        costPerUnit: Number(ri.ingredient.costPerUnit),
-        lineCost: Number(ri.quantity) * Number(ri.ingredient.costPerUnit),
-      })),
+      ingredients: product.recipeItems.map((ri) => {
+        const baseQuantity = ri.baseQuantity ? Number(ri.baseQuantity) : Number(ri.quantity)
+        const baseUnit = ri.ingredient.baseUnit || ri.ingredient.unit
+        // Use stored unit from recipe item, fall back to base unit
+        const storedUnit = ri.unit && ri.unit.length > 0 ? ri.unit : baseUnit
+
+        return {
+          ingredientId: ri.ingredientId,
+          ingredientName: ri.ingredient.name,
+          quantity: Number(ri.quantity),
+          unit: storedUnit,
+          baseUnit: baseUnit,
+          baseQuantity: baseQuantity,
+          portionNote: ri.portionNote,
+          costPerUnit: Number(ri.ingredient.costPerUnit),
+          lineCost: baseQuantity * Number(ri.ingredient.costPerUnit),
+          yieldFactor: ri.ingredient.yieldFactor ? Number(ri.ingredient.yieldFactor) : null,
+          unitAliases: (ri.ingredient.unitAliases || []).map((ua) => ({
+            name: ua.name,
+            baseUnitMultiplier: typeof ua.baseUnitMultiplier === "number"
+              ? ua.baseUnitMultiplier
+              : Number(ua.baseUnitMultiplier),
+            description: ua.description,
+          })),
+        }
+      }),
       costs: {
         foodCost: Math.round(foodCost * 100) / 100,
         laborCost: Math.round(laborCost * 100) / 100,
@@ -96,11 +123,21 @@ export async function PUT(
 
       // Create new recipe items
       if (body.ingredients.length > 0) {
+        interface RecipeIngredientInput {
+          ingredientId: number
+          quantity: number      // amount in chosen unit
+          unit?: string         // chosen unit name (empty or omitted = base unit)
+          baseQuantity?: number // converted to base units (defaults to quantity if not provided)
+          portionNote?: string
+        }
+
         await prisma.recipeItem.createMany({
-          data: body.ingredients.map((ing: { ingredientId: number; quantity: number; portionNote?: string }) => ({
+          data: body.ingredients.map((ing: RecipeIngredientInput) => ({
             productId: id,
             ingredientId: ing.ingredientId,
             quantity: ing.quantity,
+            unit: ing.unit || "",
+            baseQuantity: ing.baseQuantity ?? ing.quantity, // Default to quantity if not provided
             portionNote: ing.portionNote || null,
           })),
         })
@@ -118,7 +155,9 @@ export async function PUT(
     }
 
     const foodCost = product.recipeItems.reduce((sum, ri) => {
-      return sum + Number(ri.quantity) * Number(ri.ingredient.costPerUnit)
+      // Use baseQuantity for cost calculation (already in base units)
+      const qty = ri.baseQuantity ? Number(ri.baseQuantity) : Number(ri.quantity)
+      return sum + qty * Number(ri.ingredient.costPerUnit)
     }, 0)
 
     const settings = await prisma.settings.findFirst()

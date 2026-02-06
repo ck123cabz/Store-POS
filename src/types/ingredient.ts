@@ -46,6 +46,82 @@ export type PurchaseUnit = (typeof PURCHASE_UNITS)[number];
 export type BaseUnit = (typeof BASE_UNITS)[number];
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Unit Presets for Quick-Add
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Preset unit definitions for quick-add functionality
+ * Organized by base unit category
+ */
+export const UNIT_PRESETS = {
+  /** Presets for volume-based ingredients (mL, L) */
+  volume: [
+    { name: "cup", baseUnitMultiplier: 240, forBaseUnit: "mL", description: "1 cup = 240 mL" },
+    { name: "tbsp", baseUnitMultiplier: 15, forBaseUnit: "mL", description: "1 tbsp = 15 mL" },
+    { name: "tsp", baseUnitMultiplier: 5, forBaseUnit: "mL", description: "1 tsp = 5 mL" },
+  ],
+  /** Presets for weight-based ingredients (g, kg) */
+  weight: [
+    { name: "cup", baseUnitMultiplier: 200, forBaseUnit: "g", description: "1 cup ≈ 200g (flour/sugar)" },
+    { name: "serving", baseUnitMultiplier: 100, forBaseUnit: "g", description: "1 serving = 100g" },
+    { name: "tbsp", baseUnitMultiplier: 15, forBaseUnit: "g", description: "1 tbsp ≈ 15g" },
+  ],
+  /** Presets for count-based ingredients (pcs, each) */
+  count: [
+    { name: "serving", baseUnitMultiplier: 1, forBaseUnit: "pcs", description: "1 serving = 1 piece" },
+    { name: "dozen", baseUnitMultiplier: 12, forBaseUnit: "pcs", description: "1 dozen = 12 pieces" },
+  ],
+} as const;
+
+export type UnitPresetCategory = keyof typeof UNIT_PRESETS;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Unit Alias Types
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Unit alias for an ingredient
+ * Allows users to enter recipes in their preferred units
+ */
+export interface UnitAlias {
+  id: number;
+  ingredientId: number;
+  /** Alias name (e.g., "cup", "serving", "tbsp") */
+  name: string;
+  /** How many base units equal 1 of this alias (e.g., 240 mL per cup) */
+  baseUnitMultiplier: number;
+  /** Human-readable description (e.g., "1 cup = 240 mL") */
+  description: string | null;
+  /** Show this unit first in dropdowns */
+  isDefault: boolean;
+  createdAt: string;
+}
+
+/**
+ * Input for creating a unit alias
+ */
+export interface UnitAliasInput {
+  name: string;
+  baseUnitMultiplier: number;
+  description?: string;
+  isDefault?: boolean;
+}
+
+/**
+ * Available unit option for recipe entry
+ */
+export interface AvailableUnit {
+  /** Unit name to display */
+  name: string;
+  /** Multiplier to convert to base units */
+  multiplier: number;
+  /** Description for tooltip */
+  description: string | null;
+  /** True if this is the ingredient's base unit */
+  isBase: boolean;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Stock Status Types
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -147,6 +223,12 @@ export interface Ingredient
   vendorName: string | null;
   lastUpdated: string;
   barcode: string | null;
+
+  /** Cooking yield factor (e.g., 3.0 for rice = 3x expansion when cooked) */
+  yieldFactor: number | null;
+
+  /** Custom unit aliases for recipe entry */
+  unitAliases: UnitAlias[];
 
   // Legacy fields (deprecated, for backward compatibility)
   /** @deprecated Use baseUnit + packageUnit instead */

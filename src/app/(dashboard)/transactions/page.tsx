@@ -31,13 +31,15 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Eye, Search, TrendingUp, DollarSign, Clock, Flame, RefreshCw, Ban, AlertTriangle } from "lucide-react"
+import { Eye, Search, TrendingUp, DollarSign, Clock, Flame, RefreshCw, Ban, AlertTriangle, AlertCircle, ChevronsUpDown } from "lucide-react"
 import { formatCurrency } from "@/lib/format-currency"
 import { useSettings } from "@/hooks/use-settings"
 import { useSession } from "next-auth/react"
 import { VALID_VOID_REASONS } from "@/lib/void-constants"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 interface TransactionItem {
   id: number
@@ -522,8 +524,16 @@ export default function TransactionsPage() {
           )}
 
           {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
+          <Collapsible defaultOpen>
+            <Card>
+              <CardContent className="pt-6">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between mb-4">
+                    <span className="text-sm font-medium">Advanced Filters</span>
+                    <ChevronsUpDown className="h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4">
                 <div className="space-y-2">
                   <Label>Status</Label>
@@ -606,8 +616,10 @@ export default function TransactionsPage() {
                   </Label>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+                </CollapsibleContent>
+              </CardContent>
+            </Card>
+          </Collapsible>
 
           {/* Results */}
           <div className="overflow-x-auto">
@@ -922,19 +934,17 @@ export default function TransactionsPage() {
 
               {/* 003-transaction-fixes: Void info section */}
               {viewTransaction.isVoided && (
-                <div className="bg-destructive/10 border border-destructive/30 rounded p-3 space-y-1">
-                  <div className="flex items-center gap-2 text-destructive font-medium">
-                    <Ban className="h-4 w-4" />
-                    Transaction Voided
-                  </div>
-                  <div className="text-sm text-muted-foreground">
+                <Alert variant="destructive">
+                  <Ban className="h-4 w-4" />
+                  <AlertTitle>Transaction Voided</AlertTitle>
+                  <AlertDescription>
                     <p>Reason: {viewTransaction.voidReason}</p>
                     <p>By: {viewTransaction.voidedByName}</p>
                     {viewTransaction.voidedAt && (
                       <p>On: {format(new Date(viewTransaction.voidedAt), "MMM d, yyyy h:mm a")}</p>
                     )}
-                  </div>
-                </div>
+                  </AlertDescription>
+                </Alert>
               )}
 
               {/* 003-transaction-fixes: Void button */}
@@ -1018,9 +1028,10 @@ export default function TransactionsPage() {
             )}
 
             {voidError && (
-              <div className="text-sm text-destructive bg-destructive/10 rounded p-2">
-                {voidError}
-              </div>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{voidError}</AlertDescription>
+              </Alert>
             )}
 
             <div className="flex justify-end gap-2">

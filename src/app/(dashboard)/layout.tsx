@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { Header } from "@/components/layout/header"
-import { Sidebar } from "@/components/layout/sidebar"
+import { AppSidebar } from "@/components/layout/sidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { SessionProvider } from "@/components/providers/session-provider"
 import { OnboardingTour } from "@/components/onboarding/tour"
 
@@ -18,14 +19,14 @@ export default async function DashboardLayout({
 
   return (
     <SessionProvider>
-      <div className="min-h-screen bg-muted">
-        <Header />
-        <div className="flex">
-          <Sidebar />
-          <main className="flex-1 pt-12 md:pt-0">{children}</main>
-        </div>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <Header />
+          <main className="flex-1">{children}</main>
+        </SidebarInset>
         <OnboardingTour />
-      </div>
+      </SidebarProvider>
     </SessionProvider>
   )
 }

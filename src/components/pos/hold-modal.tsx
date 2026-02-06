@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@/components/ui/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -74,11 +74,11 @@ export function HoldModal({
   const isValid = refNumber || customerId !== "0"
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Hold Order</DialogTitle>
-        </DialogHeader>
+    <ResponsiveDialog open={open} onOpenChange={onClose}>
+      <ResponsiveDialogContent className="sm:max-w-md">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>Hold Order</ResponsiveDialogTitle>
+        </ResponsiveDialogHeader>
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
@@ -127,7 +127,7 @@ export function HoldModal({
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

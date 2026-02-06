@@ -37,7 +37,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Pencil, Trash2, RefreshCw, Package, ClipboardList, Info } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Plus, Pencil, Trash2, RefreshCw, Package, ClipboardList, Info, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { formatDualUnitDisplay, formatCurrency } from "@/lib/ingredient-utils"
@@ -74,6 +80,16 @@ interface Ingredient {
   // Overhead
   isOverhead: boolean
   overheadPerTransaction: number | null
+  // Cooking yield
+  yieldFactor: number | null
+  // Unit aliases
+  unitAliases: Array<{
+    id: number
+    name: string
+    baseUnitMultiplier: number
+    description: string | null
+    isDefault: boolean
+  }>
   // Legacy (deprecated)
   unit: string
   costPerUnit: number
@@ -126,6 +142,19 @@ export default function IngredientsPage() {
   // Stock section
   const [quantity, setQuantity] = useState("0")
   const [parLevel, setParLevel] = useState("0")
+  // Cooking yield
+  const [yieldFactor, setYieldFactor] = useState<string>("")
+  // Unit aliases
+  const [unitAliases, setUnitAliases] = useState<Array<{
+    id: number
+    name: string
+    baseUnitMultiplier: number
+    description: string | null
+    isDefault: boolean
+  }>>([])
+  const [newAliasName, setNewAliasName] = useState("")
+  const [newAliasMultiplier, setNewAliasMultiplier] = useState("")
+  const [addingAlias, setAddingAlias] = useState(false)
 
   // Calculated cost preview
   const calculatedCostPerBaseUnit = useMemo(() => {
@@ -171,6 +200,8 @@ export default function IngredientsPage() {
     setPackageSize(ingredient?.packageSize?.toString() || "1")
     setQuantity(ingredient?.quantity?.toString() || "0")
     setParLevel(ingredient?.parLevel?.toString() || "0")
+    setYieldFactor(ingredient?.yieldFactor?.toString() || "")
+    setUnitAliases(ingredient?.unitAliases || [])
     setFormOpen(true)
   }
 
@@ -186,6 +217,10 @@ export default function IngredientsPage() {
     setPackageSize("1")
     setQuantity("0")
     setParLevel("0")
+    setYieldFactor("")
+    setUnitAliases([])
+    setNewAliasName("")
+    setNewAliasMultiplier("")
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -224,6 +259,8 @@ export default function IngredientsPage() {
           // Stock
           quantity: parseFloat(quantity) || 0,
           parLevel: parseInt(parLevel) || 0,
+          // Cooking yield
+          yieldFactor: yieldFactor ? parseFloat(yieldFactor) : null,
         }),
       })
 
@@ -288,6 +325,59 @@ export default function IngredientsPage() {
     }
   }
 
+  async function handleAddAlias() {
+    if (!editIngredient || !newAliasName.trim() || !newAliasMultiplier) return
+
+    setAddingAlias(true)
+    try {
+      const res = await fetch(`/api/ingredients/${editIngredient.id}/unit-aliases`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newAliasName.trim().toLowerCase(),
+          baseUnitMultiplier: parseFloat(newAliasMultiplier),
+          description: `1 ${newAliasName.trim()} = ${newAliasMultiplier} ${baseUnit}`,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to add unit")
+      }
+
+      const alias = await res.json()
+      setUnitAliases(prev => [...prev, alias])
+      setNewAliasName("")
+      setNewAliasMultiplier("")
+      toast.success(`Added "${alias.name}" unit`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add unit")
+    } finally {
+      setAddingAlias(false)
+    }
+  }
+
+  async function handleRemoveAlias(aliasId: number) {
+    if (!editIngredient) return
+
+    try {
+      const res = await fetch(`/api/ingredients/${editIngredient.id}/unit-aliases/${aliasId}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) throw new Error("Failed to delete")
+
+      setUnitAliases(prev => prev.filter(a => a.id !== aliasId))
+      toast.success("Unit removed")
+    } catch {
+      toast.error("Failed to remove unit")
+    }
+  }
+
+  function handlePresetClick(name: string, multiplier: number) {
+    setNewAliasName(name)
+    setNewAliasMultiplier(multiplier.toString())
+  }
+
   if (loading) {
     return (
       <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
@@ -323,7 +413,7 @@ export default function IngredientsPage() {
             <TableHead>Name</TableHead>
             <TableHead className="hidden sm:table-cell">Category</TableHead>
             <TableHead className="text-right">Stock</TableHead>
-            <TableHead className="text-right hidden md:table-cell">PAR Level</TableHead>
+            <TableHead className="text-right hidden md:table-cell">Min. Stock</TableHead>
             <TableHead className="text-right hidden md:table-cell">Cost/Unit</TableHead>
             <TableHead className="hidden lg:table-cell">Vendor</TableHead>
             <TableHead className="w-24">Actions</TableHead>
@@ -582,6 +672,150 @@ export default function IngredientsPage() {
               </div>
             )}
 
+            {/* Cooking Yield Section */}
+            <div className="space-y-3 p-4 bg-amber-50/50 rounded-lg border border-amber-100">
+              <div className="flex items-center justify-between">
+                <Label className="font-medium">Cooking Yield (Optional)</Label>
+<TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="inline-flex">
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <p>
+                        How much this ingredient expands or shrinks when cooked.
+                        Rice typically yields 3x (expands), meat yields 0.8x (shrinks).
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    max="10"
+                    placeholder="e.g., 3 for rice"
+                    value={yieldFactor}
+                    onChange={(e) => setYieldFactor(e.target.value)}
+                  />
+                </div>
+                <span className="text-sm text-muted-foreground">× yield</span>
+              </div>
+              {yieldFactor && parseFloat(yieldFactor) > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  1 {baseUnit || "unit"} raw → {parseFloat(yieldFactor)} {baseUnit || "unit"} cooked
+                </p>
+              )}
+            </div>
+
+            {/* Recipe Units Section - Only show when editing existing ingredient */}
+            {editIngredient && (
+              <div className="space-y-3 p-4 bg-purple-50/50 rounded-lg border border-purple-100">
+                <div className="flex items-center justify-between">
+                  <Label className="font-medium">Recipe Units</Label>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="inline-flex">
+                          <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs">
+                        <p>
+                          Add units like "cup" or "serving" for easier recipe entry.
+                          These appear in the unit dropdown when adding this ingredient to recipes.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+
+                {/* Current Aliases */}
+                {unitAliases.length > 0 && (
+                  <div className="space-y-2">
+                    {unitAliases.map((alias) => (
+                      <div
+                        key={alias.id}
+                        className="flex items-center justify-between p-2 bg-white rounded border"
+                      >
+                        <div>
+                          <span className="font-medium">{alias.name}</span>
+                          <span className="text-muted-foreground text-sm ml-2">
+                            = {alias.baseUnitMultiplier} {baseUnit}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveAlias(alias.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Presets */}
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-sm text-muted-foreground">Quick add:</span>
+                  {[
+                    { name: "cup", multiplier: baseUnit === "mL" ? 240 : 200 },
+                    { name: "tbsp", multiplier: baseUnit === "mL" ? 15 : 15 },
+                    { name: "tsp", multiplier: baseUnit === "mL" ? 5 : 5 },
+                    { name: "serving", multiplier: 100 },
+                  ].map((preset) => (
+                    <Button
+                      key={preset.name}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => handlePresetClick(preset.name, preset.multiplier)}
+                    >
+                      + {preset.name}
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Add Custom */}
+                <div className="flex gap-2 pt-2 border-t">
+                  <Input
+                    placeholder="Unit name"
+                    value={newAliasName}
+                    onChange={(e) => setNewAliasName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-muted-foreground">=</span>
+                    <Input
+                      type="number"
+                      placeholder="Amount"
+                      value={newAliasMultiplier}
+                      onChange={(e) => setNewAliasMultiplier(e.target.value)}
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground">{baseUnit}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAddAlias}
+                    disabled={addingAlias || !newAliasName || !newAliasMultiplier}
+                    size="sm"
+                  >
+                    {addingAlias ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Stock Section */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -598,7 +832,24 @@ export default function IngredientsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="parLevel">PAR Level ({packageUnit}s)</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="parLevel">Min. Stock ({packageUnit}s)</Label>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="inline-flex">
+                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <p>
+                          Alert threshold. When stock falls to this level,
+                          a warning badge appears in the sidebar. Set to 0 to disable alerts.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Input
                   id="parLevel"
                   type="number"

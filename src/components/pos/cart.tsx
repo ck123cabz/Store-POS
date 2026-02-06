@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   Minus,
   Plus,
@@ -148,11 +149,12 @@ export function Cart({
       <ScrollArea className="flex-1">
         <div className="p-3 space-y-2">
           {cart.items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <ShoppingCart className="h-16 w-16 mb-3 opacity-30" />
-              <p className="font-medium">Cart is empty</p>
-              <p className="text-sm">Add products to get started</p>
-            </div>
+            <EmptyState
+              icon={<ShoppingCart className="h-16 w-16" />}
+              title="Cart is empty"
+              description="Add products to get started"
+              className="py-12"
+            />
           ) : (
             cart.items.map((item, index) => (
               <div

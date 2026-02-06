@@ -28,12 +28,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 })
     }
 
+    // Handle credit limit - default to null if not provided
+    const creditLimit = typeof body.creditLimit === "number" ? body.creditLimit : null
+
     const customer = await prisma.customer.create({
       data: {
         name,
         phone: typeof body.phone === "string" ? body.phone.trim() : "",
         email,
         address: typeof body.address === "string" ? body.address.trim() : "",
+        creditLimit,
       },
     })
 

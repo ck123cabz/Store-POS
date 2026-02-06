@@ -22,6 +22,12 @@ import {
   isUsingNewUnitSystem,
   isSameUnit,
   ingredientFormSchema,
+  convertToBaseUnits,
+  convertFromBaseUnits,
+  calculateCookedYield,
+  calculateRecipeIngredientCost,
+  getAvailableUnits,
+  getUnitMultiplier,
 } from "@/lib/ingredient-utils";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -578,6 +584,171 @@ describe("Ingredient Form Validation", () => {
 
       const result = ingredientFormSchema.safeParse(data);
       expect(result.success).toBe(true);
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Unit Conversion
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe("Unit Conversion", () => {
+  describe("convertToBaseUnits", () => {
+    test("converts cups to mL", () => {
+      // 2 cups × 240 mL/cup = 480 mL
+      const result = convertToBaseUnits(2, 240);
+      expect(result).toBe(480);
+    });
+
+    test("handles fractional quantities", () => {
+      // 0.5 cup × 240 mL/cup = 120 mL
+      const result = convertToBaseUnits(0.5, 240);
+      expect(result).toBe(120);
+    });
+
+    test("handles multiplier of 1 (base unit)", () => {
+      const result = convertToBaseUnits(100, 1);
+      expect(result).toBe(100);
+    });
+
+    test("handles zero quantity", () => {
+      const result = convertToBaseUnits(0, 240);
+      expect(result).toBe(0);
+    });
+  });
+
+  describe("convertFromBaseUnits", () => {
+    test("converts mL to cups", () => {
+      // 480 mL ÷ 240 mL/cup = 2 cups
+      const result = convertFromBaseUnits(480, 240);
+      expect(result).toBe(2);
+    });
+
+    test("handles fractional result", () => {
+      // 120 mL ÷ 240 mL/cup = 0.5 cups
+      const result = convertFromBaseUnits(120, 240);
+      expect(result).toBe(0.5);
+    });
+
+    test("returns original value when multiplier is 0", () => {
+      const result = convertFromBaseUnits(100, 0);
+      expect(result).toBe(100);
+    });
+
+    test("returns original value when multiplier is negative", () => {
+      const result = convertFromBaseUnits(100, -5);
+      expect(result).toBe(100);
+    });
+  });
+
+  describe("calculateCookedYield", () => {
+    test("calculates cooked yield with expansion factor", () => {
+      // 100g rice × 3 yield = 300g cooked
+      const result = calculateCookedYield(100, 3);
+      expect(result).toBe(300);
+    });
+
+    test("calculates cooked yield with shrink factor", () => {
+      // 100g meat × 0.8 yield = 80g cooked
+      const result = calculateCookedYield(100, 0.8);
+      expect(result).toBe(80);
+    });
+
+    test("returns raw amount when yield factor is null", () => {
+      const result = calculateCookedYield(100, null);
+      expect(result).toBe(100);
+    });
+
+    test("returns raw amount when yield factor is 0", () => {
+      const result = calculateCookedYield(100, 0);
+      expect(result).toBe(100);
+    });
+
+    test("returns raw amount when yield factor is negative", () => {
+      const result = calculateCookedYield(100, -1);
+      expect(result).toBe(100);
+    });
+  });
+
+  describe("calculateRecipeIngredientCost", () => {
+    test("calculates cost with unit conversion", () => {
+      // 2 cups × 240 mL/cup × ₱0.50/mL = ₱240
+      const result = calculateRecipeIngredientCost(2, 240, 0.5);
+      expect(result).toBe(240);
+    });
+
+    test("calculates cost with base unit (multiplier 1)", () => {
+      // 100g × 1 × ₱0.50/g = ₱50
+      const result = calculateRecipeIngredientCost(100, 1, 0.5);
+      expect(result).toBe(50);
+    });
+
+    test("handles zero quantity", () => {
+      const result = calculateRecipeIngredientCost(0, 240, 0.5);
+      expect(result).toBe(0);
+    });
+  });
+
+  describe("getAvailableUnits", () => {
+    test("includes base unit first", () => {
+      const aliases = [
+        { name: "cup", baseUnitMultiplier: 240, description: "1 cup = 240 mL" },
+      ];
+      const result = getAvailableUnits("mL", aliases);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe("mL");
+      expect(result[0].isBase).toBe(true);
+      expect(result[0].multiplier).toBe(1);
+    });
+
+    test("includes all aliases", () => {
+      const aliases = [
+        { name: "cup", baseUnitMultiplier: 240, description: null },
+        { name: "tbsp", baseUnitMultiplier: 15, description: null },
+      ];
+      const result = getAvailableUnits("mL", aliases);
+
+      expect(result).toHaveLength(3);
+      expect(result[1].name).toBe("cup");
+      expect(result[1].multiplier).toBe(240);
+      expect(result[1].isBase).toBe(false);
+      expect(result[2].name).toBe("tbsp");
+      expect(result[2].multiplier).toBe(15);
+    });
+
+    test("returns only base unit when no aliases", () => {
+      const result = getAvailableUnits("pcs", []);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe("pcs");
+      expect(result[0].isBase).toBe(true);
+    });
+  });
+
+  describe("getUnitMultiplier", () => {
+    const aliases = [
+      { name: "cup", baseUnitMultiplier: 240 },
+      { name: "tbsp", baseUnitMultiplier: 15 },
+    ];
+
+    test("returns 1 for base unit", () => {
+      const result = getUnitMultiplier("mL", "mL", aliases);
+      expect(result).toBe(1);
+    });
+
+    test("returns 1 for empty unit string", () => {
+      const result = getUnitMultiplier("", "mL", aliases);
+      expect(result).toBe(1);
+    });
+
+    test("returns alias multiplier when found", () => {
+      const result = getUnitMultiplier("cup", "mL", aliases);
+      expect(result).toBe(240);
+    });
+
+    test("returns 1 when alias not found", () => {
+      const result = getUnitMultiplier("gallon", "mL", aliases);
+      expect(result).toBe(1);
     });
   });
 });

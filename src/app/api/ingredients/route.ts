@@ -35,7 +35,16 @@ function formatIngredient(i: {
   syncStatus: string
   isOverhead: boolean
   overheadPerTransaction: { toNumber: () => number } | null
+  yieldFactor: { toNumber: () => number } | number | null
   vendor?: { name: string } | null
+  unitAliases?: Array<{
+    id: number
+    name: string
+    baseUnitMultiplier: { toNumber: () => number } | number
+    description: string | null
+    isDefault: boolean
+    createdAt: Date
+  }>
 }) {
   const rawPackageSize = typeof i.packageSize === "number" ? i.packageSize : Number(i.packageSize)
   const rawCostPerPackage = typeof i.costPerPackage === "number" ? i.costPerPackage : Number(i.costPerPackage)
@@ -116,6 +125,26 @@ function formatIngredient(i: {
       ? (typeof i.overheadPerTransaction === "number" ? i.overheadPerTransaction : Number(i.overheadPerTransaction))
       : null,
 
+    // Yield factor
+    yieldFactor: typeof i.yieldFactor === "number"
+      ? i.yieldFactor
+      : i.yieldFactor
+        ? Number(i.yieldFactor)
+        : null,
+
+    // Unit aliases
+    unitAliases: (i.unitAliases || []).map((ua) => ({
+      id: ua.id,
+      ingredientId: i.id,
+      name: ua.name,
+      baseUnitMultiplier: typeof ua.baseUnitMultiplier === "number"
+        ? ua.baseUnitMultiplier
+        : ua.baseUnitMultiplier.toNumber(),
+      description: ua.description,
+      isDefault: ua.isDefault,
+      createdAt: ua.createdAt.toISOString(),
+    })),
+
     // Legacy fields (deprecated, for backward compatibility)
     unit: i.unit || effectivePackageUnit,
     costPerUnit: rawCostPerUnit || effectiveCostPerBaseUnit,
@@ -126,7 +155,12 @@ export async function GET() {
   try {
     const ingredients = await prisma.ingredient.findMany({
       where: { isActive: true },
-      include: { vendor: true },
+      include: {
+        vendor: true,
+        unitAliases: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
       orderBy: { name: "asc" },
     })
 

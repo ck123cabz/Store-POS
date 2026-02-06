@@ -57,6 +57,38 @@ export const ingredientFormSchema = z
 
 export type IngredientFormSchema = z.infer<typeof ingredientFormSchema>;
 
+/**
+ * Validation schema for unit alias input
+ * Used when creating/updating unit aliases for ingredients
+ */
+export const unitAliasSchema = z.object({
+  /** Alias name (e.g., "cup", "serving") */
+  name: z
+    .string()
+    .min(1, "Unit name is required")
+    .max(20, "Unit name must be 20 characters or less")
+    .regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/, "Unit name must start with a letter and contain only letters, numbers, underscores, or hyphens"),
+
+  /** How many base units equal 1 of this alias */
+  baseUnitMultiplier: z
+    .number()
+    .positive("Multiplier must be greater than 0"),
+
+  /** Optional human-readable description */
+  description: z
+    .string()
+    .max(50, "Description must be 50 characters or less")
+    .optional(),
+
+  /** Whether this is the default unit for recipe entry */
+  isDefault: z
+    .boolean()
+    .optional()
+    .default(false),
+});
+
+export type UnitAliasSchema = z.infer<typeof unitAliasSchema>;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Cost Calculation Functions
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -114,6 +146,144 @@ export function calculateRecipeCost(
   costPerBaseUnit: number
 ): number {
   return quantity * costPerBaseUnit;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Unit Conversion Functions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Convert from alias unit to base units
+ *
+ * @param quantity - Amount in alias unit (e.g., 2 cups)
+ * @param multiplier - Base units per alias unit (e.g., 240 mL per cup)
+ * @returns Amount in base units (e.g., 480 mL)
+ *
+ * @example
+ * convertToBaseUnits(2, 240) // 2 cups × 240 mL/cup = 480 mL
+ */
+export function convertToBaseUnits(
+  quantity: number,
+  multiplier: number
+): number {
+  return quantity * multiplier;
+}
+
+/**
+ * Convert from base units to alias unit
+ *
+ * @param baseQuantity - Amount in base units
+ * @param multiplier - Base units per alias unit
+ * @returns Amount in alias unit
+ *
+ * @example
+ * convertFromBaseUnits(480, 240) // 480 mL ÷ 240 mL/cup = 2 cups
+ */
+export function convertFromBaseUnits(
+  baseQuantity: number,
+  multiplier: number
+): number {
+  if (multiplier <= 0) return baseQuantity;
+  return baseQuantity / multiplier;
+}
+
+/**
+ * Calculate cooked yield from raw amount
+ *
+ * @param rawQuantity - Raw amount in base units
+ * @param yieldFactor - Cooking expansion factor (e.g., 3 for rice)
+ * @returns Cooked amount in base units
+ *
+ * @example
+ * calculateCookedYield(100, 3) // 100g raw × 3 = 300g cooked
+ * calculateCookedYield(100, 0.8) // 100g raw × 0.8 = 80g cooked (meat shrinks)
+ */
+export function calculateCookedYield(
+  rawQuantity: number,
+  yieldFactor: number | null
+): number {
+  if (!yieldFactor || yieldFactor <= 0) return rawQuantity;
+  return rawQuantity * yieldFactor;
+}
+
+/**
+ * Calculate cost for a recipe ingredient entry
+ *
+ * @param quantity - Amount in chosen unit
+ * @param multiplier - Base units per chosen unit (1 if using base unit)
+ * @param costPerBaseUnit - Cost per base unit
+ * @returns Total cost for this ingredient entry
+ *
+ * @example
+ * // 2 cups of ingredient, 240 mL/cup, ₱0.50/mL
+ * calculateRecipeIngredientCost(2, 240, 0.5) // = ₱240
+ */
+export function calculateRecipeIngredientCost(
+  quantity: number,
+  multiplier: number,
+  costPerBaseUnit: number
+): number {
+  const baseQuantity = convertToBaseUnits(quantity, multiplier);
+  return calculateRecipeCost(baseQuantity, costPerBaseUnit);
+}
+
+/**
+ * Get all available units for an ingredient
+ * Includes base unit and all configured aliases
+ *
+ * @param baseUnit - The ingredient's base unit
+ * @param unitAliases - Configured unit aliases
+ * @returns Array of available units for dropdown
+ *
+ * @example
+ * getAvailableUnits("g", [{ name: "cup", baseUnitMultiplier: 200, description: "1 cup = 200g" }])
+ * // Returns:
+ * // [
+ * //   { name: "g", multiplier: 1, description: "Base unit", isBase: true },
+ * //   { name: "cup", multiplier: 200, description: "1 cup = 200g", isBase: false }
+ * // ]
+ */
+export function getAvailableUnits(
+  baseUnit: string,
+  unitAliases: Array<{ name: string; baseUnitMultiplier: number; description: string | null }>
+): Array<{ name: string; multiplier: number; description: string | null; isBase: boolean }> {
+  const units: Array<{ name: string; multiplier: number; description: string | null; isBase: boolean }> = [
+    {
+      name: baseUnit,
+      multiplier: 1,
+      description: "Base unit",
+      isBase: true,
+    },
+  ];
+
+  for (const alias of unitAliases) {
+    units.push({
+      name: alias.name,
+      multiplier: alias.baseUnitMultiplier,
+      description: alias.description,
+      isBase: false,
+    });
+  }
+
+  return units;
+}
+
+/**
+ * Get the multiplier for a given unit
+ *
+ * @param unit - The unit name to look up
+ * @param baseUnit - The ingredient's base unit
+ * @param unitAliases - Configured unit aliases
+ * @returns The multiplier (1 for base unit, alias multiplier otherwise)
+ */
+export function getUnitMultiplier(
+  unit: string,
+  baseUnit: string,
+  unitAliases: Array<{ name: string; baseUnitMultiplier: number }>
+): number {
+  if (unit === baseUnit || unit === "") return 1;
+  const alias = unitAliases.find((a) => a.name === unit);
+  return alias?.baseUnitMultiplier ?? 1;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

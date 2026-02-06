@@ -18,5 +18,11 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "registries": {}
+  "registries": {
+    "@magicui": "https://magicui.design/r/{name}",
+    "@kibo-ui": "https://www.kibo-ui.com/r/{name}.json",
+    "@animate-ui": "https://animate-ui.com/r/{name}.json",
+    "@formcn": "https://formcn.dev/r/{name}.json",
+    "@shadcn-dashboard": "https://shadcn-dashboard.com/r/{name}.json"
+  }
 }

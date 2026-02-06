@@ -225,6 +225,11 @@ export async function PUT(
         isOverhead: body.isOverhead ?? current.isOverhead,
         overheadPerTransaction: body.overheadPerTransaction ?? current.overheadPerTransaction,
 
+        // Yield factor
+        yieldFactor: body.yieldFactor !== undefined
+          ? (body.yieldFactor === null ? null : parseFloat(String(body.yieldFactor)))
+          : undefined,
+
         lastUpdated: new Date(),
       }
     } else {
@@ -273,6 +278,12 @@ export async function PUT(
         vendorId: body.vendorId || null,
         barcode: body.barcode || null,
         sellable: body.sellable ?? current.sellable,
+
+        // Yield factor
+        yieldFactor: body.yieldFactor !== undefined
+          ? (body.yieldFactor === null ? null : parseFloat(String(body.yieldFactor)))
+          : undefined,
+
         lastUpdated: new Date(),
       }
     }

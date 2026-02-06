@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@/components/ui/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,23 +19,19 @@ import {
   Loader2,
   Banknote,
   Smartphone,
-  CreditCard,
   Split,
   Receipt,
   Delete,
   ArrowRight,
-  AlertTriangle,
   CloudOff,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import {
-  validateGCashReference,
-  type PaymentType,
-} from "@/lib/payment-validation"
+import { type PaymentType } from "@/lib/payment-validation"
 import { useNetworkStatus } from "@/hooks/use-network-status"
 import { useOfflineQueue } from "@/hooks/use-offline-queue"
 import { SplitPayment, type SplitPaymentData } from "./split-payment"
+import { GCashCamera } from "./gcash-camera"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -122,10 +118,7 @@ export function PaymentModal({
   const [paidAmount, setPaidAmount] = useState("")
 
   // GCash payment state
-  const [gcashReference, setGcashReference] = useState("")
-
-  // Tab payment state
-  const [overrideCreditLimit, setOverrideCreditLimit] = useState(false)
+  const [gcashPhoto, setGcashPhoto] = useState<string | null>(null)
 
   // Split payment state (Phase 8 implementation)
   const [splitPaymentData, setSplitPaymentData] = useState<SplitPaymentData | null>(null)
@@ -156,8 +149,7 @@ export function PaymentModal({
   useEffect(() => {
     if (open) {
       setPaidAmount("")
-      setGcashReference("")
-      setOverrideCreditLimit(false)
+      setGcashPhoto(null)
       setSplitPaymentData(null)
       setPaymentType("Cash")
       setIsProcessing(false)
@@ -192,14 +184,8 @@ export function PaymentModal({
         return paid >= total
 
       case "GCash":
-        return validateGCashReference(gcashReference).valid
-
-      case "Tab":
-        if (!customer) return false
-        if (customer.tabStatus === "frozen") return false
-        const newBalance = customer.tabBalance + total
-        if (newBalance > customer.creditLimit && !overrideCreditLimit) return false
-        return true
+        // GCash payment requires a photo of the payment confirmation
+        return gcashPhoto !== null
 
       case "Split":
         // Use the validated split payment data from the SplitPayment component
@@ -208,7 +194,7 @@ export function PaymentModal({
       default:
         return false
     }
-  }, [paymentType, paid, total, gcashReference, customer, overrideCreditLimit, isProcessing, splitPaymentData])
+  }, [paymentType, paid, total, gcashPhoto, isProcessing, splitPaymentData])
 
   // Handle payment confirmation
   const handleConfirm = async () => {
@@ -233,19 +219,8 @@ export function PaymentModal({
             paidAmount: total,
             changeAmount: 0,
             paymentType: "GCash",
-            paymentInfo: gcashReference,
-            paymentStatus: "pending", // GCash starts as pending
-          }
-          break
-
-        case "Tab":
-          result = {
-            paidAmount: total,
-            changeAmount: 0,
-            paymentType: "Tab",
-            paymentInfo: "",
-            customerId: customer?.id,
-            overrideCreditLimit,
+            paymentInfo: gcashPhoto || "", // Photo data as base64
+            paymentStatus: "pending", // GCash starts as pending until verified
           }
           break
 
@@ -288,13 +263,6 @@ export function PaymentModal({
       // T066: Offline queue integration
       // If offline and offline queue is available, queue the transaction locally
       if (isOffline && isOfflineAvailable && cartItems.length > 0) {
-        // Tab payments require online connectivity for credit check
-        if (paymentType === "Tab") {
-          toast.error("Tab payments require network connectivity")
-          setIsProcessing(false)
-          return
-        }
-
         // Queue the transaction for later sync
         const queuedTransaction = await queue({
           items: cartItems.map((item) => ({
@@ -388,19 +356,11 @@ export function PaymentModal({
     onClose()
   }
 
-  // Tab payment calculations
-  const tabNewBalance = customer ? customer.tabBalance + total : 0
-  const tabCreditUsage = customer && customer.creditLimit > 0
-    ? (tabNewBalance / customer.creditLimit) * 100
-    : 0
-  const isOverCreditLimit = customer && customer.creditLimit > 0 && tabNewBalance > customer.creditLimit
-  const isNearCreditLimit = customer && customer.creditLimit > 0 && tabCreditUsage >= 80
-
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="flex items-center gap-2 text-xl">
+    <ResponsiveDialog open={open} onOpenChange={handleClose}>
+      <ResponsiveDialogContent className="sm:max-w-lg p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
+        <ResponsiveDialogHeader className="p-6 pb-0">
+          <ResponsiveDialogTitle className="flex items-center gap-2 text-xl">
             {paymentComplete ? (
               <>
                 <CheckCircle2 className="h-6 w-6 text-green-500" />
@@ -412,8 +372,8 @@ export function PaymentModal({
                 Payment
               </>
             )}
-          </DialogTitle>
-        </DialogHeader>
+          </ResponsiveDialogTitle>
+        </ResponsiveDialogHeader>
 
         {/* ═══════════════════════════════════════════════════════════════════════════════
             PAYMENT COMPLETE VIEW
@@ -566,7 +526,7 @@ export function PaymentModal({
 
             {/* Payment type tabs */}
             <Tabs value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)} className="px-6">
-              <TabsList className="grid w-full grid-cols-4 h-12 min-h-11">
+              <TabsList className="grid w-full grid-cols-3 h-12 min-h-11">
                 <TabsTrigger value="Cash" className="gap-1.5 text-xs sm:text-sm min-h-11">
                   <Banknote className="h-4 w-4" />
                   <span className="hidden sm:inline">Cash</span>
@@ -574,10 +534,6 @@ export function PaymentModal({
                 <TabsTrigger value="GCash" className="gap-1.5 text-xs sm:text-sm min-h-11">
                   <Smartphone className="h-4 w-4" />
                   <span className="hidden sm:inline">GCash</span>
-                </TabsTrigger>
-                <TabsTrigger value="Tab" className="gap-1.5 text-xs sm:text-sm min-h-11" disabled={!customer}>
-                  <CreditCard className="h-4 w-4" />
-                  <span className="hidden sm:inline">Tab</span>
                 </TabsTrigger>
                 <TabsTrigger value="Split" className="gap-1.5 text-xs sm:text-sm min-h-11">
                   <Split className="h-4 w-4" />
@@ -644,139 +600,26 @@ export function PaymentModal({
                   GCASH TAB
               ═══════════════════════════════════════════════════════════════════════ */}
               <TabsContent value="GCash" className="mt-4 space-y-4">
-                <div className="text-center py-4 bg-blue-50 rounded-xl">
-                  <Smartphone className="h-12 w-12 text-blue-500 mx-auto mb-2" />
+                <div className="text-center py-3 bg-blue-50 rounded-xl">
+                  <Smartphone className="h-10 w-10 text-blue-500 mx-auto mb-1" />
                   <p className="text-sm text-muted-foreground">
-                    Customer pays via GCash
+                    Capture customer&apos;s GCash payment screen
                   </p>
                   <p className="text-xl font-bold text-blue-600">
                     {currencySymbol}{total.toFixed(2)}
                   </p>
                 </div>
 
-                <div>
-                  <Label className="text-sm text-muted-foreground">
-                    GCash Reference Number
-                  </Label>
-                  <Input
-                    placeholder="Enter reference number (min 10 characters)"
-                    value={gcashReference}
-                    onChange={(e) => setGcashReference(e.target.value)}
-                    className="mt-1 h-12 min-h-11"
-                    autoFocus
-                  />
-                  {gcashReference && !validateGCashReference(gcashReference).valid && (
-                    <p className="text-xs text-destructive mt-1">
-                      {validateGCashReference(gcashReference).error}
-                    </p>
-                  )}
-                </div>
+                <GCashCamera
+                  onCapture={(photo) => setGcashPhoto(photo)}
+                  onCancel={() => setGcashPhoto(null)}
+                  isActive={paymentType === "GCash"}
+                />
 
-                <p className="text-xs text-muted-foreground text-center">
-                  Transaction will be marked as pending until payment is confirmed
-                </p>
-              </TabsContent>
-
-              {/* ═══════════════════════════════════════════════════════════════════════
-                  TAB TAB
-              ═══════════════════════════════════════════════════════════════════════ */}
-              <TabsContent value="Tab" className="mt-4 space-y-4">
-                {!customer ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <CreditCard className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>Select a customer to use Tab payment</p>
-                  </div>
-                ) : customer.tabStatus === "frozen" ? (
-                  <div className="text-center py-6 bg-red-50 rounded-xl">
-                    <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-2" />
-                    <p className="font-medium text-red-700">Tab Frozen</p>
-                    <p className="text-sm text-red-600">
-                      This customer&apos;s tab is frozen. Balance payment only.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Customer info */}
-                    <div className="bg-muted rounded-xl p-4">
-                      <p className="font-medium">{customer.name}</p>
-                      <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Current Balance</p>
-                          <p className="font-bold text-lg">
-                            {currencySymbol}{customer.tabBalance.toFixed(2)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Credit Limit</p>
-                          <p className="font-bold text-lg">
-                            {currencySymbol}{customer.creditLimit.toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* New balance preview */}
-                    <div className={cn(
-                      "rounded-xl p-4",
-                      isOverCreditLimit ? "bg-red-50" : isNearCreditLimit ? "bg-amber-50" : "bg-green-50"
-                    )}>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">New Balance</span>
-                        <span className={cn(
-                          "font-bold text-lg",
-                          isOverCreditLimit ? "text-red-600" : isNearCreditLimit ? "text-amber-600" : "text-green-600"
-                        )}>
-                          {currencySymbol}{tabNewBalance.toFixed(2)}
-                        </span>
-                      </div>
-                      {customer.creditLimit > 0 && (
-                        <div className="mt-2">
-                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                            <span>Credit Usage</span>
-                            <span>{tabCreditUsage.toFixed(0)}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className={cn(
-                                "h-2 rounded-full transition-all",
-                                isOverCreditLimit ? "bg-red-500" : isNearCreditLimit ? "bg-amber-500" : "bg-green-500"
-                              )}
-                              style={{ width: `${Math.min(100, tabCreditUsage)}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Credit limit warning/override */}
-                    {isOverCreditLimit && (
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                        <div className="flex items-start gap-3">
-                          <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="font-medium text-red-700">Credit Limit Exceeded</p>
-                            <p className="text-sm text-red-600 mt-1">
-                              This transaction exceeds the customer&apos;s credit limit by{" "}
-                              {currencySymbol}{(tabNewBalance - customer.creditLimit).toFixed(2)}
-                            </p>
-                            {canOverrideCreditLimit && (
-                              <label className="flex items-center gap-2 mt-3 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={overrideCreditLimit}
-                                  onChange={(e) => setOverrideCreditLimit(e.target.checked)}
-                                  className="rounded"
-                                />
-                                <span className="text-sm text-red-700">
-                                  Override credit limit (manager approval)
-                                </span>
-                              </label>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </>
+                {gcashPhoto && (
+                  <p className="text-xs text-green-600 text-center font-medium">
+                    Payment screenshot captured - ready to confirm
+                  </p>
                 )}
               </TabsContent>
 
@@ -843,7 +686,7 @@ export function PaymentModal({
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

@@ -7,9 +7,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Save, RefreshCw } from "lucide-react"
+import { Save, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 
 interface DailyPulseData {
   date: string
@@ -89,13 +97,23 @@ export default function DailyPulsePage() {
 
   return (
     <div className="p-6 space-y-6 max-w-2xl mx-auto">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/analytics">Analytics</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Daily Pulse</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/analytics">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">Daily Pulse</h1>
           <p className="text-muted-foreground">Quick 2-minute end-of-day check-in</p>

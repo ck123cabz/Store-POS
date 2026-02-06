@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Camera, X, RotateCcw, Check, Upload, ImageIcon } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Camera, X, RotateCcw, Check, Upload, ImageIcon, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface GCashCameraProps {
@@ -198,9 +199,10 @@ export function GCashCamera({
 
       {/* Error message */}
       {error && (
-        <div className="text-sm text-destructive text-center p-2 bg-destructive/10 rounded">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {/* Camera/Preview area */}

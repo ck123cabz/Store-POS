@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@/components/ui/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,6 +24,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { Spinner } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty-state"
 
 // ===============================================================================
 // TYPES
@@ -158,12 +160,17 @@ export function PayLaterModal({
 
     setIsCreatingCustomer(true)
     try {
+      // Set a default credit limit for customers created via Pay Later
+      // This allows them to use tab payments immediately
+      const defaultCreditLimit = 5000
+
       const response = await fetch("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
           phone: newCustomerPhone.trim(),
+          creditLimit: defaultCreditLimit,
         }),
       })
 
@@ -178,7 +185,7 @@ export function PayLaterModal({
       const customerWithTab: CustomerWithTab = {
         ...newCustomer,
         tabBalance: 0,
-        creditLimit: 0,
+        creditLimit: defaultCreditLimit,
         tabStatus: "active",
       }
 
@@ -201,14 +208,14 @@ export function PayLaterModal({
     : 0
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden max-h-[90vh]">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="flex items-center gap-2 text-xl">
+    <ResponsiveDialog open={open} onOpenChange={onClose}>
+      <ResponsiveDialogContent className="sm:max-w-lg p-0 overflow-hidden max-h-[90vh]">
+        <ResponsiveDialogHeader className="p-6 pb-0">
+          <ResponsiveDialogTitle className="flex items-center gap-2 text-xl">
             <User className="h-6 w-6" />
             Pay Later - Select Customer
-          </DialogTitle>
-        </DialogHeader>
+          </ResponsiveDialogTitle>
+        </ResponsiveDialogHeader>
 
         <div className="p-6 pt-4 space-y-4">
           {/* Total display */}
@@ -302,15 +309,14 @@ export function PayLaterModal({
               <ScrollArea className="h-[200px] pr-2">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <Spinner className="h-6 w-6 text-muted-foreground" />
                   </div>
                 ) : sortedCustomers.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                    <User className="h-10 w-10 mb-2 opacity-30" />
-                    <p className="text-sm">
-                      {searchQuery ? "No customers found" : "No customers yet"}
-                    </p>
-                  </div>
+                  <EmptyState
+                    icon={<User className="h-10 w-10" />}
+                    title={searchQuery ? "No customers found" : "No customers yet"}
+                    className="py-8"
+                  />
                 ) : (
                   <div className="space-y-2">
                     {sortedCustomers.map((customer) => (
@@ -433,7 +439,7 @@ export function PayLaterModal({
             </Button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

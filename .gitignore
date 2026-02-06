@@ -45,3 +45,13 @@ next-env.d.ts
 .worktrees/
 
 /src/generated/prisma
+
+# test artifacts
+/test-results/
+/playwright-report/
+
+# local tool configs
+.mcp.json
+.serena/
+.playwright-mcp/
+.claude/

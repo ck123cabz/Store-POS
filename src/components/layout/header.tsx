@@ -8,6 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Separator } from "@/components/ui/separator"
 import { Settings, LogOut, User } from "lucide-react"
 import Link from "next/link"
 
@@ -16,7 +18,11 @@ export function Header() {
 
   return (
     <header className="h-14 border-b bg-white flex items-center justify-between px-4">
-      <div className="font-semibold text-lg">Store POS</div>
+      <div className="flex items-center gap-2">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 !h-4" />
+        <span className="font-semibold text-lg">Store POS</span>
+      </div>
 
       <div className="flex items-center gap-4">
         <span className="text-sm text-muted-foreground">

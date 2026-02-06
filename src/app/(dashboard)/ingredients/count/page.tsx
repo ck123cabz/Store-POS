@@ -17,6 +17,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { CountItemRow } from "@/components/inventory-count/count-item-row"
 import { DiscrepancyModal } from "@/components/inventory-count/discrepancy-modal"
 import type { CountItem, CountEntry, CountDraft } from "@/types/inventory-count"
@@ -226,6 +234,19 @@ export default function InventoryCountPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/ingredients">Ingredients</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Inventory Count</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -14,11 +14,12 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   PauseCircle,
   Users,
@@ -586,23 +587,24 @@ export default function POSPage() {
         onConfirm={handlePayLaterConfirm}
       />
 
-      {/* Hold Orders Modal */}
-      <Dialog open={holdOrdersModalOpen} onOpenChange={setHoldOrdersModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+      {/* Hold Orders Sheet */}
+      <Sheet open={holdOrdersModalOpen} onOpenChange={setHoldOrdersModalOpen}>
+        <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
               <PauseCircle className="h-5 w-5" />
               Hold Orders
               <Badge variant="secondary">{holdOrders.length}</Badge>
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[60vh]">
+            </SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-8rem)] mt-4">
             {holdOrders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <PauseCircle className="h-12 w-12 mb-3 opacity-30" />
-                <p className="font-medium">No hold orders</p>
-                <p className="text-sm">Orders placed on hold will appear here</p>
-              </div>
+              <EmptyState
+                icon={<PauseCircle className="h-12 w-12" />}
+                title="No hold orders"
+                description="Orders placed on hold will appear here"
+                className="py-12"
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">
                 {holdOrders.map((order) => (
@@ -651,31 +653,30 @@ export default function POSPage() {
               </div>
             )}
           </ScrollArea>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* Customer Orders Modal */}
-      <Dialog
+      {/* Customer Orders Sheet */}
+      <Sheet
         open={customerOrdersModalOpen}
         onOpenChange={setCustomerOrdersModalOpen}
       >
-        <DialogContent className="max-w-2xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+        <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
               Customer Orders
               <Badge variant="secondary">{customerOrders.length}</Badge>
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[60vh]">
+            </SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-8rem)] mt-4">
             {customerOrders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Users className="h-12 w-12 mb-3 opacity-30" />
-                <p className="font-medium">No customer orders</p>
-                <p className="text-sm">
-                  Orders with customers assigned will appear here
-                </p>
-              </div>
+              <EmptyState
+                icon={<Users className="h-12 w-12" />}
+                title="No customer orders"
+                description="Orders with customers assigned will appear here"
+                className="py-12"
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">
                 {customerOrders.map((order) => (
@@ -719,8 +720,8 @@ export default function POSPage() {
               </div>
             )}
           </ScrollArea>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

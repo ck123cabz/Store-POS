@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { Search, X, Grid3X3, LayoutGrid } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Badge } from "@/components/ui/badge"
 
 interface Availability {
@@ -152,26 +154,19 @@ export function ProductGrid({
         </form>
 
         {/* Grid size toggle - 44px minimum touch targets */}
-        <div className="hidden sm:flex items-center border rounded-lg p-1 bg-muted/50">
-          <Button
-            variant={gridSize === "normal" ? "secondary" : "ghost"}
-            size="icon"
-            className="h-11 w-11 min-h-11 min-w-11"
-            onClick={() => setGridSize("normal")}
-            aria-label="Normal grid size"
-          >
+        <ToggleGroup
+          type="single"
+          value={gridSize}
+          onValueChange={(v) => v && setGridSize(v as "normal" | "compact")}
+          className="hidden sm:flex"
+        >
+          <ToggleGroupItem value="normal" aria-label="Normal grid size" className="h-11 w-11 min-h-11">
             <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={gridSize === "compact" ? "secondary" : "ghost"}
-            size="icon"
-            className="h-11 w-11 min-h-11 min-w-11"
-            onClick={() => setGridSize("compact")}
-            aria-label="Compact grid size"
-          >
+          </ToggleGroupItem>
+          <ToggleGroupItem value="compact" aria-label="Compact grid size" className="h-11 w-11 min-h-11">
             <Grid3X3 className="h-4 w-4" />
-          </Button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       {/* Category pills - horizontally scrollable with 44px minimum touch targets */}
@@ -232,23 +227,26 @@ export function ProductGrid({
 
       {/* Product Grid - Responsive columns: 1-5 based on viewport width */}
       {filteredProducts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <Search className="h-12 w-12 mb-4 opacity-50" />
-          <p className="text-lg font-medium">No products found</p>
-          <p className="text-sm">Try adjusting your search or category filter</p>
-          {(searchQuery || selectedCategory !== null) && (
-            <Button
-              variant="outline"
-              className="mt-4 h-11 min-h-11"
-              onClick={() => {
-                setSearchQuery("")
-                setSelectedCategory(null)
-              }}
-            >
-              Clear filters
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={<Search className="h-12 w-12" />}
+          title="No products found"
+          description="Try adjusting your search or category filter"
+          action={
+            (searchQuery || selectedCategory !== null) ? (
+              <Button
+                variant="outline"
+                className="h-11 min-h-11"
+                onClick={() => {
+                  setSearchQuery("")
+                  setSelectedCategory(null)
+                }}
+              >
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+          className="py-16"
+        />
       ) : (
         <div
           className={cn(
