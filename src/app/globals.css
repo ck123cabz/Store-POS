@@ -217,6 +217,15 @@
   }
 }
 
+/* Hidden scrollbar utility — hides scrollbar while keeping scroll functional */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
 /* Touch target minimum size enforcement for mobile */
 @media (pointer: coarse) {
   .touch-target {
