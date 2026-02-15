@@ -59,6 +59,9 @@
   --radius-xl: calc(var(--radius) + 10px);
 
   /* Shadow: two levels only — flat default, float for overlays */
+
+  /* Animation: status pulse for urgent indicators */
+  --animate-status-pulse: status-pulse 1.5s ease-in-out infinite;
 }
 
 :root {
@@ -170,10 +173,6 @@
     opacity: 0.6;
     transform: scale(1.35);
   }
-}
-
-@theme inline {
-  --animate-status-pulse: status-pulse 1.5s ease-in-out infinite;
 }
 
 @layer base {
