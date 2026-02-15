@@ -138,14 +138,12 @@ export default function MenuPage() {
     }
   }
 
-  const handleEditCategory = (category: Category) => {
+  const handleEditCategory = (_category: Category) => {
     // Placeholder - will be implemented in Phase 5
-    console.log("Edit category:", category)
   }
 
-  const handleDeleteCategory = (category: Category) => {
+  const handleDeleteCategory = (_category: Category) => {
     // Placeholder - will be implemented in Phase 5
-    console.log("Delete category:", category)
   }
 
   const handleFilterByCategory = (categoryId: number) => {

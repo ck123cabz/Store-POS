@@ -152,8 +152,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Store Settings</h1>
+    <div className="p-4 md:p-6 max-w-3xl mx-auto">
+      <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-6">Store Settings</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Store Information */}

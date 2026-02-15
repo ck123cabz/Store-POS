@@ -91,8 +91,8 @@ function DiscrepancyForm({
 
         {/* Reason quick picks */}
         <div className="space-y-2">
-          <Label>Reason for Discrepancy</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <Label id="discrepancy-reason-label">Reason for Discrepancy</Label>
+          <div className="grid grid-cols-2 gap-2" role="group" aria-labelledby="discrepancy-reason-label">
             {DISCREPANCY_REASONS.map((r) => (
               <Button
                 key={r.value}

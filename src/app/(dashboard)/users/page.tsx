@@ -218,15 +218,15 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Users</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Users</h1>
         <Button onClick={() => openForm()}>
           <Plus className="h-4 w-4 mr-2" /> Add User
         </Button>
       </div>
 
-      <Table>
+      <Table aria-label="Users">
         <TableHeader>
           <TableRow>
             <TableHead>Username</TableHead>

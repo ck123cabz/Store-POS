@@ -47,7 +47,7 @@ export function FileUpload({
 	disabled?: boolean
 	setValue: (
 		name: string,
-		value: any,
+		value: (File | { type: string; name: string; size: number })[],
 		options?: {
 			shouldValidate?: boolean
 			shouldDirty?: boolean

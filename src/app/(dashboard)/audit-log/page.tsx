@@ -130,14 +130,14 @@ export default function AuditLogPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
             <History className="h-6 w-6" />
             Audit Log
           </h1>
-          <p className="text-muted-foreground text-sm">Track all inventory changes</p>
+          <p className="text-muted-foreground mt-1">Track all inventory changes</p>
         </div>
         <Button variant="outline" onClick={fetchLogs}>
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
@@ -232,7 +232,7 @@ export default function AuditLogPage() {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <Table>
+            <Table aria-label="Audit log entries">
               <TableHeader>
                 <TableRow>
                   <TableHead>Date/Time</TableHead>

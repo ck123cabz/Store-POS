@@ -86,11 +86,13 @@ export function HoldModal({
           </p>
 
           <div>
-            <Label>Reference Number</Label>
+            <Label htmlFor="hold-ref-number">Reference Number</Label>
             <Input
+              id="hold-ref-number"
               placeholder="Enter reference..."
               value={refNumber}
               onChange={(e) => setRefNumber(e.target.value)}
+              className="h-11 mt-1.5"
               autoFocus
             />
           </div>
@@ -98,9 +100,9 @@ export function HoldModal({
           <div className="text-center text-sm text-muted-foreground">OR</div>
 
           <div>
-            <Label>Customer</Label>
+            <Label htmlFor="hold-customer">Customer</Label>
             <Select value={customerId} onValueChange={setCustomerId}>
-              <SelectTrigger>
+              <SelectTrigger id="hold-customer" className="h-11 mt-1.5">
                 <SelectValue placeholder="Select customer" />
               </SelectTrigger>
               <SelectContent>
@@ -114,12 +116,12 @@ export function HoldModal({
             </Select>
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={onClose}>
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" className="flex-1 h-11" onClick={onClose}>
               Cancel
             </Button>
             <Button
-              className="flex-1"
+              className="flex-1 h-11"
               onClick={handleConfirm}
               disabled={!isValid}
             >

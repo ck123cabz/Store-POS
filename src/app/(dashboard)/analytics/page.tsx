@@ -173,12 +173,12 @@ export default function AnalyticsPage() {
   const { summary, levers } = data
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">10-Lever Dashboard</h1>
-          <p className="text-muted-foreground">Financial intelligence for Kitchen Line</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">10-Lever Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Financial intelligence for Kitchen Line</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={fetchData}>

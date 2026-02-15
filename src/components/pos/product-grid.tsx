@@ -1,16 +1,14 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ProductCard } from "./product-card"
 import { toast } from "sonner"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { Search, X, Grid3X3, LayoutGrid } from "lucide-react"
+import { Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Badge } from "@/components/ui/badge"
 
 interface Availability {
   status: "available" | "low" | "critical" | "out"
@@ -53,6 +51,21 @@ interface ProductGridProps {
   onAddToCart: (product: Product) => void
 }
 
+/**
+ * Custom hook for debounced value.
+ * Returns the debounced value after the specified delay.
+ */
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+
+  return debouncedValue
+}
+
 export function ProductGrid({
   products,
   categories,
@@ -61,9 +74,9 @@ export function ProductGrid({
 }: ProductGridProps) {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [gridSize, setGridSize] = useState<"normal" | "compact">("normal")
+  const debouncedSearch = useDebouncedValue(searchQuery, 200)
 
-  // Filter products by category and search
+  // Filter products by category and debounced search
   const filteredProducts = useMemo(() => {
     let filtered = products
 
@@ -73,8 +86,8 @@ export function ProductGrid({
     }
 
     // Filter by search query (name or SKU/ID)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim()
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase().trim()
       filtered = filtered.filter(
         (p) =>
           p.name.toLowerCase().includes(query) ||
@@ -83,7 +96,7 @@ export function ProductGrid({
     }
 
     return filtered
-  }, [products, selectedCategory, searchQuery])
+  }, [products, selectedCategory, debouncedSearch])
 
   // Count products per category
   const categoryCounts = useMemo(() => {
@@ -93,6 +106,11 @@ export function ProductGrid({
     })
     return counts
   }, [products])
+
+  // Toggle category: tapping active pill deselects (shows all)
+  const handleCategoryToggle = useCallback((categoryId: number | null) => {
+    setSelectedCategory((prev) => (prev === categoryId ? null : categoryId))
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -129,113 +147,107 @@ export function ProductGrid({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Search and controls */}
+    <div className="space-y-3">
+      {/* Search input - flat design, no shadows */}
       <div className="flex items-center gap-3">
-        <form onSubmit={handleSearch} className="relative flex-1 max-w-md">
+        <form onSubmit={handleSearch} className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search products or scan barcode..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-10 h-11 text-base"
+            className="pl-10 pr-10 h-10 text-sm"
           />
           {searchQuery && (
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+              className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               onClick={clearSearch}
+              aria-label="Clear search"
             >
-              <X className="h-4 w-4" />
-            </Button>
+              <X className="h-3.5 w-3.5" />
+            </button>
           )}
         </form>
-
-        {/* Grid size toggle - 44px minimum touch targets */}
-        <ToggleGroup
-          type="single"
-          value={gridSize}
-          onValueChange={(v) => v && setGridSize(v as "normal" | "compact")}
-          className="hidden sm:flex"
-        >
-          <ToggleGroupItem value="normal" aria-label="Normal grid size" className="h-11 w-11 min-h-11">
-            <LayoutGrid className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="compact" aria-label="Compact grid size" className="h-11 w-11 min-h-11">
-            <Grid3X3 className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
       </div>
 
-      {/* Category pills - horizontally scrollable with 44px minimum touch targets */}
+      {/* Category FilterPills - horizontal scrollable */}
       <ScrollArea className="w-full whitespace-nowrap">
-        <div className="flex gap-2 pb-2">
-          <Button
-            variant={selectedCategory === null ? "default" : "outline"}
+        <div className="flex gap-1.5 pb-1">
+          {/* "All" pill */}
+          <button
+            type="button"
             onClick={() => setSelectedCategory(null)}
             className={cn(
-              "rounded-full h-11 min-h-11 px-4 font-medium transition-all",
-              selectedCategory === null && "shadow-md"
+              "inline-flex items-center rounded-full px-3.5 h-[30px] text-xs font-medium transition-colors whitespace-nowrap shrink-0",
+              selectedCategory === null
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             )}
           >
             All
-            <Badge
-              variant="secondary"
+            <span
               className={cn(
-                "ml-2 rounded-full px-2 py-0 text-xs",
-                selectedCategory === null && "bg-primary-foreground/20 text-primary-foreground"
+                "ml-1.5 text-[10px] font-semibold tabular-nums",
+                selectedCategory === null
+                  ? "text-primary-foreground/70"
+                  : "text-muted-foreground"
               )}
             >
               {products.length}
-            </Badge>
-          </Button>
+            </span>
+          </button>
 
-          {categories.map((category) => (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "default" : "outline"}
-              onClick={() => setSelectedCategory(category.id)}
-              className={cn(
-                "rounded-full h-11 min-h-11 px-4 font-medium transition-all",
-                selectedCategory === category.id && "shadow-md"
-              )}
-            >
-              {category.name}
-              <Badge
-                variant="secondary"
+          {categories.map((category) => {
+            const isActive = selectedCategory === category.id
+            return (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => handleCategoryToggle(category.id)}
                 className={cn(
-                  "ml-2 rounded-full px-2 py-0 text-xs",
-                  selectedCategory === category.id && "bg-primary-foreground/20 text-primary-foreground"
+                  "inline-flex items-center rounded-full px-3.5 h-[30px] text-xs font-medium transition-colors whitespace-nowrap shrink-0",
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                 )}
               >
-                {categoryCounts[category.id] || 0}
-              </Badge>
-            </Button>
-          ))}
+                {category.name}
+                <span
+                  className={cn(
+                    "ml-1.5 text-[10px] font-semibold tabular-nums",
+                    isActive
+                      ? "text-primary-foreground/70"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {categoryCounts[category.id] || 0}
+                </span>
+              </button>
+            )
+          })}
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
       {/* Results count */}
-      {searchQuery && (
-        <p className="text-sm text-muted-foreground">
-          {filteredProducts.length} result{filteredProducts.length !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
+      {debouncedSearch && (
+        <p className="text-xs text-muted-foreground">
+          {filteredProducts.length} result{filteredProducts.length !== 1 ? "s" : ""} for &ldquo;{debouncedSearch}&rdquo;
         </p>
       )}
 
-      {/* Product Grid - Responsive columns: 1-5 based on viewport width */}
+      {/* Product Grid - Responsive columns: 2 on phone, 3-4 tablet, 5 desktop */}
       {filteredProducts.length === 0 ? (
         <EmptyState
-          icon={<Search className="h-12 w-12" />}
+          icon={<Search className="h-10 w-10" />}
           title="No products found"
           description="Try adjusting your search or category filter"
           action={
             (searchQuery || selectedCategory !== null) ? (
               <Button
                 variant="outline"
-                className="h-11 min-h-11"
+                size="sm"
                 onClick={() => {
                   setSearchQuery("")
                   setSelectedCategory(null)
@@ -248,15 +260,7 @@ export function ProductGrid({
           className="py-16"
         />
       ) : (
-        <div
-          className={cn(
-            "grid gap-3",
-            // Responsive grid: 1 col on very small, 2 on small phones, up to 5 on large screens
-            gridSize === "normal"
-              ? "grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-              : "grid-cols-2 min-[360px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-          )}
-        >
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {filteredProducts.map((product) => (
             <ProductCard
               key={product.id}

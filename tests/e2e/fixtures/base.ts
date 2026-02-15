@@ -6,6 +6,13 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 import { test as base, expect, type Page, type Locator } from '@playwright/test'
 
+// 1x1 transparent PNG for GCash photo upload tests
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAB' +
+  'Nl7BcQAAAABJRU5ErkJggg==',
+  'base64'
+)
+
 /**
  * POS Page Object - centralizes selectors for POS UI elements
  */
@@ -38,6 +45,13 @@ export class POSPage {
   }
 
   /**
+   * Get the Clear button (clears the cart)
+   */
+  clearButton(): Locator {
+    return this.page.getByRole('button', { name: 'Clear' })
+  }
+
+  /**
    * Assert cart shows specific item count
    */
   async expectCartItemCount(count: number): Promise<void> {
@@ -63,7 +77,24 @@ export class POSPage {
    * Add first available product to cart
    */
   async addFirstProduct(): Promise<void> {
-    await this.page.locator('[data-testid="product-card"]').first().click()
+    await this.page.locator('[data-testid="product-card"][aria-disabled="false"]').first().click()
+  }
+
+  /**
+   * Upload a GCash photo via the hidden file input in GCash camera component.
+   * This simulates the "Upload Photo" flow since camera is unavailable in headless.
+   */
+  async uploadGCashPhoto(): Promise<void> {
+    const fileInput = this.page.locator('input[type="file"][accept="image/*"]')
+    await fileInput.setInputFiles({
+      name: 'gcash-receipt.png',
+      mimeType: 'image/png',
+      buffer: TINY_PNG,
+    })
+    // Wait for preview mode, then click "Use Photo"
+    await this.page.getByRole('button', { name: /Use Photo/i }).click()
+    // Verify the confirmation text appears
+    await expect(this.page.getByText(/Payment screenshot captured/i)).toBeVisible()
   }
 }
 
@@ -93,6 +124,11 @@ interface TestFixtures {
    * Navigate to customers page
    */
   customersPage: void
+
+  /**
+   * Navigate to menu page and wait for content to load
+   */
+  menuPage: void
 }
 
 export const test = base.extend<TestFixtures>({
@@ -143,6 +179,15 @@ export const test = base.extend<TestFixtures>({
     await page.goto('/customers')
     // Wait for the customers page to load
     await expect(page.getByRole('heading', { name: /customers/i })).toBeVisible()
+    await use()
+  },
+
+  menuPage: async ({ page }, use) => {
+    await page.goto('/menu')
+    // Wait for Products tab to be visible (default active tab)
+    await expect(page.getByRole('tab', { name: 'Products' })).toBeVisible()
+    // Wait for loading to finish - the page fetches products, categories, and settings
+    await expect(page.getByText('Loading...')).not.toBeVisible({ timeout: 10000 })
     await use()
   },
 })

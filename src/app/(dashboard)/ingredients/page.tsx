@@ -387,11 +387,11 @@ export default function IngredientsPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold">Ingredients</h1>
-          <p className="text-muted-foreground text-sm">Manage recipe ingredients and costs</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Ingredients</h1>
+          <p className="text-muted-foreground mt-1">Manage recipe ingredients and costs</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
@@ -407,7 +407,7 @@ export default function IngredientsPage() {
       </div>
 
       <div className="overflow-x-auto">
-      <Table>
+      <Table aria-label="Ingredients">
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
@@ -727,7 +727,7 @@ export default function IngredientsPage() {
                       </TooltipTrigger>
                       <TooltipContent side="left" className="max-w-xs">
                         <p>
-                          Add units like "cup" or "serving" for easier recipe entry.
+                          Add units like &quot;cup&quot; or &quot;serving&quot; for easier recipe entry.
                           These appear in the unit dropdown when adding this ingredient to recipes.
                         </p>
                       </TooltipContent>

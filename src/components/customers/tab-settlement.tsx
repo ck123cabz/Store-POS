@@ -241,8 +241,8 @@ export function TabSettlement({
 
         {/* Payment Method Selection */}
         <div className="space-y-3">
-          <Label>Payment Method</Label>
-          <div className="grid grid-cols-2 gap-3">
+          <Label id="payment-method-label">Payment Method</Label>
+          <div className="grid grid-cols-2 gap-3" role="group" aria-labelledby="payment-method-label">
             <Button
               type="button"
               variant={paymentMethod === "Cash" ? "default" : "outline"}

@@ -421,9 +421,9 @@ export default function TransactionsPage() {
   const hours = Array.from({ length: 24 }, (_, i) => i)
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-xl md:text-2xl font-bold">Transaction History</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Transaction History</h1>
         <Button variant="outline" onClick={() => { fetchTodayData(); fetchHeatmapData(); fetchTransactions(); }}>
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
         </Button>
@@ -623,7 +623,7 @@ export default function TransactionsPage() {
 
           {/* Results */}
           <div className="overflow-x-auto">
-            <Table>
+            <Table aria-label="Transactions">
               <TableHeader>
                 <TableRow>
                   <TableHead>Order #</TableHead>
@@ -712,23 +712,25 @@ export default function TransactionsPage() {
                           {activeQuickFilter && (
                             <p className="text-sm text-muted-foreground/70">
                               No transactions for {formatDateRangeLabel(activeQuickFilter)}.{" "}
-                              <button
+                              <Button
+                                variant="link"
+                                className="h-auto p-0"
                                 onClick={clearFilters}
-                                className="text-primary underline underline-offset-2 hover:text-primary/80"
                               >
                                 Try a different date range
-                              </button>
+                              </Button>
                             </p>
                           )}
                           {!activeQuickFilter && (dateFrom || dateTo || status || userId || till) && (
                             <p className="text-sm text-muted-foreground/70">
                               Try adjusting your filters or{" "}
-                              <button
+                              <Button
+                                variant="link"
+                                className="h-auto p-0"
                                 onClick={clearFilters}
-                                className="text-primary underline underline-offset-2 hover:text-primary/80"
                               >
                                 clear all filters
-                              </button>
+                              </Button>
                             </p>
                           )}
                         </div>
@@ -776,6 +778,7 @@ export default function TransactionsPage() {
                                 heatmapData.maxTransactions
                               )}`}
                               title={`${dayName} ${hour}:00 - ${cell?.transactions || 0} transactions, ${fmtCurrency(cell?.revenue || 0)}`}
+                              aria-label={`${dayName} ${hour}:00 - ${cell?.transactions || 0} transactions, ${fmtCurrency(cell?.revenue || 0)}`}
                             >
                               {(cell?.transactions || 0) > 0 ? cell?.transactions : ""}
                             </div>

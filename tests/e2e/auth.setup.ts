@@ -29,8 +29,8 @@ setup('authenticate', async ({ page }) => {
   await page.fill('#username', 'admin')
   await page.fill('#password', 'admin')
 
-  // Submit login - button is labeled "Login"
-  await page.getByRole('button', { name: 'Login' }).click()
+  // Submit login - button is labeled "Sign in"
+  await page.getByRole('button', { name: 'Sign in' }).click()
 
   // Wait for redirect to dashboard/POS (give extra time for initial load/compilation)
   await expect(page).toHaveURL(/\/(pos|dashboard)?/, { timeout: 60000 })

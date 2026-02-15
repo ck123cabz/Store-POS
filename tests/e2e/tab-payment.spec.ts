@@ -1,204 +1,150 @@
 /**
- * E2E Tests: Tab Payment Flow
+ * E2E Tests: Tab (Pay Later) Payment Flow
  * US3: Tab Payment (Store Credit) at POS
- * Tests the complete tab payment workflow including credit limits
+ *
+ * Actual Pay Later UI (pay-later-modal.tsx):
+ *   - Triggered by "Pay Later" button in cart (NOT a tab in payment modal)
+ *   - Dialog title: "Pay Later - Select Customer"
+ *   - Search input: "Search customer name or phone..."
+ *   - Customer list: clickable Card components (not dropdown/combobox)
+ *   - Selected preview: Customer, Current Tab, This Order, New Tab Balance
+ *   - Confirm button: "Add to Tab" (disabled without customer)
  */
 
 import { test, expect } from './fixtures/base'
 
 test.describe('US3: Tab Payment Flow @p2', () => {
-  test.describe('Tab Payment Selection', () => {
-    test('can select Tab payment method in payment modal', async ({ page }) => {
-      // Add product to cart
-      await page.locator('.grid > div').first().click()
-      await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
-
-      // Open payment modal
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
-
-      // Select Tab payment
-      await page.getByRole('tab', { name: /Tab/i }).click()
-
-      // Should show customer selector
-      await expect(page.getByText(/Select Customer/i)).toBeVisible()
-    })
-
-    test('Tab payment requires customer selection', async ({ page }) => {
-      // Add product to cart
-      await page.locator('.grid > div').first().click()
-      await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
-
-      // Open payment modal
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
-
-      // Select Tab payment
-      await page.getByRole('tab', { name: /Tab/i }).click()
-
-      // Confirm button should be disabled without customer selection
-      const confirmButton = page.getByRole('button', { name: /Confirm/i })
-      await expect(confirmButton).toBeDisabled()
-    })
+  test.beforeEach(async ({ posPage }) => {
+    // posPage fixture handles navigation and setup
   })
 
-  test.describe('Customer Selection', () => {
-    test('shows customer tab balance when selected', async ({ page }) => {
-      // Add product to cart
-      await page.locator('.grid > div').first().click()
-      await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+  test('can open Pay Later modal', async ({ page, pos }) => {
+    // Add product to cart
+    await pos.addFirstProduct()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
-      // Open payment modal and select Tab
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await page.getByRole('tab', { name: /Tab/i }).click()
+    // Click Pay Later button (in the cart, not the payment modal)
+    await pos.payLaterButton().click()
 
-      // Select a customer from dropdown
-      const customerSelect = page.getByRole('combobox').or(page.locator('select'))
-      if (await customerSelect.first().isVisible()) {
-        await customerSelect.first().click()
-        // Click first customer option if available
-        const firstOption = page.getByRole('option').first()
-        if (await firstOption.isVisible()) {
-          await firstOption.click()
-          // Should show balance info
-          await expect(page.getByText(/Current Balance|Tab Balance/i)).toBeVisible()
-        }
-      }
-    })
+    // Verify Pay Later modal opens
+    await expect(page.getByText(/Pay Later - Select Customer/i)).toBeVisible()
 
-    test('shows credit limit and usage', async ({ page }) => {
-      // Add product to cart
-      await page.locator('.grid > div').first().click()
-
-      // Open payment modal and select Tab
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await page.getByRole('tab', { name: /Tab/i }).click()
-
-      // Look for credit limit display (may show after customer selection)
-      const creditInfo = page.getByText(/Credit Limit|Available Credit/i)
-      // This test passes if credit info exists or customer selector exists
-      const customerSelector = page.getByText(/Select Customer/i)
-      await expect(creditInfo.or(customerSelector)).toBeVisible()
-    })
+    // Search input should be visible
+    await expect(page.getByPlaceholder(/Search customer name or phone/i)).toBeVisible()
   })
 
-  test.describe('Credit Limit Enforcement', () => {
-    test('shows warning when near credit limit (80%+)', async ({ page }) => {
-      // This test verifies the UI displays warnings
-      // The actual limit check happens on the server
-      await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await page.getByRole('tab', { name: /Tab/i }).click()
+  test('Pay Later requires customer selection', async ({ page, pos }) => {
+    // Add product to cart
+    await pos.addFirstProduct()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
-      // Warning indicator should appear in the UI structure
-      // (exact content depends on customer data)
-      const tabContent = page.locator('[role="tabpanel"]')
-      await expect(tabContent).toBeVisible()
-    })
+    // Open Pay Later modal
+    await pos.payLaterButton().click()
+    await expect(page.getByText(/Pay Later - Select Customer/i)).toBeVisible()
 
-    test('prevents payment when exceeding credit limit', async ({ page }) => {
-      // Add product to cart
-      await page.locator('.grid > div').first().click()
-
-      // Open payment modal and select Tab
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await page.getByRole('tab', { name: /Tab/i }).click()
-
-      // UI should exist for handling credit limit exceeded state
-      const tabPanel = page.locator('[role="tabpanel"]')
-      await expect(tabPanel).toBeVisible()
-    })
+    // "Add to Tab" button should be disabled without customer selection
+    const addToTabBtn = page.getByRole('button', { name: /Add to Tab/i })
+    await expect(addToTabBtn).toBeDisabled()
   })
 
-  test.describe('Tab Payment Completion', () => {
-    test('completes tab payment successfully', async ({ page }) => {
-      // Add product to cart
-      await page.locator('.grid > div').first().click()
-      await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+  test('shows customer tab balance when selected', async ({ page, pos }) => {
+    // Add product to cart
+    await pos.addFirstProduct()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
-      // Open payment modal
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
+    // Open Pay Later modal
+    await pos.payLaterButton().click()
+    await expect(page.getByText(/Pay Later - Select Customer/i)).toBeVisible()
 
-      // Select Tab payment
-      await page.getByRole('tab', { name: /Tab/i }).click()
+    // Wait for customers to load and click the first customer card
+    const customerCards = page.locator('.cursor-pointer').filter({ has: page.locator('text=/Tab Balance/') })
+    const cardCount = await customerCards.count()
 
-      // Find and select a customer (if dropdown is available)
-      const customerSelect = page.getByRole('combobox').first()
-      if (await customerSelect.isVisible()) {
-        await customerSelect.click()
-        // Wait for options
-        await page.waitForTimeout(300)
-        const options = page.getByRole('option')
-        const count = await options.count()
-        if (count > 1) {
-          // Select second option (first is usually "Select customer")
-          await options.nth(1).click()
+    if (cardCount > 0) {
+      await customerCards.first().click()
 
-          // Wait for customer data to load
-          await page.waitForTimeout(500)
-
-          // Click confirm (if enabled)
-          const confirmButton = page.getByRole('button', { name: /Confirm/i })
-          if (await confirmButton.isEnabled()) {
-            await confirmButton.click()
-            // Should show success or redirect
-            await expect(
-              page.getByText(/Payment Successful|Success/i)
-                .or(page.getByText(/0 items/))
-            ).toBeVisible({ timeout: 10000 })
-          }
-        }
-      }
-    })
-
-    test('updates customer balance after tab payment', async ({ page }) => {
-      // This test verifies the balance update happens
-      // The actual verification would require checking the customer record
-      await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-
-      // Tab payment option should be available
-      const tabOption = page.getByRole('tab', { name: /Tab/i })
-      await expect(tabOption).toBeVisible()
-    })
+      // Verify the selected customer preview shows balance info
+      await expect(page.getByText(/Current Tab/i)).toBeVisible()
+      await expect(page.getByText(/New Tab Balance/i)).toBeVisible()
+    }
   })
 
-  test.describe('Tab Status Handling', () => {
-    test('prevents payment to suspended tab', async ({ page }) => {
-      // Add product and open payment modal
-      await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await page.getByRole('tab', { name: /Tab/i }).click()
+  test('completes tab payment successfully', async ({ page, pos }) => {
+    // Add product to cart
+    await pos.addFirstProduct()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
-      // If a customer with suspended tab is selected,
-      // the UI should show an error/warning
-      const tabPanel = page.locator('[role="tabpanel"]')
-      await expect(tabPanel).toBeVisible()
-    })
+    // Open Pay Later modal
+    await pos.payLaterButton().click()
+    await expect(page.getByText(/Pay Later - Select Customer/i)).toBeVisible()
 
-    test('shows appropriate message for frozen tab', async ({ page }) => {
-      await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await page.getByRole('tab', { name: /Tab/i }).click()
+    // Wait for customers to load and click first customer
+    const customerCards = page.locator('.cursor-pointer').filter({ has: page.locator('text=/Tab Balance/') })
+    const cardCount = await customerCards.count()
 
-      // Tab payment UI should be visible
-      const tabPanel = page.locator('[role="tabpanel"]')
-      await expect(tabPanel).toBeVisible()
-    })
+    if (cardCount > 0) {
+      await customerCards.first().click()
+
+      // Verify preview section appears
+      await expect(page.getByText(/Current Tab/i)).toBeVisible()
+
+      // Click "Add to Tab"
+      const addToTabBtn = page.getByRole('button', { name: /Add to Tab/i })
+      await expect(addToTabBtn).toBeEnabled()
+      await addToTabBtn.click()
+
+      // Modal should close and cart should be cleared
+      await expect(page.getByText(/Pay Later - Select Customer/i)).not.toBeVisible({ timeout: 5000 })
+      await expect(page.getByText(/0 items/)).toBeVisible()
+    }
   })
 
-  test.describe('Credit Limit Override (Manager)', () => {
-    test('shows override option for managers when limit exceeded', async ({ page }) => {
-      // Navigate to POS
-      await page.locator('.grid > div').first().click()
-      await page.getByRole('button', { name: /Pay Now/i }).click()
-      await page.getByRole('tab', { name: /Tab/i }).click()
+  test('cancel returns without completing tab payment', async ({ page, pos }) => {
+    // Add product to cart
+    await pos.addFirstProduct()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
-      // Override UI would appear when limit is exceeded
-      // This is conditional based on user role and customer state
-      const tabPanel = page.locator('[role="tabpanel"]')
-      await expect(tabPanel).toBeVisible()
-    })
+    // Open Pay Later modal
+    await pos.payLaterButton().click()
+    await expect(page.getByText(/Pay Later - Select Customer/i)).toBeVisible()
+
+    // Cancel the modal
+    await page.getByRole('button', { name: 'Cancel' }).click()
+
+    // Modal should close, cart should still have items
+    await expect(page.getByText(/Pay Later - Select Customer/i)).not.toBeVisible()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+  })
+
+  test('shows order total in Pay Later modal', async ({ page, pos }) => {
+    // Add product to cart
+    await pos.addFirstProduct()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+
+    // Open Pay Later modal
+    await pos.payLaterButton().click()
+    await expect(page.getByText(/Pay Later - Select Customer/i)).toBeVisible()
+
+    // Verify order total is displayed
+    await expect(page.getByText(/Order Total/i)).toBeVisible()
+    const totalText = await page.locator('.text-primary').filter({ hasText: /₱/ }).first().textContent()
+    expect(totalText).toMatch(/₱[\d,]+\.\d{2}/)
+  })
+
+  test('can create new customer from Pay Later modal', async ({ page, pos }) => {
+    // Add product to cart
+    await pos.addFirstProduct()
+    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+
+    // Open Pay Later modal
+    await pos.payLaterButton().click()
+    await expect(page.getByText(/Pay Later - Select Customer/i)).toBeVisible()
+
+    // Click "New Customer" button
+    await page.getByRole('button', { name: /New Customer/i }).click()
+
+    // Verify new customer form is visible
+    await expect(page.getByPlaceholder(/Customer name/i)).toBeVisible()
+    await expect(page.getByPlaceholder(/Phone number/i)).toBeVisible()
   })
 })

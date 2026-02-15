@@ -221,7 +221,7 @@ export function PayLaterModal({
           {/* Total display */}
           <div className="text-center py-3 bg-muted rounded-xl">
             <p className="text-sm text-muted-foreground">Order Total</p>
-            <p className="text-2xl font-bold text-primary">
+            <p className="text-2xl font-bold text-primary font-mono tabular-nums">
               {currencySymbol}{total.toFixed(2)}
             </p>
           </div>
@@ -308,7 +308,7 @@ export function PayLaterModal({
               {/* Customer list */}
               <ScrollArea className="h-[200px] pr-2">
                 {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
+                  <div className="flex items-center justify-center py-8" role="status" aria-label="Loading customers">
                     <Spinner className="h-6 w-6 text-muted-foreground" />
                   </div>
                 ) : sortedCustomers.length === 0 ? (
@@ -318,15 +318,24 @@ export function PayLaterModal({
                     className="py-8"
                   />
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2" role="listbox" aria-label="Customers">
                     {sortedCustomers.map((customer) => (
                       <Card
                         key={customer.id}
+                        role="option"
+                        aria-selected={selectedCustomer?.id === customer.id}
+                        tabIndex={0}
                         className={cn(
-                          "p-3 cursor-pointer transition-all hover:border-primary/50",
+                          "p-3 cursor-pointer transition-all hover:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 outline-none",
                           selectedCustomer?.id === customer.id && "border-primary bg-primary/5"
                         )}
                         onClick={() => handleSelectCustomer(customer)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            handleSelectCustomer(customer)
+                          }
+                        }}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -355,8 +364,8 @@ export function PayLaterModal({
                           <div className="text-right">
                             <p className="text-xs text-muted-foreground">Tab Balance</p>
                             <p className={cn(
-                              "font-semibold text-sm",
-                              Number(customer.tabBalance) > 0 ? "text-amber-600" : "text-muted-foreground"
+                              "font-semibold text-sm font-mono tabular-nums",
+                              Number(customer.tabBalance) > 0 ? "text-status-warning" : "text-muted-foreground"
                             )}>
                               {currencySymbol}{Number(customer.tabBalance).toFixed(2)}
                             </p>
@@ -382,7 +391,7 @@ export function PayLaterModal({
 
               {/* Selected customer preview */}
               {selectedCustomer && (
-                <div className="bg-blue-50 rounded-xl p-4 space-y-2">
+                <div className="bg-status-info/10 rounded-xl p-4 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Customer</span>
                     <span className="font-medium">{selectedCustomer.name}</span>
@@ -390,22 +399,22 @@ export function PayLaterModal({
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Current Tab</span>
                     <span className={cn(
-                      "font-medium",
-                      Number(selectedCustomer.tabBalance) > 0 && "text-amber-600"
+                      "font-medium font-mono tabular-nums",
+                      Number(selectedCustomer.tabBalance) > 0 && "text-status-warning"
                     )}>
                       {currencySymbol}{Number(selectedCustomer.tabBalance).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">This Order</span>
-                    <span className="font-medium text-primary">
+                    <span className="font-medium text-primary font-mono tabular-nums">
                       +{currencySymbol}{total.toFixed(2)}
                     </span>
                   </div>
                   <Separator />
                   <div className="flex justify-between items-center">
                     <span className="font-medium">New Tab Balance</span>
-                    <span className="font-bold text-lg text-amber-600">
+                    <span className="font-bold text-lg text-status-warning font-mono tabular-nums">
                       {currencySymbol}{newTabBalance.toFixed(2)}
                     </span>
                   </div>

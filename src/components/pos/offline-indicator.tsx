@@ -84,11 +84,11 @@ export function OfflineIndicator({
               {isOffline ? (
                 <WifiOff className="h-5 w-5 text-destructive" />
               ) : isSyncing ? (
-                <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                <Loader2 className="h-5 w-5 animate-spin text-status-info" />
               ) : hasPending ? (
-                <CloudOff className="h-5 w-5 text-amber-500" />
+                <CloudOff className="h-5 w-5 text-status-warning" />
               ) : (
-                <Wifi className="h-5 w-5 text-green-500" />
+                <Wifi className="h-5 w-5 text-status-ok" />
               )}
               {hasPending && !isSyncing && (
                 <Badge
@@ -121,6 +121,7 @@ export function OfflineIndicator({
         "flex flex-col gap-1",
         className
       )}
+      aria-live="polite"
     >
       <div
         className={cn(
@@ -128,21 +129,21 @@ export function OfflineIndicator({
           isOffline
             ? "bg-destructive/10"
             : isSyncing
-              ? "bg-blue-500/10"
+              ? "bg-status-info/10 dark:bg-status-info/20"
               : hasPending
-                ? "bg-amber-500/10"
-                : "bg-green-500/10"
+                ? "bg-status-warning/10 dark:bg-status-warning/20"
+                : "bg-status-ok/10 dark:bg-status-ok/20"
         )}
       >
         {/* Status icon */}
         {isOffline ? (
           <WifiOff className="h-4 w-4 text-destructive" />
         ) : isSyncing ? (
-          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+          <Loader2 className="h-4 w-4 animate-spin text-status-info" />
         ) : hasPending ? (
-          <CloudOff className="h-4 w-4 text-amber-500" />
+          <CloudOff className="h-4 w-4 text-status-warning" />
         ) : (
-          <Wifi className="h-4 w-4 text-green-500" />
+          <Wifi className="h-4 w-4 text-status-ok" />
         )}
 
         {/* Status text */}
@@ -152,10 +153,10 @@ export function OfflineIndicator({
             isOffline
               ? "text-destructive"
               : isSyncing
-                ? "text-blue-600"
+                ? "text-status-info"
                 : hasPending
-                  ? "text-amber-600"
-                  : "text-green-600"
+                  ? "text-status-warning"
+                  : "text-status-ok"
           )}
         >
           {isOffline

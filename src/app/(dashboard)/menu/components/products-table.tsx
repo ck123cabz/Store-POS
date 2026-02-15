@@ -63,7 +63,7 @@ export function ProductsTable({
   }
 
   return (
-    <Table>
+    <Table aria-label="Products">
       <TableHeader>
         <TableRow>
           <TableHead className="w-12 hidden sm:table-cell">Image</TableHead>

@@ -170,7 +170,7 @@ export function CategoriesTab({
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <Table>
+      <Table aria-label="Categories">
         <TableHeader>
           <TableRow>
             <TableHead className="w-10"></TableHead>

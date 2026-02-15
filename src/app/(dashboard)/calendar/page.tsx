@@ -202,11 +202,11 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
             <CalendarIcon className="h-6 w-6" />
             Sales Calendar
           </h1>
-          <p className="text-muted-foreground text-sm">Month overview with daily performance</p>
+          <p className="text-muted-foreground mt-1">Month overview with daily performance</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={goToPreviousMonth}>

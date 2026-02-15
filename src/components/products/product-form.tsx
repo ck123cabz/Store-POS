@@ -140,12 +140,12 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
           </div>
 
           <div className="space-y-2">
-            <Label>Category</Label>
+            <Label htmlFor="product-category">Category</Label>
             <Select
               value={watch("categoryId")?.toString() || ""}
               onValueChange={(v) => setValue("categoryId", parseInt(v))}
             >
-              <SelectTrigger>
+              <SelectTrigger id="product-category">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>

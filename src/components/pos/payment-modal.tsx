@@ -363,7 +363,7 @@ export function PaymentModal({
           <ResponsiveDialogTitle className="flex items-center gap-2 text-xl">
             {paymentComplete ? (
               <>
-                <CheckCircle2 className="h-6 w-6 text-green-500" />
+                <CheckCircle2 className="h-6 w-6 text-status-ok" />
                 Payment Complete
               </>
             ) : (
@@ -382,60 +382,60 @@ export function PaymentModal({
           <div className="p-6 space-y-6">
             {/* Success Message - Different for offline queued transactions */}
             {wasQueuedOffline ? (
-              <div className="text-center py-6 bg-amber-50 rounded-xl" data-testid="offline-queued-message">
-                <CloudOff className="h-16 w-16 text-amber-500 mx-auto mb-4" />
-                <p className="text-xl font-bold text-amber-700 mb-1">
+              <div className="text-center py-6 bg-status-warning/10 rounded-xl" data-testid="offline-queued-message">
+                <CloudOff className="h-16 w-16 text-status-warning mx-auto mb-4" />
+                <p className="text-xl font-bold text-status-warning mb-1">
                   Transaction Queued
                 </p>
                 <p className="text-muted-foreground text-sm">
                   Will sync when connection is restored
                 </p>
                 <div className="mt-4 space-y-1">
-                  <p className="text-3xl font-bold">
+                  <p className="text-3xl font-bold font-mono tabular-nums">
                     {currencySymbol}{total.toFixed(2)}
                   </p>
                   {change > 0 && paymentType === "Cash" && (
-                    <p className="text-blue-600 font-medium">
+                    <p className="text-status-info font-medium font-mono tabular-nums">
                       Change: {currencySymbol}{change.toFixed(2)}
                     </p>
                   )}
-                  <p className="text-amber-600 text-sm mt-2">
+                  <p className="text-status-warning text-sm mt-2">
                     {pendingCount} transaction{pendingCount !== 1 ? "s" : ""} pending sync
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-6 bg-green-50 rounded-xl">
-                <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-                <p className="text-xl font-bold text-green-700 mb-1">
+              <div className="text-center py-6 bg-status-ok/10 rounded-xl">
+                <CheckCircle2 className="h-16 w-16 text-status-ok mx-auto mb-4" />
+                <p className="text-xl font-bold text-status-ok mb-1">
                   Payment Successful!
                 </p>
                 <p className="text-muted-foreground text-sm">
                   Order #{lastTransactionId} completed
                 </p>
                 <div className="mt-4 space-y-1">
-                  <p className="text-3xl font-bold">
+                  <p className="text-3xl font-bold font-mono tabular-nums">
                     {currencySymbol}{total.toFixed(2)}
                   </p>
                   {change > 0 && paymentType === "Cash" && (
-                    <p className="text-blue-600 font-medium">
+                    <p className="text-status-info font-medium font-mono tabular-nums">
                       Change: {currencySymbol}{change.toFixed(2)}
                     </p>
                   )}
                   {paymentType === "GCash" && (
-                    <p className="text-amber-600 text-sm">
+                    <p className="text-status-warning text-sm">
                       Awaiting GCash confirmation
                     </p>
                   )}
                   {paymentType === "Split" && splitPaymentData && (
                     <>
                       {splitPaymentData.cashChange > 0 && (
-                        <p className="text-blue-600 font-medium">
+                        <p className="text-status-info font-medium font-mono tabular-nums">
                           Change: {currencySymbol}{splitPaymentData.cashChange.toFixed(2)}
                         </p>
                       )}
                       {splitPaymentData.gcashAmount > 0 && (
-                        <p className="text-amber-600 text-sm">
+                        <p className="text-status-warning text-sm">
                           GCash portion awaiting confirmation
                         </p>
                       )}
@@ -476,6 +476,7 @@ export function PaymentModal({
                         onChange={(e) => setEmailAddress(e.target.value)}
                         disabled={isSendingEmail}
                         className="h-12"
+                        aria-label="Customer email address"
                       />
                       <Button
                         onClick={handleEmailReceipt}
@@ -518,7 +519,7 @@ export function PaymentModal({
             <div className="px-6 pb-4">
               <div className="text-center py-4 bg-muted rounded-xl">
                 <p className="text-sm text-muted-foreground mb-1">Total Amount</p>
-                <p className="text-4xl font-bold text-primary">
+                <p className="text-4xl font-bold text-primary font-mono tabular-nums">
                   {currencySymbol}{total.toFixed(2)}
                 </p>
               </div>
@@ -526,16 +527,16 @@ export function PaymentModal({
 
             {/* Payment type tabs */}
             <Tabs value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)} className="px-6">
-              <TabsList className="grid w-full grid-cols-3 h-12 min-h-11">
-                <TabsTrigger value="Cash" className="gap-1.5 text-xs sm:text-sm min-h-11">
+              <TabsList className="grid w-full grid-cols-3 h-11 min-h-11" aria-label="Payment method">
+                <TabsTrigger value="Cash" className="gap-1.5 text-xs sm:text-sm min-h-11 font-semibold">
                   <Banknote className="h-4 w-4" />
                   <span className="hidden sm:inline">Cash</span>
                 </TabsTrigger>
-                <TabsTrigger value="GCash" className="gap-1.5 text-xs sm:text-sm min-h-11">
+                <TabsTrigger value="GCash" className="gap-1.5 text-xs sm:text-sm min-h-11 font-semibold">
                   <Smartphone className="h-4 w-4" />
                   <span className="hidden sm:inline">GCash</span>
                 </TabsTrigger>
-                <TabsTrigger value="Split" className="gap-1.5 text-xs sm:text-sm min-h-11">
+                <TabsTrigger value="Split" className="gap-1.5 text-xs sm:text-sm min-h-11 font-semibold">
                   <Split className="h-4 w-4" />
                   <span className="hidden sm:inline">Split</span>
                 </TabsTrigger>
@@ -544,7 +545,7 @@ export function PaymentModal({
               {/* ═══════════════════════════════════════════════════════════════════════
                   CASH TAB
               ═══════════════════════════════════════════════════════════════════════ */}
-              <TabsContent value="Cash" className="mt-4 space-y-4">
+              <TabsContent value="Cash" className="mt-5 space-y-5">
                 <div>
                   <Label className="text-sm text-muted-foreground">Amount Received</Label>
                   <Input
@@ -553,7 +554,7 @@ export function PaymentModal({
                     placeholder="0.00"
                     value={paidAmount}
                     onChange={(e) => setPaidAmount(e.target.value)}
-                    className="text-2xl font-bold h-14 min-h-11 text-center mt-1"
+                    className="text-2xl font-bold h-14 min-h-11 text-center mt-1 font-mono tabular-nums"
                     autoFocus
                   />
                 </div>
@@ -564,7 +565,7 @@ export function PaymentModal({
                     <Button
                       key={item.label}
                       variant="outline"
-                      className="h-11 min-h-11"
+                      className="h-11 min-h-[44px] font-mono tabular-nums"
                       onClick={() => setPaidAmount(item.value.toString())}
                     >
                       {item.label}
@@ -580,10 +581,11 @@ export function PaymentModal({
                         key={key}
                         variant="outline"
                         className={cn(
-                          "h-12 min-h-11 text-lg font-medium",
+                          "h-12 min-h-[44px] text-lg font-medium",
                           key === "backspace" && "text-destructive"
                         )}
                         onClick={() => handleNumpadInput(key, setPaidAmount)}
+                        aria-label={key === "backspace" ? "Delete last digit" : key === "." ? "Decimal point" : key}
                       >
                         {key === "backspace" ? (
                           <Delete className="h-5 w-5" />
@@ -599,13 +601,13 @@ export function PaymentModal({
               {/* ═══════════════════════════════════════════════════════════════════════
                   GCASH TAB
               ═══════════════════════════════════════════════════════════════════════ */}
-              <TabsContent value="GCash" className="mt-4 space-y-4">
-                <div className="text-center py-3 bg-blue-50 rounded-xl">
-                  <Smartphone className="h-10 w-10 text-blue-500 mx-auto mb-1" />
+              <TabsContent value="GCash" className="mt-5 space-y-5">
+                <div className="text-center py-3 bg-status-info/10 rounded-xl">
+                  <Smartphone className="h-10 w-10 text-status-info mx-auto mb-1" />
                   <p className="text-sm text-muted-foreground">
                     Capture customer&apos;s GCash payment screen
                   </p>
-                  <p className="text-xl font-bold text-blue-600">
+                  <p className="text-xl font-bold text-status-info font-mono tabular-nums">
                     {currencySymbol}{total.toFixed(2)}
                   </p>
                 </div>
@@ -617,7 +619,7 @@ export function PaymentModal({
                 />
 
                 {gcashPhoto && (
-                  <p className="text-xs text-green-600 text-center font-medium">
+                  <p className="text-xs text-status-ok text-center font-medium">
                     Payment screenshot captured - ready to confirm
                   </p>
                 )}
@@ -641,7 +643,7 @@ export function PaymentModal({
                 <div
                   className={cn(
                     "text-center py-3 rounded-xl",
-                    change >= 0 ? "bg-blue-50" : "bg-red-50"
+                    change >= 0 ? "bg-status-info/10" : "bg-status-critical/10"
                   )}
                 >
                   <p className="text-sm text-muted-foreground">
@@ -649,8 +651,8 @@ export function PaymentModal({
                   </p>
                   <p
                     className={cn(
-                      "text-2xl font-bold",
-                      change >= 0 ? "text-blue-600" : "text-red-600"
+                      "text-2xl font-bold font-mono tabular-nums",
+                      change >= 0 ? "text-status-info" : "text-status-critical"
                     )}
                   >
                     {currencySymbol}{Math.abs(change).toFixed(2)}
@@ -667,7 +669,7 @@ export function PaymentModal({
                 Cancel
               </Button>
               <Button
-                className="flex-1 h-12 min-h-11 text-lg font-bold gap-2"
+                className="flex-1 h-12 min-h-11 text-base font-semibold gap-2"
                 onClick={handleConfirm}
                 disabled={!canConfirm()}
               >

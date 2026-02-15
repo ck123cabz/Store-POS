@@ -193,7 +193,7 @@ export function SplitPayment({
           <Split className="h-5 w-5 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Split Payment</p>
         </div>
-        <p className="text-2xl font-bold text-primary">
+        <p className="text-2xl font-bold text-primary font-mono tabular-nums">
           {currencySymbol}{total.toFixed(2)}
         </p>
       </div>
@@ -203,7 +203,7 @@ export function SplitPayment({
         <Button
           type="button"
           variant="outline"
-          className="h-11 min-h-11 text-xs sm:text-sm"
+          className="h-11 min-h-[44px] text-xs sm:text-sm"
           onClick={handleFiftyFifty}
         >
           50/50 Split
@@ -211,7 +211,7 @@ export function SplitPayment({
         <Button
           type="button"
           variant="outline"
-          className="h-11 min-h-11 text-xs sm:text-sm"
+          className="h-11 min-h-[44px] text-xs sm:text-sm"
           onClick={handleCashFirst}
         >
           <Banknote className="h-4 w-4 mr-1" />
@@ -220,7 +220,7 @@ export function SplitPayment({
         <Button
           type="button"
           variant="outline"
-          className="h-11 min-h-11 text-xs sm:text-sm"
+          className="h-11 min-h-[44px] text-xs sm:text-sm"
           onClick={handleGcashFirst}
         >
           <Smartphone className="h-4 w-4 mr-1" />
@@ -231,8 +231,8 @@ export function SplitPayment({
       <Separator />
 
       {/* Cash Section */}
-      <div className="space-y-3 p-4 bg-green-50/50 rounded-xl border border-green-200/50">
-        <div className="flex items-center gap-2 text-green-700">
+      <div className="space-y-3 p-4 bg-status-ok/5 rounded-xl border border-status-ok/20">
+        <div className="flex items-center gap-2 text-status-ok">
           <Banknote className="h-5 w-5" />
           <span className="font-medium">Cash Payment</span>
         </div>
@@ -240,37 +240,39 @@ export function SplitPayment({
         <div className="grid grid-cols-2 gap-3">
           {/* Cash Amount */}
           <div>
-            <Label className="text-xs text-muted-foreground">Cash Amount</Label>
+            <Label htmlFor="split-cash-amount" className="text-xs text-muted-foreground">Cash Amount</Label>
             <div className="relative mt-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 {currencySymbol}
               </span>
               <Input
+                id="split-cash-amount"
                 type="text"
                 inputMode="decimal"
                 placeholder="0.00"
                 value={cashAmount}
                 onChange={(e) => handleCashAmountChange(e.target.value)}
-                className="pl-7 h-12 min-h-11 text-center font-bold text-lg"
+                className="pl-7 h-12 min-h-11 text-center font-bold text-lg font-mono tabular-nums"
               />
             </div>
           </div>
 
           {/* Cash Tendered (only when cash amount > 0) */}
           <div className={cn(cashAmountNum <= 0 && "opacity-50")}>
-            <Label className="text-xs text-muted-foreground">Cash Tendered</Label>
+            <Label htmlFor="split-cash-tendered" className="text-xs text-muted-foreground">Cash Tendered</Label>
             <div className="relative mt-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 {currencySymbol}
               </span>
               <Input
+                id="split-cash-tendered"
                 type="text"
                 inputMode="decimal"
                 placeholder="0.00"
                 value={cashTendered}
                 onChange={(e) => setCashTendered(e.target.value)}
                 disabled={cashAmountNum <= 0}
-                className="pl-7 h-12 min-h-11 text-center font-bold text-lg"
+                className="pl-7 h-12 min-h-11 text-center font-bold text-lg font-mono tabular-nums"
               />
             </div>
           </div>
@@ -281,7 +283,7 @@ export function SplitPayment({
           <div
             className={cn(
               "text-center py-2 rounded-lg",
-              cashTenderedNum >= cashAmountNum ? "bg-blue-100" : "bg-red-100"
+              cashTenderedNum >= cashAmountNum ? "bg-status-info/10" : "bg-status-critical/10"
             )}
           >
             <p className="text-xs text-muted-foreground">
@@ -289,8 +291,8 @@ export function SplitPayment({
             </p>
             <p
               className={cn(
-                "text-lg font-bold",
-                cashTenderedNum >= cashAmountNum ? "text-blue-600" : "text-red-600"
+                "text-lg font-bold font-mono tabular-nums",
+                cashTenderedNum >= cashAmountNum ? "text-status-info" : "text-status-critical"
               )}
             >
               {currencySymbol}
@@ -310,10 +312,11 @@ export function SplitPayment({
                 type="button"
                 variant="outline"
                 className={cn(
-                  "h-10 min-h-10 text-base font-medium",
+                  "h-10 min-h-[44px] text-base font-medium",
                   key === "backspace" && "text-destructive"
                 )}
                 onClick={() => handleNumpadInput(key, setCashTendered)}
+                aria-label={key === "backspace" ? "Delete last digit" : key === "." ? "Decimal point" : key}
               >
                 {key === "backspace" ? <Delete className="h-4 w-4" /> : key}
               </Button>
@@ -325,26 +328,27 @@ export function SplitPayment({
       <Separator />
 
       {/* GCash Section */}
-      <div className="space-y-3 p-4 bg-blue-50/50 rounded-xl border border-blue-200/50">
-        <div className="flex items-center gap-2 text-blue-700">
+      <div className="space-y-3 p-4 bg-status-info/5 rounded-xl border border-status-info/20">
+        <div className="flex items-center gap-2 text-status-info">
           <Smartphone className="h-5 w-5" />
           <span className="font-medium">GCash Payment</span>
         </div>
 
         {/* GCash Amount */}
         <div>
-          <Label className="text-xs text-muted-foreground">GCash Amount</Label>
+          <Label htmlFor="split-gcash-amount" className="text-xs text-muted-foreground">GCash Amount</Label>
           <div className="relative mt-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
               {currencySymbol}
             </span>
             <Input
+              id="split-gcash-amount"
               type="text"
               inputMode="decimal"
               placeholder="0.00"
               value={gcashAmount}
               onChange={(e) => handleGcashAmountChange(e.target.value)}
-              className="pl-7 h-12 min-h-11 text-center font-bold text-lg"
+              className="pl-7 h-12 min-h-11 text-center font-bold text-lg font-mono tabular-nums"
             />
           </div>
         </div>
@@ -352,21 +356,24 @@ export function SplitPayment({
         {/* GCash Reference (only when gcash amount > 0) */}
         {gcashAmountNum > 0 && (
           <div>
-            <Label className="text-xs text-muted-foreground">
+            <Label htmlFor="split-gcash-ref" className="text-xs text-muted-foreground">
               GCash Reference Number <span className="text-destructive">*</span>
             </Label>
             <Input
+              id="split-gcash-ref"
               type="text"
               placeholder={`Enter reference (min ${GCASH_REF_MIN_LENGTH} chars)`}
               value={gcashReference}
               onChange={(e) => setGcashReference(e.target.value)}
+              aria-invalid={gcashReference ? !gcashRefValidation.valid : undefined}
+              aria-describedby={gcashReference && !gcashRefValidation.valid ? "gcash-ref-error" : undefined}
               className={cn(
                 "mt-1 h-12 min-h-11",
                 gcashReference && !gcashRefValidation.valid && "border-destructive"
               )}
             />
             {gcashReference && !gcashRefValidation.valid && (
-              <p className="text-xs text-destructive mt-1">{gcashRefValidation.error}</p>
+              <p id="gcash-ref-error" className="text-xs text-destructive mt-1" role="alert">{gcashRefValidation.error}</p>
             )}
           </div>
         )}
@@ -379,10 +386,10 @@ export function SplitPayment({
         className={cn(
           "p-4 rounded-xl border-2 transition-colors",
           isValid
-            ? "bg-green-50 border-green-300"
+            ? "bg-status-ok/10 border-status-ok/30"
             : shortfall > 0
-              ? "bg-amber-50 border-amber-300"
-              : "bg-gray-50 border-gray-200"
+              ? "bg-status-warning/10 border-status-warning/30"
+              : "bg-muted border-border"
         )}
       >
         <div className="space-y-2">
@@ -391,7 +398,7 @@ export function SplitPayment({
             {cashAmountNum > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cash:</span>
-                <span className="font-medium">
+                <span className="font-medium font-mono tabular-nums">
                   {currencySymbol}{cashAmountNum.toFixed(2)}
                 </span>
               </div>
@@ -399,7 +406,7 @@ export function SplitPayment({
             {gcashAmountNum > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">GCash:</span>
-                <span className="font-medium">
+                <span className="font-medium font-mono tabular-nums">
                   {currencySymbol}{gcashAmountNum.toFixed(2)}
                 </span>
               </div>
@@ -412,14 +419,14 @@ export function SplitPayment({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {isValid ? (
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <CheckCircle2 className="h-5 w-5 text-status-ok" />
               ) : shortfall > 0 ? (
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <AlertTriangle className="h-5 w-5 text-status-warning" />
               ) : null}
               <span
                 className={cn(
                   "font-medium",
-                  isValid ? "text-green-700" : shortfall > 0 ? "text-amber-700" : "text-gray-600"
+                  isValid ? "text-status-ok" : shortfall > 0 ? "text-status-warning" : "text-muted-foreground"
                 )}
               >
                 {isValid
@@ -429,7 +436,7 @@ export function SplitPayment({
                     : "Enter payment amounts"}
               </span>
             </div>
-            <span className="text-xl font-bold">
+            <span className="text-xl font-bold font-mono tabular-nums">
               {currencySymbol}{totalSplit.toFixed(2)}
             </span>
           </div>
@@ -438,7 +445,7 @@ export function SplitPayment({
           {isValid && cashChange > 0 && (
             <div className="text-center pt-2 border-t">
               <p className="text-sm text-muted-foreground">Cash Change to Return</p>
-              <p className="text-lg font-bold text-blue-600">
+              <p className="text-lg font-bold text-status-info font-mono tabular-nums">
                 {currencySymbol}{cashChange.toFixed(2)}
               </p>
             </div>
@@ -446,7 +453,7 @@ export function SplitPayment({
 
           {/* Validation warnings */}
           {!isValid && totalSplit >= total && (
-            <div className="text-xs text-amber-600 mt-2">
+            <div className="text-xs text-status-warning mt-2">
               {cashAmountNum > 0 && cashTenderedNum < cashAmountNum && (
                 <p>Cash tendered must be at least {currencySymbol}{cashAmountNum.toFixed(2)}</p>
               )}

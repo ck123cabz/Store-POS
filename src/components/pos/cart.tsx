@@ -10,9 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import {
   Minus,
@@ -96,9 +94,9 @@ export function Cart({
   }
 
   return (
-    <Card className="h-full flex flex-col bg-card border-l-0 rounded-l-none shadow-xl">
+    <div className="h-full flex flex-col bg-card text-card-foreground">
       {/* Header */}
-      <div className="p-4 border-b bg-muted/30">
+      <div className="px-4 py-3 border-b">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* Mobile back button - 44px minimum touch target */}
@@ -113,23 +111,26 @@ export function Cart({
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             )}
-            <ShoppingCart className="h-5 w-5 text-primary" />
-            <h2 className="font-bold text-lg">Cart</h2>
+            <h2 className="font-semibold text-base tracking-tight">Cart</h2>
           </div>
-          <Badge variant="secondary" className="text-sm px-3 py-1">
-            {cart.items.length} item{cart.items.length !== 1 ? "s" : ""}
+          <Badge
+            key={cart.items.length}
+            variant="secondary"
+            className="text-xs tabular-nums px-2.5 py-0.5 rounded-full animate-in zoom-in-75 duration-150"
+          >
+            {cart.items.length}
           </Badge>
         </div>
 
         {/* Customer selector */}
-        <div className="mt-3">
+        <div className="mt-2.5">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground" />
+            <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <Select
               value={cart.customerId?.toString() || "0"}
               onValueChange={handleCustomerChange}
             >
-              <SelectTrigger className="h-9 text-sm">
+              <SelectTrigger className="h-8 text-sm">
                 <SelectValue placeholder="Walk in customer" />
               </SelectTrigger>
               <SelectContent>
@@ -147,115 +148,111 @@ export function Cart({
 
       {/* Cart Items */}
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-2">
+        <div className="px-4 py-2">
           {cart.items.length === 0 ? (
             <EmptyState
-              icon={<ShoppingCart className="h-16 w-16" />}
+              icon={<ShoppingCart className="h-12 w-12" />}
               title="Cart is empty"
-              description="Add products to get started"
-              className="py-12"
+              description="Add products to start an order"
+              className="py-16"
             />
           ) : (
-            cart.items.map((item, index) => (
-              <div
-                key={item.id}
-                className={cn(
-                  "group relative p-3 rounded-lg border bg-background transition-colors",
-                  item.stockChanged && "bg-orange-50 border-orange-200"
-                )}
-              >
-                {/* Item number badge */}
-                <div className="absolute -left-1 -top-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
-                  {index + 1}
-                </div>
-
-                <div className="flex items-start gap-3">
-                  {/* Product info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-medium text-sm leading-tight truncate">
-                        {item.productName}
+            <div className="divide-y divide-border">
+              {cart.items.map((item) => (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "group py-3 transition-colors",
+                    item.stockChanged && "bg-status-warning/5"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Product info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium text-sm leading-tight truncate">
+                          {item.productName}
+                        </p>
+                        {item.stockChanged && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertTriangle className="h-3.5 w-3.5 text-status-warning flex-shrink-0" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Stock changed since added</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                        {currencySymbol}{item.price.toFixed(2)} each
                       </p>
-                      {item.stockChanged && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <AlertTriangle className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Stock changed since added</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {currencySymbol}{item.price.toFixed(2)} each
-                    </p>
+
+                    {/* Price */}
+                    <div className="text-right">
+                      <p className="font-semibold text-sm font-mono tabular-nums">
+                        {currencySymbol}{(item.price * item.quantity).toFixed(2)}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Price */}
-                  <div className="text-right">
-                    <p className="font-bold text-sm text-primary">
-                      {currencySymbol}{(item.price * item.quantity).toFixed(2)}
-                    </p>
+                  {/* Quantity controls - 44px minimum touch targets for mobile */}
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 min-h-[44px] min-w-[44px] rounded-full"
+                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                        aria-label="Decrease quantity"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </Button>
+                      <Input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
+                        }
+                        className="w-12 h-8 text-center text-sm font-medium tabular-nums"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 min-h-[44px] min-w-[44px] rounded-full"
+                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                        aria-label="Increase quantity"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => onRemoveItem(item.id)}
+                      aria-label="Remove item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-
-                {/* Quantity controls - 44px minimum touch targets for mobile */}
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-11 w-11 min-h-11 min-w-11 rounded-full"
-                      onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                      aria-label="Decrease quantity"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <Input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
-                      }
-                      className="w-14 h-11 text-center text-sm font-medium"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-11 w-11 min-h-11 min-w-11 rounded-full"
-                      onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                      aria-label="Increase quantity"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-11 w-11 min-h-11 min-w-11 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => onRemoveItem(item.id)}
-                    aria-label="Remove item"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       </ScrollArea>
 
-      {/* Totals and Actions */}
-      <div className="border-t bg-muted/20">
-        {/* Summary */}
-        <div className="p-4 space-y-2">
+      {/* Summary */}
+      <div className="border-t">
+        <div className="px-4 py-3 space-y-1.5">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium">{currencySymbol}{subtotal.toFixed(2)}</span>
+            <span className="font-medium font-mono tabular-nums">{currencySymbol}{subtotal.toFixed(2)}</span>
           </div>
 
           {/* Discount input */}
@@ -268,7 +265,7 @@ export function Cart({
               type="number"
               value={cart.discount || ""}
               onChange={(e) => onSetDiscount(parseFloat(e.target.value) || 0)}
-              className="w-24 h-8 text-sm ml-auto"
+              className="w-20 h-7 text-sm font-mono ml-auto"
               placeholder="0.00"
             />
           </div>
@@ -276,7 +273,7 @@ export function Cart({
           {cart.discount > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">After discount</span>
-              <span className="font-medium text-green-600">
+              <span className="font-medium font-mono tabular-nums text-status-ok">
                 {currencySymbol}{discountedSubtotal.toFixed(2)}
               </span>
             </div>
@@ -285,66 +282,65 @@ export function Cart({
           {chargeTax && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Tax ({taxPercentage}%)</span>
-              <span className="font-medium">{currencySymbol}{taxAmount.toFixed(2)}</span>
+              <span className="font-medium font-mono tabular-nums">{currencySymbol}{taxAmount.toFixed(2)}</span>
             </div>
           )}
 
-          <Separator className="my-2" />
+          {/* Hairline separator */}
+          <div className="border-t my-2" />
 
           <div className="flex justify-between items-center">
-            <span className="font-bold text-lg">Total</span>
-            <span className="font-bold text-2xl text-primary">
+            <span className="font-semibold text-sm">Total</span>
+            <span className="font-bold text-xl font-mono tabular-nums tracking-tight">
               {currencySymbol}{total.toFixed(2)}
             </span>
           </div>
         </div>
 
-        {/* Action buttons - 44px minimum touch targets */}
-        <div className="p-4 pt-0 space-y-2">
-          {/* Pay buttons - prominent, split into Pay Now and Pay Later */}
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              className="h-14 min-h-14 text-base font-bold"
-              onClick={onPayNow}
-              disabled={cart.items.length === 0}
-            >
-              <CreditCard className="h-5 w-5 mr-2" />
-              Pay Now {currencySymbol}{total.toFixed(2)}
-            </Button>
-            <Button
-              variant="outline"
-              className="h-14 min-h-14 text-base font-bold"
-              onClick={onPayLater}
-              disabled={cart.items.length === 0}
-            >
-              <User className="h-5 w-5 mr-2" />
-              Pay Later
-            </Button>
-          </div>
+        {/* Footer action buttons */}
+        <div className="px-4 pb-4 pt-1 space-y-2">
+          {/* Primary pay button - 48px height */}
+          <Button
+            className="w-full h-12 min-h-12 text-base font-semibold"
+            onClick={onPayNow}
+            disabled={cart.items.length === 0}
+          >
+            <CreditCard className="h-5 w-5 mr-2" />
+            Pay <span className="font-mono tabular-nums">{currencySymbol}{total.toFixed(2)}</span>
+          </Button>
 
-          {/* Secondary actions - 44px minimum touch targets */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Secondary actions row */}
+          <div className="grid grid-cols-3 gap-2">
             <Button
-              variant="outline"
-              className="h-11 min-h-11"
+              variant="secondary"
+              className="h-9"
               onClick={onHold}
               disabled={cart.items.length === 0}
             >
-              <PauseCircle className="h-4 w-4 mr-2" />
+              <PauseCircle className="h-4 w-4 mr-1.5" />
               Hold
             </Button>
             <Button
-              variant="outline"
-              className="h-11 min-h-11 text-destructive hover:text-destructive hover:bg-destructive/10"
+              variant="secondary"
+              className="h-9"
+              onClick={onPayLater}
+              disabled={cart.items.length === 0}
+            >
+              <User className="h-4 w-4 mr-1.5" />
+              Pay Later
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               onClick={onCancel}
               disabled={cart.items.length === 0}
             >
-              <XCircle className="h-4 w-4 mr-2" />
+              <XCircle className="h-4 w-4 mr-1.5" />
               Clear
             </Button>
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   )
 }

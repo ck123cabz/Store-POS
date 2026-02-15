@@ -39,6 +39,7 @@ export function GCashCamera({
   const [photoData, setPhotoData] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hasCamera, setHasCamera] = useState<boolean | null>(null)
+  const [isStartingCamera, setIsStartingCamera] = useState(false)
 
   // Stop camera stream
   const stopStream = useCallback(() => {
@@ -82,6 +83,7 @@ export function GCashCamera({
 
   const startCamera = async () => {
     setError(null)
+    setIsStartingCamera(true)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -97,7 +99,7 @@ export function GCashCamera({
       }
       setMode("streaming")
     } catch (err) {
-      console.error("Camera error:", err)
+      if (process.env.NODE_ENV === "development") console.error("Camera error:", err)
       if (err instanceof Error) {
         if (err.name === "NotAllowedError") {
           setError("Camera permission denied. Please allow camera access or use file upload.")
@@ -108,6 +110,8 @@ export function GCashCamera({
         }
       }
       setHasCamera(false)
+    } finally {
+      setIsStartingCamera(false)
     }
   }
 
@@ -244,17 +248,27 @@ export function GCashCamera({
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 h-11 min-h-11"
+                className="flex-1 h-11 min-h-[44px]"
                 onClick={startCamera}
+                disabled={isStartingCamera}
               >
-                <Camera className="h-5 w-5 mr-2" />
-                Open Camera
+                {isStartingCamera ? (
+                  <>
+                    <span className="h-5 w-5 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-5 w-5 mr-2" />
+                    Open Camera
+                  </>
+                )}
               </Button>
             )}
             <Button
               type="button"
               variant="outline"
-              className="flex-1 h-11 min-h-11"
+              className="flex-1 h-11 min-h-[44px]"
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="h-5 w-5 mr-2" />
@@ -268,7 +282,7 @@ export function GCashCamera({
             <Button
               type="button"
               variant="outline"
-              className="flex-1 h-11 min-h-11"
+              className="flex-1 h-11 min-h-[44px]"
               onClick={handleCancel}
             >
               <X className="h-5 w-5 mr-2" />
@@ -276,7 +290,7 @@ export function GCashCamera({
             </Button>
             <Button
               type="button"
-              className="flex-1 h-11 min-h-11"
+              className="flex-1 h-11 min-h-[44px]"
               onClick={capturePhoto}
             >
               <Camera className="h-5 w-5 mr-2" />
@@ -290,7 +304,7 @@ export function GCashCamera({
             <Button
               type="button"
               variant="outline"
-              className="flex-1 h-11 min-h-11"
+              className="flex-1 h-11 min-h-[44px]"
               onClick={retake}
             >
               <RotateCcw className="h-5 w-5 mr-2" />
@@ -298,7 +312,7 @@ export function GCashCamera({
             </Button>
             <Button
               type="button"
-              className="flex-1 h-11 min-h-11"
+              className="flex-1 h-11 min-h-[44px]"
               onClick={confirmPhoto}
             >
               <Check className="h-5 w-5 mr-2" />

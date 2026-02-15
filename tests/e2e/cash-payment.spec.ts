@@ -2,22 +2,35 @@
  * E2E Tests: Cash Payment Flow
  * US1: Cash Payment at POS
  * Tests the complete cash payment workflow including change calculation
+ *
+ * Key UI details (payment-modal.tsx):
+ *   - Cash tab is selected by default
+ *   - Amount input: text input with inputMode="decimal", placeholder="0.00"
+ *   - Quick amount buttons: Exact, ₱50, ₱100, ₱200, ₱500, ₱1000
+ *   - Numpad: 1-9, ., 0, backspace (backspace has text-destructive class)
+ *   - Change display: "Change" (blue) or "Amount Due" (red)
+ *   - Confirm button text: "Confirm" (disabled when insufficient)
+ *   - Cancel button in modal footer
+ *   - Success: "Payment Successful!", "Change: ₱X.XX"
+ *   - Receipt: "Download Receipt", "Email Receipt", "Done"
  */
 
 import { test, expect } from './fixtures/base'
 
 test.describe('US1: Cash Payment @p1', () => {
-  test('complete cash sale with exact amount', async ({ page, posPage }) => {
-    // Step 1: Add product to cart (click first available product card)
-    const availableProduct = page.locator('[role="button"][aria-disabled="false"]').first()
-    await availableProduct.click()
+  test.beforeEach(async ({ posPage }) => {
+    // posPage fixture handles navigation and setup
+  })
+
+  test('complete cash sale with exact amount', async ({ page, pos }) => {
+    // Step 1: Add product to cart (click first available/enabled product card)
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Step 2: Open payment modal
-    await page.getByRole('button', { name: /Pay Now/ }).click()
+    await pos.openPaymentModal()
 
     // Step 3: Verify payment modal opens with Cash tab selected
-    await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Cash', exact: true })).toHaveAttribute('data-state', 'active')
 
     // Step 4: Use "Exact" quick amount button
@@ -40,21 +53,19 @@ test.describe('US1: Cash Payment @p1', () => {
     await expect(page.getByText(/0 items/)).toBeVisible()
   })
 
-  test('cash sale with change calculation', async ({ page, posPage }) => {
+  test('cash sale with change calculation', async ({ page, pos }) => {
     // Add product to cart
-    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: /Pay Now/ }).click()
-    await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
+    await pos.openPaymentModal()
 
-    // Enter amount using quick amount button (₱100)
-    await page.getByRole('button', { name: /₱100|100/ }).click()
+    // Enter amount using quick amount button (₱500 to be safe - avoids ₱100/₱1000 collision)
+    await page.getByRole('button', { name: '₱500', exact: true }).click()
 
-    // Verify change is displayed (assuming Burger Steak is less than ₱100)
-    const changeSection = page.locator('text=/Change/i').locator('..')
-    await expect(changeSection).toBeVisible()
+    // Verify change is displayed
+    await expect(page.getByText(/^Change$/i)).toBeVisible()
 
     // Complete payment
     await page.getByRole('button', { name: /Confirm/i }).click()
@@ -64,22 +75,22 @@ test.describe('US1: Cash Payment @p1', () => {
     await expect(page.getByText(/Change:/i)).toBeVisible()
   })
 
-  test('cash sale using numpad input', async ({ page, posPage }) => {
+  test('cash sale using numpad input', async ({ page, pos }) => {
     // Add product to cart
-    await page.locator('.grid > div').first().click()
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: /Pay Now/ }).click()
-    await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
+    await pos.openPaymentModal()
 
-    // Use numpad to enter amount
-    await page.getByRole('button', { name: '5' }).click()
-    await page.getByRole('button', { name: '0' }).click()
-    await page.getByRole('button', { name: '0' }).click()
+    // Use numpad to enter amount - scope to the dialog to avoid ambiguity
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('button', { name: '5', exact: true }).click()
+    await dialog.getByRole('button', { name: '0', exact: true }).first().click()
+    await dialog.getByRole('button', { name: '0', exact: true }).first().click()
 
     // Verify amount input shows 500
-    const amountInput = page.locator('input[type="text"]').first()
+    const amountInput = dialog.locator('input[type="text"]').first()
     await expect(amountInput).toHaveValue('500')
 
     // Complete payment
@@ -89,17 +100,17 @@ test.describe('US1: Cash Payment @p1', () => {
     await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 5000 })
   })
 
-  test('cannot complete cash sale with insufficient amount', async ({ page, posPage }) => {
+  test('cannot complete cash sale with insufficient amount', async ({ page, pos }) => {
     // Add product to cart
-    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: /Pay Now/ }).click()
-    await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
+    await pos.openPaymentModal()
 
-    // Enter insufficient amount
-    await page.getByRole('button', { name: '1' }).click()
+    // Enter insufficient amount using numpad - scope to dialog
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('button', { name: '1', exact: true }).click()
 
     // Verify "Amount Due" shows instead of "Change"
     await expect(page.getByText(/Amount Due/i)).toBeVisible()
@@ -109,56 +120,52 @@ test.describe('US1: Cash Payment @p1', () => {
     await expect(confirmBtn).toBeDisabled()
   })
 
-  test('cash payment shows correct totals', async ({ page, posPage }) => {
-    // Add multiple products
-    const productCards = page.locator('.grid > div')
-    await productCards.nth(0).click()
+  test('cash payment shows correct totals', async ({ page, pos }) => {
+    // Add product twice (qty 2)
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
-    await productCards.nth(0).click() // Add same product again
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible() // Still 1 item, but qty 2
 
     // Open payment modal
-    await page.getByRole('button', { name: /Pay Now/ }).click()
-    await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
+    await pos.openPaymentModal()
 
     // Verify total amount is displayed
     await expect(page.getByText(/Total Amount/i)).toBeVisible()
     // Total should be greater than 0
-    const totalText = await page.locator('text=/₱[\d,]+\.\d{2}/').first().textContent()
+    const totalText = await page.locator('text=/₱[\\d,]+\\.\\d{2}/').first().textContent()
     expect(totalText).toBeTruthy()
   })
 
-  test('backspace removes digits from amount', async ({ page, posPage }) => {
+  test('backspace removes digits from amount', async ({ page, pos }) => {
     // Add product to cart
-    await page.locator('.grid > div').first().click()
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: /Pay Now/ }).click()
-    await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
+    await pos.openPaymentModal()
 
-    // Enter amount using numpad
-    await page.getByRole('button', { name: '1' }).click()
-    await page.getByRole('button', { name: '2' }).click()
-    await page.getByRole('button', { name: '3' }).click()
+    // Enter amount using numpad - scope to dialog
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('button', { name: '1', exact: true }).click()
+    await dialog.getByRole('button', { name: '2', exact: true }).click()
+    await dialog.getByRole('button', { name: '3', exact: true }).click()
 
     // Verify amount
-    const amountInput = page.locator('input[type="text"]').first()
+    const amountInput = dialog.locator('input[type="text"]').first()
     await expect(amountInput).toHaveValue('123')
 
-    // Use backspace
-    await page.locator('[data-testid="backspace"]').or(
-      page.getByRole('button').filter({ has: page.locator('svg') }).last()
-    ).click()
+    // Use backspace (the destructive-colored button with an SVG icon in the numpad)
+    await dialog.locator('button.text-destructive').filter({ has: page.locator('svg') }).click()
 
     // Verify backspace worked
     await expect(amountInput).toHaveValue('12')
   })
 
-  test('receipt options available after payment', async ({ page, posPage }) => {
+  test('receipt options available after payment', async ({ page, pos }) => {
     // Add product and complete payment
-    await page.locator('[role="button"][aria-disabled="false"]').first().click()
-    await page.getByRole('button', { name: /Pay Now/ }).click()
+    await pos.addFirstProduct()
+    await pos.openPaymentModal()
     await page.getByRole('button', { name: 'Exact' }).click()
     await page.getByRole('button', { name: /Confirm/i }).click()
 
@@ -170,20 +177,19 @@ test.describe('US1: Cash Payment @p1', () => {
     await expect(page.getByRole('button', { name: /Email Receipt/i })).toBeVisible()
   })
 
-  test('cancel returns to POS without completing sale', async ({ page, posPage }) => {
+  test('cancel returns to POS without completing sale', async ({ page, pos }) => {
     // Add product to cart
-    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Open payment modal
-    await page.getByRole('button', { name: /Pay Now/ }).click()
-    await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
+    await pos.openPaymentModal()
 
     // Cancel
     await page.getByRole('button', { name: 'Cancel' }).click()
 
     // Modal should close, cart should still have items
-    await expect(page.getByRole('dialog', { name: 'Payment' })).not.toBeVisible()
+    await expect(page.getByRole('dialog')).not.toBeVisible()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
   })
 })

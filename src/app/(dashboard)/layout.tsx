@@ -20,10 +20,16 @@ export default async function DashboardLayout({
   return (
     <SessionProvider>
       <SidebarProvider>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-background focus:text-foreground focus:border focus:rounded-md focus:m-2"
+        >
+          Skip to main content
+        </a>
         <AppSidebar />
         <SidebarInset>
           <Header />
-          <main className="flex-1">{children}</main>
+          <main id="main-content" className="flex-1">{children}</main>
         </SidebarInset>
         <OnboardingTour />
       </SidebarProvider>

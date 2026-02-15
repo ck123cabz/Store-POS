@@ -3,14 +3,18 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { formatBadgeCount, shouldShowBadge } from "@/lib/format-utils"
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuBadge,
   SidebarMenuButton,
@@ -33,6 +37,8 @@ import {
   CheckSquare,
   LayoutGrid,
   ChefHat,
+  Sun,
+  Moon,
 } from "lucide-react"
 
 interface NavItem {
@@ -85,13 +91,12 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-// T053: Get badge color class based on badge type (Visual Design Specifications)
-function getBadgeColorClass(badgeKey: BadgeKey | undefined): string {
+function getBadgeVariant(badgeKey: BadgeKey | undefined): string {
   switch (badgeKey) {
     case "ingredients":
-      return "bg-orange-500 hover:bg-orange-500/80 text-white"
+      return "bg-status-warning text-white"
     case "employee":
-      return "bg-blue-500 hover:bg-blue-500/80 text-white"
+      return "bg-status-info text-white"
     default:
       return ""
   }
@@ -102,8 +107,8 @@ export function AppSidebar() {
   const { data: session } = useSession()
   const { setOpenMobile } = useSidebar()
   const { getBadgeCount } = useSidebarBadges()
+  const { theme, setTheme } = useTheme()
 
-  // Helper to check if nav item is active (handles nested routes)
   function isActive(href: string) {
     if (href === pathname) return true
     if (href !== "/" && pathname.startsWith(href + "/")) return true
@@ -112,9 +117,19 @@ export function AppSidebar() {
 
   return (
     <SidebarRoot>
-      <SidebarContent>
+      <SidebarHeader className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="size-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+            <ShoppingCart className="size-5" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-semibold text-sm tracking-tight">Store POS</span>
+            <span className="text-xs text-muted-foreground">Point of Sale</span>
+          </div>
+        </div>
+      </SidebarHeader>
+      <SidebarContent aria-label="Main navigation">
         {navGroups.map((group) => {
-          // Filter items based on permissions
           const visibleItems = group.items.filter((item) => {
             if (item.permission && session?.user) {
               const hasPermission = session.user[item.permission as keyof typeof session.user]
@@ -123,16 +138,17 @@ export function AppSidebar() {
             return true
           })
 
-          // Don't render empty groups
           if (visibleItems.length === 0) return null
 
           return (
             <SidebarGroup key={group.label}>
-              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 font-medium">
+                {group.label}
+              </SidebarGroupLabel>
               <SidebarMenu>
                 {visibleItems.map((item) => {
                   const badgeCount = getBadgeCount(item.badgeKey)
-                  const badgeColorClass = getBadgeColorClass(item.badgeKey)
+                  const badgeVariant = getBadgeVariant(item.badgeKey)
 
                   return (
                     <SidebarMenuItem key={item.href}>
@@ -140,26 +156,24 @@ export function AppSidebar() {
                         asChild
                         isActive={isActive(item.href)}
                         tooltip={item.label}
+                        className="h-10 font-medium"
                       >
                         <Link
                           href={item.href}
                           onClick={() => setOpenMobile(false)}
                         >
-                          <item.icon />
+                          <item.icon className="size-5" />
                           <span>{item.label}</span>
                         </Link>
                       </SidebarMenuButton>
-                      {/* T050, EC-07, EC-08: Show badge if count > 0, format 99+ */}
-                      {/* T052: aria-label and aria-live for screen readers (NFR-A05, NFR-A06) */}
                       {shouldShowBadge(badgeCount) && (
                         <SidebarMenuBadge>
                           <Badge
                             className={cn(
                               "h-5 min-w-[1.25rem] px-1.5 text-xs font-semibold",
-                              badgeColorClass
+                              badgeVariant
                             )}
                             aria-label={`${badgeCount} items need attention`}
-                            aria-live="polite"
                           >
                             {formatBadgeCount(badgeCount)}
                           </Badge>
@@ -173,6 +187,19 @@ export function AppSidebar() {
           )
         })}
       </SidebarContent>
+      <SidebarFooter className="p-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        >
+          <Sun className="size-4 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute size-4 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
+          <span className="text-sm">Toggle theme</span>
+        </Button>
+      </SidebarFooter>
     </SidebarRoot>
   )
 }

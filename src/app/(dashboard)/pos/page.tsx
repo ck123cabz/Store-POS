@@ -610,7 +610,7 @@ export default function POSPage() {
                 {holdOrders.map((order) => (
                   <Card
                     key={order.id}
-                    className="p-4 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
+                    className="p-4 cursor-pointer hover:border-primary/50 transition-all"
                     onClick={() => handleLoadOrder(order)}
                   >
                     <div className="flex items-start justify-between mb-2">
@@ -682,7 +682,7 @@ export default function POSPage() {
                 {customerOrders.map((order) => (
                   <Card
                     key={order.id}
-                    className="p-4 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
+                    className="p-4 cursor-pointer hover:border-primary/50 transition-all"
                     onClick={() => handleLoadOrder(order)}
                   >
                     <div className="flex items-start justify-between mb-2">

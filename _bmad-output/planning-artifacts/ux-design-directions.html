@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store POS — Design Direction Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Design System Tokens */
+        :root {
+            /* Colors (Light Mode) */
+            --background: oklch(0.985 0.002 265);
+            --foreground: oklch(0.145 0.015 265);
+            --card: oklch(1.0 0 0);
+            --card-foreground: oklch(0.145 0.015 265);
+            --muted: oklch(0.965 0.003 265);
+            --muted-foreground: oklch(0.556 0.01 265);
+            --border: oklch(0.922 0.004 265);
+            --primary: oklch(0.205 0.015 265);
+            --primary-foreground: oklch(0.985 0.002 265);
+            --secondary: oklch(0.965 0.003 265);
+            --secondary-foreground: oklch(0.205 0.015 265);
+            --accent: oklch(0.965 0.003 265);
+            --accent-foreground: oklch(0.145 0.015 265);
+            --destructive: oklch(0.577 0.245 27.33);
+            --status-ok: oklch(0.52 0.14 155);
+            --status-warning: oklch(0.68 0.16 70);
+            --status-critical: oklch(0.577 0.245 27);
+            --status-info: oklch(0.55 0.12 250);
+            --sidebar: oklch(0.975 0.003 265);
+        }
+
+        .dark {
+            --background: oklch(0.13 0.01 265);
+            --foreground: oklch(0.93 0.005 265);
+            --card: oklch(0.17 0.01 265);
+            --card-foreground: oklch(0.93 0.005 265);
+            --muted: oklch(0.21 0.01 265);
+            --muted-foreground: oklch(0.60 0.01 265);
+            --border: oklch(0.25 0.01 265);
+            --primary: oklch(0.93 0.005 265);
+            --primary-foreground: oklch(0.13 0.01 265);
+            --secondary: oklch(0.21 0.01 265);
+            --secondary-foreground: oklch(0.93 0.005 265);
+            --accent: oklch(0.21 0.01 265);
+            --accent-foreground: oklch(0.93 0.005 265);
+            --sidebar: oklch(0.15 0.01 265);
+        }
+
+        /* Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            color: var(--foreground);
+            background: var(--background);
+            transition: background 150ms, color 150ms;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Layout */
+        .app-shell {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            height: 100vh;
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            transition: background 150ms, border-color 150ms;
+        }
+
+        .sidebar-header {
+            padding: 20px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-logo {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--foreground);
+        }
+
+        .theme-toggle {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: var(--muted-foreground);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 150ms, color 150ms;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent);
+            color: var(--foreground);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 12px;
+        }
+
+        .nav-group {
+            margin-top: 24px;
+        }
+
+        .nav-group:first-child {
+            margin-top: 0;
+        }
+
+        .nav-group-label {
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted-foreground);
+            padding: 0 12px 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            height: 40px;
+            padding: 0 12px;
+            border-radius: 6px;
+            color: var(--muted-foreground);
+            text-decoration: none;
+            transition: background 150ms, color 150ms;
+            cursor: pointer;
+            margin-bottom: 2px;
+            position: relative;
+        }
+
+        .nav-item:hover {
+            background: var(--accent);
+            color: var(--foreground);
+        }
+
+        .nav-item.active {
+            background: var(--accent);
+            color: var(--foreground);
+            font-weight: 500;
+        }
+
+        .nav-item svg {
+            width: 16px;
+            height: 16px;
+            margin-right: 12px;
+        }
+
+        .nav-item-badge {
+            margin-left: auto;
+            background: var(--status-warning);
+            color: var(--background);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--muted-foreground);
+        }
+
+        /* Content Area */
+        .content-area {
+            margin-left: 240px;
+            flex: 1;
+            height: 100vh;
+            overflow-y: auto;
+            background: var(--background);
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* POS Screen */
+        .pos-layout {
+            display: flex;
+            height: 100vh;
+        }
+
+        .product-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .product-header {
+            margin-bottom: 16px;
+        }
+
+        .search-input {
+            width: 100%;
+            height: 40px;
+            padding: 0 16px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--card);
+            color: var(--foreground);
+            font-size: 14px;
+            transition: border-color 150ms;
+            margin-bottom: 12px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--foreground);
+        }
+
+        .search-input::placeholder {
+            color: var(--muted-foreground);
+        }
+
+        .category-pills {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+        }
+
+        .category-pill {
+            height: 32px;
+            padding: 0 12px;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--foreground);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 150ms;
+            display: flex;
+            align-items: center;
+        }
+
+        .category-pill:hover {
+            background: var(--accent);
+        }
+
+        .category-pill.active {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            border-color: var(--primary);
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .product-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            cursor: pointer;
+            transition: background 150ms, transform 100ms;
+            overflow: hidden;
+        }
+
+        .product-card:hover {
+            background: var(--accent);
+        }
+
+        .product-card:active {
+            transform: scale(0.98);
+        }
+
+        .product-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .product-card.disabled:hover {
+            background: var(--card);
+            transform: none;
+        }
+
+        .product-image {
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+        }
+
+        .product-info {
+            padding: 12px;
+        }
+
+        .product-name {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .product-price {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .stock-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--muted-foreground);
+        }
+
+        .stock-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .stock-dot.ok {
+            background: var(--status-ok);
+        }
+
+        .stock-dot.warning {
+            background: var(--status-warning);
+        }
+
+        .stock-dot.critical {
+            background: var(--status-critical);
+        }
+
+        /* Cart Sidebar */
+        .cart-sidebar {
+            width: 380px;
+            background: var(--card);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .cart-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cart-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .cart-count {
+            background: var(--muted);
+            color: var(--foreground);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 9999px;
+        }
+
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .cart-item {
+            display: flex;
+            align-items: center;
+            height: 48px;
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+        }
+
+        .cart-item-name {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .qty-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .qty-btn {
+            width: 24px;
+            height: 24px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--card);
+            color: var(--foreground);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: background 150ms;
+        }
+
+        .qty-btn:hover {
+            background: var(--accent);
+        }
+
+        .qty-value {
+            font-size: 13px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .cart-item-total {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .cart-summary {
+            padding: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .summary-row.total {
+            font-size: 16px;
+            font-weight: 700;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .cart-actions {
+            padding: 0 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Buttons */
+        .btn {
+            height: 48px;
+            padding: 0 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 150ms;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--primary-foreground);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--foreground);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent);
+        }
+
+        .btn-destructive {
+            background: var(--destructive);
+            color: white;
+        }
+
+        .btn-destructive:hover {
+            opacity: 0.9;
+        }
+
+        /* Page Header */
+        .page-header {
+            padding: 32px 32px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--card);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .page-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 13px;
+            color: var(--muted-foreground);
+        }
+
+        .filter-pills {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-pill {
+            height: 28px;
+            padding: 0 12px;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--foreground);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 150ms;
+            display: flex;
+            align-items: center;
+        }
+
+        .filter-pill:hover {
+            background: var(--accent);
+        }
+
+        .filter-pill.active {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            border-color: var(--primary);
+        }
+
+        /* Summary Cards */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            padding: 24px 32px;
+        }
+
+        .summary-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            background: var(--card);
+        }
+
+        .summary-card-label {
+            font-size: 13px;
+            color: var(--muted-foreground);
+            margin-bottom: 8px;
+        }
+
+        .summary-card-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .summary-card-meta {
+            font-size: 12px;
+            color: var(--status-ok);
+        }
+
+        /* Table */
+        .table-container {
+            padding: 0 32px 32px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            text-align: left;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted-foreground);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        thead th.text-right {
+            text-align: right;
+        }
+
+        tbody tr {
+            height: 44px;
+            border-bottom: 1px solid var(--border);
+            transition: background 150ms;
+            cursor: pointer;
+        }
+
+        tbody tr:hover {
+            background: var(--accent);
+        }
+
+        tbody td {
+            padding: 12px 16px;
+            font-size: 13px;
+        }
+
+        tbody td.text-right {
+            text-align: right;
+        }
+
+        .status-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 44px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.ok {
+            background: var(--status-ok);
+        }
+
+        .status-dot.warning {
+            background: var(--status-warning);
+        }
+
+        .status-dot.info {
+            background: var(--status-info);
+        }
+
+        .status-dot.critical {
+            background: var(--status-critical);
+        }
+
+        .payment-chip {
+            display: inline-flex;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--muted);
+            color: var(--foreground);
+        }
+
+        .customer-link {
+            color: var(--foreground);
+            font-weight: 500;
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 150ms;
+        }
+
+        .customer-link:hover {
+            border-bottom-color: var(--foreground);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            font-size: 13px;
+            color: var(--muted-foreground);
+        }
+
+        /* Detail Panel */
+        .detail-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 420px;
+            height: 100vh;
+            background: var(--card);
+            border-left: 1px solid var(--border);
+            box-shadow: 0 4px 12px oklch(0 0 0 / 0.08), 0 1px 3px oklch(0 0 0 / 0.06);
+            transform: translateX(100%);
+            transition: transform 300ms ease-out;
+            z-index: 50;
+            overflow-y: auto;
+        }
+
+        .detail-panel.open {
+            transform: translateX(0);
+        }
+
+        .detail-panel-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: var(--card);
+            z-index: 10;
+        }
+
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--muted-foreground);
+        }
+
+        .close-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: var(--muted-foreground);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 150ms, color 150ms;
+        }
+
+        .close-btn:hover {
+            background: var(--accent);
+            color: var(--foreground);
+        }
+
+        .detail-panel-content {
+            padding: 24px;
+        }
+
+        .detail-section {
+            margin-bottom: 32px;
+        }
+
+        .detail-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted-foreground);
+            margin-bottom: 16px;
+        }
+
+        .transaction-header {
+            margin-bottom: 24px;
+        }
+
+        .transaction-id {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .metadata-chips {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .metadata-chip {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--muted);
+            color: var(--foreground);
+        }
+
+        .item-list {
+            list-style: none;
+        }
+
+        .item-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 13px;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 16px 0;
+        }
+
+        .detail-summary {
+            font-size: 13px;
+        }
+
+        .detail-summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .detail-summary-row.total {
+            font-size: 16px;
+            font-weight: 700;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .detail-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .timeline {
+            list-style: none;
+        }
+
+        .timeline-item {
+            font-size: 13px;
+            padding: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .timeline-item::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted-foreground);
+            position: absolute;
+            left: 0;
+            top: 12px;
+        }
+
+        .timeline-item::after {
+            content: '';
+            width: 1px;
+            background: var(--border);
+            position: absolute;
+            left: 3.5px;
+            top: 20px;
+            bottom: -8px;
+        }
+
+        .timeline-item:last-child::after {
+            display: none;
+        }
+
+        .timeline-time {
+            color: var(--muted-foreground);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: oklch(0 0 0 / 0.5);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 200ms ease-out;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal {
+            width: 480px;
+            max-width: 90vw;
+            background: var(--card);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px oklch(0 0 0 / 0.08), 0 1px 3px oklch(0 0 0 / 0.06);
+            animation: scaleIn 200ms ease-out;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.95);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-total {
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            flex: 1;
+            height: 44px;
+            border: none;
+            background: transparent;
+            color: var(--muted-foreground);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 150ms, border-color 150ms;
+        }
+
+        .tab:hover {
+            color: var(--foreground);
+        }
+
+        .tab.active {
+            color: var(--foreground);
+            border-bottom-color: var(--foreground);
+        }
+
+        .modal-content {
+            padding: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .amount-input {
+            width: 100%;
+            height: 64px;
+            border: none;
+            border-bottom: 2px solid var(--border);
+            background: transparent;
+            font-size: 24px;
+            text-align: center;
+            color: var(--foreground);
+            transition: border-color 150ms;
+            margin-bottom: 24px;
+        }
+
+        .amount-input:focus {
+            outline: none;
+            border-bottom-color: var(--foreground);
+        }
+
+        .denomination-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .denomination-btn {
+            height: 44px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--card);
+            color: var(--foreground);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 150ms;
+        }
+
+        .denomination-btn:hover {
+            background: var(--accent);
+        }
+
+        .denomination-btn:active {
+            transform: scale(0.98);
+        }
+
+        .exact-btn {
+            width: 100%;
+            height: 44px;
+            margin-bottom: 24px;
+        }
+
+        .change-display {
+            text-align: center;
+            font-size: 16px;
+            color: var(--status-ok);
+            margin-bottom: 24px;
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none;
+        }
+
+        .text-xs { font-size: 12px; }
+        .text-sm { font-size: 13px; }
+        .text-base { font-size: 14px; }
+        .text-lg { font-size: 16px; }
+        .text-xl { font-size: 20px; }
+        .text-2xl { font-size: 24px; }
+
+        .font-medium { font-weight: 500; }
+        .font-semibold { font-weight: 600; }
+        .font-bold { font-weight: 700; }
+
+        /* Screen Indicator */
+        .screen-indicator {
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            padding: 8px 16px;
+            background: var(--muted);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--muted-foreground);
+            z-index: 200;
+        }
+
+        /* Instructions */
+        .instructions {
+            padding: 16px;
+            background: var(--status-info);
+            color: white;
+            border-radius: 8px;
+            font-size: 13px;
+            margin: 0 32px 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">Store POS</div>
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-group">
+                    <div class="nav-group-label">Sales</div>
+                    <a class="nav-item active" data-screen="pos">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        <span>POS</span>
+                    </a>
+                    <a class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                            <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                        </svg>
+                        <span>Kitchen Orders</span>
+                        <span class="nav-item-badge">5</span>
+                    </a>
+                    <a class="nav-item" data-screen="transactions">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        <span>Transactions</span>
+                    </a>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-label">Inventory</div>
+                    <a class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path>
+                            <path d="M7 2v20"></path>
+                            <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path>
+                        </svg>
+                        <span>Menu</span>
+                    </a>
+                    <a class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        <span>Ingredients</span>
+                        <span class="nav-item-badge">3</span>
+                    </a>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-group-label">Management</div>
+                    <a class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span>Customers</span>
+                    </a>
+                    <a class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <span>Users</span>
+                    </a>
+                    <a class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v6m0 6v6"></path>
+                            <path d="m4.2 4.2 4.2 4.2m5.6 5.6 4.2 4.2M1 12h6m6 0h6M4.2 19.8l4.2-4.2m5.6-5.6 4.2-4.2"></path>
+                        </svg>
+                        <span>Settings</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                Store POS — Design Direction Preview
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content-area">
+            <!-- Screen 1: POS Terminal -->
+            <div class="screen active" id="screen-pos">
+                <div class="pos-layout">
+                    <div class="product-area">
+                        <div class="product-header">
+                            <input type="text" class="search-input" placeholder="Search products...">
+                            <div class="category-pills">
+                                <button class="category-pill active">All</button>
+                                <button class="category-pill">Meals</button>
+                                <button class="category-pill">Drinks</button>
+                                <button class="category-pill">Snacks</button>
+                                <button class="category-pill">Desserts</button>
+                            </div>
+                        </div>
+
+                        <div class="product-grid">
+                            <div class="product-card">
+                                <div class="product-image">🍗</div>
+                                <div class="product-info">
+                                    <div class="product-name">Chicken Adobo</div>
+                                    <div class="product-price mono">₱145.00</div>
+                                    <div class="stock-badge">
+                                        <span class="stock-dot ok"></span>
+                                        <span>In Stock</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="product-card">
+                                <div class="product-image">🍲</div>
+                                <div class="product-info">
+                                    <div class="product-name">Sinigang na Baboy</div>
+                                    <div class="product-price mono">₱165.00</div>
+                                    <div class="stock-badge">
+                                        <span class="stock-dot ok"></span>
+                                        <span>In Stock</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="product-card">
+                                <div class="product-image">🍜</div>
+                                <div class="product-info">
+                                    <div class="product-name">Pancit Canton</div>
+                                    <div class="product-price mono">₱95.00</div>
+                                    <div class="stock-badge">
+                                        <span class="stock-dot warning"></span>
+                                        <span>Low (3)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="product-card">
+                                <div class="product-image">🍳</div>
+                                <div class="product-info">
+                                    <div class="product-name">Tapsilog</div>
+                                    <div class="product-price mono">₱125.00</div>
+                                    <div class="stock-badge">
+                                        <span class="stock-dot ok"></span>
+                                        <span>In Stock</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="product-card">
+                                <div class="product-image">🥘</div>
+                                <div class="product-info">
+                                    <div class="product-name">Kare-Kare</div>
+                                    <div class="product-price mono">₱195.00</div>
+                                    <div class="stock-badge">
+                                        <span class="stock-dot ok"></span>
+                                        <span>In Stock</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="product-card">
+                                <div class="product-image">🥓</div>
+                                <div class="product-info">
+                                    <div class="product-name">Sisig</div>
+                                    <div class="product-price mono">₱155.00</div>
+                                    <div class="stock-badge">
+                                        <span class="stock-dot ok"></span>
+                                        <span>In Stock</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="product-card disabled">
+                                <div class="product-image">🍧</div>
+                                <div class="product-info">
+                                    <div class="product-name">Halo-Halo</div>
+                                    <div class="product-price mono">₱85.00</div>
+                                    <div class="stock-badge">
+                                        <span class="stock-dot critical"></span>
+                                        <span>Out of Stock</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="product-card">
+                                <div class="product-image">🥤</div>
+                                <div class="product-info">
+                                    <div class="product-name">Sago't Gulaman</div>
+                                    <div class="product-price mono">₱45.00</div>
+                                    <div class="stock-badge">
+                                        <span class="stock-dot ok"></span>
+                                        <span>In Stock</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cart-sidebar">
+                        <div class="cart-header">
+                            <div class="cart-title">Cart</div>
+                            <div class="cart-count">3</div>
+                        </div>
+
+                        <div class="cart-items">
+                            <div class="cart-item">
+                                <div class="cart-item-name">Chicken Adobo</div>
+                                <div class="qty-controls">
+                                    <button class="qty-btn">−</button>
+                                    <div class="qty-value">2</div>
+                                    <button class="qty-btn">+</button>
+                                </div>
+                                <div class="cart-item-total mono">₱290.00</div>
+                            </div>
+
+                            <div class="cart-item">
+                                <div class="cart-item-name">Sinigang na Baboy</div>
+                                <div class="qty-controls">
+                                    <button class="qty-btn">−</button>
+                                    <div class="qty-value">1</div>
+                                    <button class="qty-btn">+</button>
+                                </div>
+                                <div class="cart-item-total mono">₱165.00</div>
+                            </div>
+
+                            <div class="cart-item">
+                                <div class="cart-item-name">Sago't Gulaman</div>
+                                <div class="qty-controls">
+                                    <button class="qty-btn">−</button>
+                                    <div class="qty-value">1</div>
+                                    <button class="qty-btn">+</button>
+                                </div>
+                                <div class="cart-item-total mono">₱45.00</div>
+                            </div>
+                        </div>
+
+                        <div class="cart-summary">
+                            <div class="summary-row">
+                                <span>Subtotal</span>
+                                <span class="mono">₱500.00</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Tax (5%)</span>
+                                <span class="mono">₱25.00</span>
+                            </div>
+                            <div class="summary-row total">
+                                <span>Total</span>
+                                <span class="mono">₱525.00</span>
+                            </div>
+                        </div>
+
+                        <div class="cart-actions">
+                            <button class="btn btn-secondary">Hold Order</button>
+                            <button class="btn btn-primary" id="openPaymentModal">Pay ₱525.00</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen 2: Transactions -->
+            <div class="screen" id="screen-transactions">
+                <div class="page-header">
+                    <div class="page-header-top">
+                        <div>
+                            <h1 class="page-title">Transactions</h1>
+                            <p class="page-subtitle">Today's sales and order history</p>
+                        </div>
+                        <button class="btn btn-secondary">Export</button>
+                    </div>
+                    <div class="filter-pills">
+                        <button class="filter-pill active">Today</button>
+                        <button class="filter-pill">Yesterday</button>
+                        <button class="filter-pill">This Week</button>
+                        <button class="filter-pill">This Month</button>
+                        <button class="filter-pill">Custom</button>
+                    </div>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <div class="summary-card-label">Revenue</div>
+                        <div class="summary-card-value mono">₱12,450.00</div>
+                        <div class="summary-card-meta">+12% vs last week</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-label">Transactions</div>
+                        <div class="summary-card-value">47</div>
+                        <div class="summary-card-meta">Avg ₱264.89</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-label">Avg Ticket</div>
+                        <div class="summary-card-value mono">₱264.89</div>
+                        <div class="summary-card-meta">+8%</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-label">Top Product</div>
+                        <div class="summary-card-value">Chicken Adobo</div>
+                        <div class="summary-card-meta">23 orders</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Time</th>
+                                <th>Items</th>
+                                <th>Customer</th>
+                                <th class="text-right">Total</th>
+                                <th>Payment</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTable">
+                            <tr data-transaction="1047">
+                                <td class="mono">#1047</td>
+                                <td>11:42 AM</td>
+                                <td>3 items</td>
+                                <td>Walk-in</td>
+                                <td class="mono text-right">₱505.00</td>
+                                <td><span class="payment-chip">Cash</span></td>
+                                <td>
+                                    <div class="status-cell">
+                                        <span class="status-dot ok"></span>
+                                        <span>Completed</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="mono">#1046</td>
+                                <td>11:28 AM</td>
+                                <td>1 item</td>
+                                <td><a href="#" class="customer-link">Maria S.</a></td>
+                                <td class="mono text-right">₱145.00</td>
+                                <td><span class="payment-chip">GCash</span></td>
+                                <td>
+                                    <div class="status-cell">
+                                        <span class="status-dot ok"></span>
+                                        <span>Completed</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="mono">#1045</td>
+                                <td>11:15 AM</td>
+                                <td>5 items</td>
+                                <td><a href="#" class="customer-link">Juan D.</a></td>
+                                <td class="mono text-right">₱892.00</td>
+                                <td><span class="payment-chip">Split</span></td>
+                                <td>
+                                    <div class="status-cell">
+                                        <span class="status-dot ok"></span>
+                                        <span>Completed</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="mono">#1044</td>
+                                <td>10:58 AM</td>
+                                <td>2 items</td>
+                                <td>Walk-in</td>
+                                <td class="mono text-right">₱240.00</td>
+                                <td><span class="payment-chip">Cash</span></td>
+                                <td>
+                                    <div class="status-cell">
+                                        <span class="status-dot ok"></span>
+                                        <span>Completed</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="mono">#1043</td>
+                                <td>10:41 AM</td>
+                                <td>4 items</td>
+                                <td><a href="#" class="customer-link">Ana R.</a></td>
+                                <td class="mono text-right">₱1,250.00</td>
+                                <td><span class="payment-chip">Tab</span></td>
+                                <td>
+                                    <div class="status-cell">
+                                        <span class="status-dot info"></span>
+                                        <span>Tab</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="mono">#1042</td>
+                                <td>10:22 AM</td>
+                                <td>1 item</td>
+                                <td>Walk-in</td>
+                                <td class="mono text-right">₱95.00</td>
+                                <td><span class="payment-chip">Cash</span></td>
+                                <td>
+                                    <div class="status-cell">
+                                        <span class="status-dot ok"></span>
+                                        <span>Completed</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="mono">#1041</td>
+                                <td>10:05 AM</td>
+                                <td>3 items</td>
+                                <td><a href="#" class="customer-link">Pedro L.</a></td>
+                                <td class="mono text-right">₱485.00</td>
+                                <td><span class="payment-chip">Cash</span></td>
+                                <td>
+                                    <div class="status-cell">
+                                        <span class="status-dot critical"></span>
+                                        <span>Voided</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="mono">#1042</td>
+                                <td>9:47 AM</td>
+                                <td>2 items</td>
+                                <td>Walk-in</td>
+                                <td class="mono text-right">₱270.00</td>
+                                <td><span class="payment-chip">GCash</span></td>
+                                <td>
+                                    <div class="status-cell">
+                                        <span class="status-dot ok"></span>
+                                        <span>Completed</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="pagination">
+                        <span>Showing 1-8 of 47</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-secondary" style="height: 32px; padding: 0 16px;">Previous</button>
+                            <button class="btn btn-secondary" style="height: 32px; padding: 0 16px;">Next</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="instructions">
+                    💡 Click any transaction row to view details in the slide-in panel
+                </div>
+            </div>
+
+            <!-- Detail Panel -->
+            <div class="detail-panel" id="detailPanel">
+                <div class="detail-panel-header">
+                    <div class="breadcrumb">Transactions > #1047</div>
+                    <button class="close-btn" id="closePanel">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="detail-panel-content">
+                    <div class="transaction-header">
+                        <div class="transaction-id">Transaction #1047</div>
+                        <div class="status-cell">
+                            <span class="status-dot ok"></span>
+                            <span>Completed</span>
+                        </div>
+                        <div class="metadata-chips">
+                            <span class="metadata-chip">Cash</span>
+                            <span class="metadata-chip">Walk-in</span>
+                            <span class="metadata-chip">Feb 12, 11:42 AM</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-title">Items</div>
+                        <ul class="item-list">
+                            <li>
+                                <span><strong>Chicken Adobo</strong> × 2</span>
+                                <span class="mono">₱290.00</span>
+                            </li>
+                            <li>
+                                <span><strong>Sinigang na Baboy</strong> × 1</span>
+                                <span class="mono">₱165.00</span>
+                            </li>
+                            <li>
+                                <span><strong>Sago't Gulaman</strong> × 1</span>
+                                <span class="mono">₱45.00</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="detail-summary">
+                        <div class="detail-summary-row">
+                            <span>Subtotal</span>
+                            <span class="mono">₱500.00</span>
+                        </div>
+                        <div class="detail-summary-row">
+                            <span>Tax (5%)</span>
+                            <span class="mono">₱25.00</span>
+                        </div>
+                        <div class="detail-summary-row total">
+                            <span>Total</span>
+                            <span class="mono">₱525.00</span>
+                        </div>
+                        <div class="detail-summary-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+                            <span>Tendered</span>
+                            <span class="mono">₱600.00</span>
+                        </div>
+                        <div class="detail-summary-row">
+                            <span>Change</span>
+                            <span class="mono" style="color: var(--status-ok);">₱75.00</span>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-title">Actions</div>
+                        <div class="detail-actions">
+                            <button class="btn btn-secondary">Print Receipt</button>
+                            <button class="btn btn-destructive">Void Transaction</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-title">Activity</div>
+                        <ul class="timeline">
+                            <li class="timeline-item">
+                                <div>Created by Admin <span class="timeline-time">· 11:42 AM</span></div>
+                            </li>
+                            <li class="timeline-item">
+                                <div>Payment received <span class="timeline-time">· 11:42 AM</span></div>
+                            </li>
+                            <li class="timeline-item">
+                                <div>Kitchen order #89 created <span class="timeline-time">· 11:42 AM</span></div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal-overlay" id="paymentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Payment</div>
+                <button class="close-btn" id="closePaymentModal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="modal-total mono">₱525.00</div>
+
+            <div class="tab-bar">
+                <button class="tab active">Cash</button>
+                <button class="tab">GCash</button>
+                <button class="tab">Split</button>
+            </div>
+
+            <div class="modal-content">
+                <label class="form-label">Amount Tendered</label>
+                <input type="text" class="amount-input mono" value="₱600.00" placeholder="₱0.00">
+
+                <div class="denomination-grid">
+                    <button class="denomination-btn mono">₱100</button>
+                    <button class="denomination-btn mono">₱500</button>
+                    <button class="denomination-btn mono">₱600</button>
+                    <button class="denomination-btn mono">₱1,000</button>
+                </div>
+
+                <button class="btn btn-secondary exact-btn">Exact</button>
+
+                <div class="change-display mono">Change: ₱75.00</div>
+
+                <button class="btn btn-primary" style="width: 100%;">Complete Payment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen Indicator -->
+    <div class="screen-indicator" id="screenIndicator">Screen: POS Terminal</div>
+
+    <script>
+        // Navigation
+        const navItems = document.querySelectorAll('.nav-item[data-screen]');
+        const screens = document.querySelectorAll('.screen');
+        const screenIndicator = document.getElementById('screenIndicator');
+
+        const screenNames = {
+            'pos': 'POS Terminal',
+            'transactions': 'Transactions'
+        };
+
+        navItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const screenId = item.getAttribute('data-screen');
+
+                // Update active nav item
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+
+                // Show screen
+                screens.forEach(screen => screen.classList.remove('active'));
+                document.getElementById(`screen-${screenId}`).classList.add('active');
+
+                // Update indicator
+                screenIndicator.textContent = `Screen: ${screenNames[screenId]}`;
+
+                // Close detail panel if open
+                document.getElementById('detailPanel').classList.remove('open');
+            });
+        });
+
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+        });
+
+        // Detail panel
+        const transactionTable = document.getElementById('transactionTable');
+        const detailPanel = document.getElementById('detailPanel');
+        const closePanel = document.getElementById('closePanel');
+
+        transactionTable.addEventListener('click', (e) => {
+            const row = e.target.closest('tr[data-transaction]');
+            if (row) {
+                detailPanel.classList.add('open');
+            }
+        });
+
+        closePanel.addEventListener('click', () => {
+            detailPanel.classList.remove('open');
+        });
+
+        // Payment modal
+        const openPaymentModal = document.getElementById('openPaymentModal');
+        const paymentModal = document.getElementById('paymentModal');
+        const closePaymentModal = document.getElementById('closePaymentModal');
+
+        openPaymentModal.addEventListener('click', () => {
+            paymentModal.classList.add('open');
+        });
+
+        closePaymentModal.addEventListener('click', () => {
+            paymentModal.classList.remove('open');
+        });
+
+        paymentModal.addEventListener('click', (e) => {
+            if (e.target === paymentModal) {
+                paymentModal.classList.remove('open');
+            }
+        });
+
+        // Modal tabs
+        const modalTabs = document.querySelectorAll('.tab');
+        modalTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                modalTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+            });
+        });
+
+        // Denomination buttons
+        const denominationBtns = document.querySelectorAll('.denomination-btn');
+        const amountInput = document.querySelector('.amount-input');
+
+        denominationBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                amountInput.value = btn.textContent;
+            });
+        });
+
+        // Category pills
+        const categoryPills = document.querySelectorAll('.category-pill');
+        categoryPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                categoryPills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+            });
+        });
+
+        // Filter pills
+        const filterPills = document.querySelectorAll('.filter-pill');
+        filterPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                filterPills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

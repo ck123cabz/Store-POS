@@ -1,6 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Tooltip,
   TooltipContent,
@@ -103,12 +104,14 @@ export function StockBadge({
               </p>
             )}
             {onViewAll && (
-              <button
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0"
                 onClick={onViewAll}
-                className="text-sm text-primary hover:underline"
               >
                 View all in panel →
-              </button>
+              </Button>
             )}
           </div>
         </TooltipContent>

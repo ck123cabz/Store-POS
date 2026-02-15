@@ -12,30 +12,32 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { Settings, LogOut, User } from "lucide-react"
 import Link from "next/link"
+import { OfflineIndicator } from "@/components/pos/offline-indicator"
 
 export function Header() {
   const { data: session } = useSession()
 
   return (
-    <header className="h-14 border-b bg-white flex items-center justify-between px-4">
+    <header className="sticky top-0 z-40 h-16 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex items-center justify-between px-4">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 !h-4" />
-        <span className="font-semibold text-lg">Store POS</span>
       </div>
 
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-muted-foreground">
+      <nav aria-label="User menu" className="flex items-center gap-4">
+        <span className="text-sm font-medium text-muted-foreground">
           {session?.user?.name}
         </span>
 
+        <OfflineIndicator compact />
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label="User options">
               <User className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-56 [box-shadow:var(--shadow-float)]">
             {session?.user?.permSettings && (
               <DropdownMenuItem asChild>
                 <Link href="/settings">
@@ -44,13 +46,16 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
+            <DropdownMenuItem
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="text-destructive focus:text-destructive"
+            >
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </nav>
     </header>
   )
 }

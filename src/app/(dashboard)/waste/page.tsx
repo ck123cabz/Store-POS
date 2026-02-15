@@ -182,12 +182,12 @@ export default function WastePage() {
   const items = data?.items || []
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Waste Log</h1>
-          <p className="text-muted-foreground">Track waste to reduce spoilage costs</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Waste Log</h1>
+          <p className="text-muted-foreground mt-1">Track waste to reduce spoilage costs</p>
         </div>
         <Button onClick={openForm}>
           <Plus className="h-4 w-4 mr-2" /> Log Waste
@@ -277,7 +277,7 @@ export default function WastePage() {
       </div>
 
       {/* Table */}
-      <Table>
+      <Table aria-label="Waste log">
         <TableHeader>
           <TableRow>
             <TableHead>Date</TableHead>

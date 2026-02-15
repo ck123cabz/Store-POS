@@ -7,54 +7,55 @@
 import { test, expect } from './fixtures/base'
 
 test.describe('POS Sales Flow @p0', () => {
-  test('complete cash sale transaction', async ({ page, posPage }) => {
+  test.beforeEach(async ({ posPage }) => {
+    // posPage fixture handles navigation and setup
+  })
+
+  test('complete cash sale transaction', async ({ page, pos }) => {
     // Step 1: Add product to cart
-    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await pos.addFirstProduct()
 
     // Verify cart updated
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Step 2: Open payment modal
-    await page.getByRole('button', { name: /Pay Now/ }).click()
+    await pos.openPaymentModal()
 
-    // Step 3: Payment modal should be visible
-    await expect(page.getByRole('dialog', { name: 'Payment' })).toBeVisible()
-
-    // Step 4: Cash tab should be selected, enter payment amount
+    // Step 3: Cash tab should be selected
     await expect(page.getByRole('tab', { name: 'Cash', selected: true })).toBeVisible()
 
-    // Find amount received input and fill with exact total
-    const amountInput = page.getByRole('spinbutton').last()
-    await amountInput.fill('95')
+    // Step 4: Enter payment amount
+    const amountInput = page.locator('input[type="text"][inputmode="decimal"]')
+    await amountInput.fill('500')
 
     // Step 5: Complete sale
-    await page.getByRole('button', { name: 'Confirm Payment' }).click()
+    await page.getByRole('button', { name: /Confirm/i }).click()
 
     // Step 6: Wait for success notification and cart to clear
     await expect(page.getByText(/0 items/)).toBeVisible({ timeout: 5000 })
   })
 
-  test('add multiple products to cart', async ({ page, posPage }) => {
-    // Add first product
-    const products = page.locator('.grid > div')
-    await products.nth(0).click()
+  test('add multiple products to cart', async ({ page, pos }) => {
+    // Add first enabled product
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
-    // Add second product (if available)
-    const productCount = await products.count()
-    if (productCount > 1) {
-      await products.nth(1).click()
+    // Add a different product if available
+    const enabledProducts = page.locator('[data-testid="product-card"][aria-disabled="false"]')
+    const count = await enabledProducts.count()
+    if (count > 1) {
+      await enabledProducts.nth(1).click()
       await expect(page.getByText(/2 items/)).toBeVisible()
     }
 
     // Add same product again (quantity increase)
-    await products.nth(0).click()
+    await enabledProducts.first().click()
     await expect(page.getByText(/[23] items/)).toBeVisible()
   })
 
-  test('apply discount to cart', async ({ page, posPage }) => {
+  test('apply discount to cart', async ({ page, pos }) => {
     // Add product
-    await page.locator('.grid > div').first().click()
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
     // Find discount input
@@ -64,43 +65,47 @@ test.describe('POS Sales Flow @p0', () => {
 
     // If discount input exists, apply discount
     const discountField = page.locator('input[type="number"]').nth(1) // Usually second input
-    if (await discountField.isVisible()) {
+    if (await discountField.isVisible({ timeout: 2000 }).catch(() => false)) {
       await discountField.fill('10')
-
-      // Total should reflect discount
-      // (We can't assert exact value without knowing product price)
     }
   })
 
-  test('hold and recall order', async ({ page, posPage }) => {
+  test('hold and recall order', async ({ page, pos }) => {
     // Add product
-    await page.locator('[role="button"][aria-disabled="false"]').first().click()
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
-    // Click Hold button (exact match to avoid matching "Hold Orders")
-    await page.getByRole('button', { name: 'Hold', exact: true }).click()
+    // Click Hold button in the cart area
+    // There are two Hold buttons: one in header (small, with badge) and one in cart footer
+    // The cart footer's Hold button is inside the cart Card component
+    const cartHoldButton = page.locator('button', { hasText: 'Hold' }).filter({ hasNot: page.locator('[data-slot="badge"]') }).last()
+    await cartHoldButton.click()
 
-    // Fill hold reference (if modal appears)
-    const refInput = page.getByPlaceholder(/reference|name/i)
-    if (await refInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+    // Fill hold reference in the modal
+    const refInput = page.getByPlaceholder(/Enter reference/i)
+    if (await refInput.isVisible({ timeout: 2000 }).catch(() => false)) {
       await refInput.fill('Test Hold Order')
-      await page.getByRole('button', { name: /save|confirm|hold/i }).click()
+      await page.getByRole('button', { name: /Hold Order/i }).click()
     }
 
     // Cart should be cleared
     await expect(page.getByText(/0 items/)).toBeVisible()
 
     // Verify hold orders count increased
-    await expect(page.getByRole('button', { name: /Hold Orders \([1-9]\d*\)/i })).toBeVisible()
+    // The header Hold button text includes "Hold" followed by a badge number
+    // It renders as "Hold{N}" in text content, e.g., "Hold1", "Hold2", etc.
+    await expect(
+      page.locator('button').filter({ hasText: /^Hold\d+$/ })
+    ).toBeVisible({ timeout: 5000 })
   })
 
-  test('cancel transaction clears cart', async ({ page, posPage }) => {
+  test('cancel transaction clears cart', async ({ page, pos }) => {
     // Add product
-    await page.locator('.grid > div').first().click()
+    await pos.addFirstProduct()
     await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
 
-    // Click Cancel button
-    await page.getByRole('button', { name: 'Cancel' }).click()
+    // Click Clear button (clears the cart)
+    await pos.clearButton().click()
 
     // Cart should be cleared
     await expect(page.getByText(/0 items/)).toBeVisible()
@@ -108,7 +113,7 @@ test.describe('POS Sales Flow @p0', () => {
 
   test('category filter works', async ({ page, posPage }) => {
     // Get initial product count
-    const initialProducts = await page.locator('.grid > div').count()
+    const initialProducts = await page.locator('[data-testid="product-card"]').count()
 
     // Category buttons are: All, Beverages, Food
     // Click "Beverages" category to filter
@@ -118,13 +123,13 @@ test.describe('POS Sales Flow @p0', () => {
     await page.waitForTimeout(300)
 
     // Products should be filtered (potentially different count)
-    const filteredProducts = await page.locator('.grid > div').count()
+    const filteredProducts = await page.locator('[data-testid="product-card"]').count()
 
     // Click "All" to restore
     await page.getByRole('button', { name: 'All' }).click()
     await page.waitForTimeout(300)
 
-    const allProducts = await page.locator('.grid > div').count()
+    const allProducts = await page.locator('[data-testid="product-card"]').count()
     expect(allProducts).toBeGreaterThanOrEqual(filteredProducts)
   })
 })
@@ -148,14 +153,20 @@ test.describe('POS Error Handling @p0', () => {
     await expect(page.locator('text=/error.*occurred/i')).not.toBeVisible()
   })
 
-  test('out of stock product shows warning', async ({ page, posPage }) => {
-    // Find a product with track_stock=true and quantity=0
-    // This test may need seed data adjustment
+  test('out of stock product shows unavailable state', async ({ page, posPage }) => {
+    // Find a product card with aria-disabled="true" (out of stock)
+    const disabledProduct = page.locator('[data-testid="product-card"][aria-disabled="true"]')
+    const count = await disabledProduct.count()
 
-    // For now, verify the app handles the click without crashing
-    const products = page.locator('.grid > div')
-    if (await products.count() > 0) {
-      await products.first().click()
+    if (count > 0) {
+      // Verify the out of stock product has the "OUT OF STOCK" badge
+      await expect(disabledProduct.first().getByText(/OUT OF STOCK/i)).toBeVisible()
+    }
+
+    // Verify enabled products can still be clicked without crash
+    const enabledProduct = page.locator('[data-testid="product-card"][aria-disabled="false"]')
+    if (await enabledProduct.count() > 0) {
+      await enabledProduct.first().click()
       // No crash = success
     }
   })
