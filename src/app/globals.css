@@ -161,6 +161,21 @@
   --shadow-float: 0 4px 12px oklch(0 0 0 / 0.2), 0 1px 3px oklch(0 0 0 / 0.15);
 }
 
+@keyframes status-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.35);
+  }
+}
+
+@theme inline {
+  --animate-status-pulse: status-pulse 1.5s ease-in-out infinite;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
