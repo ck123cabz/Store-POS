@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { format } from "date-fns"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,15 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { RefreshCw, Search, History, ChevronLeft, ChevronRight } from "lucide-react"
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import { FilterPills } from "@/components/ui/filter-pills"
+import { cn } from "@/lib/utils"
+import { RefreshCw, History, ChevronLeft, ChevronRight } from "lucide-react"
 
 interface AuditLog {
   id: number
@@ -62,6 +56,68 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
   import: { label: "Import", color: "bg-muted text-foreground" },
 }
 
+const columns: DataTableColumn<AuditLog>[] = [
+  {
+    id: "timestamp",
+    header: "Timestamp",
+    cell: (log) => format(new Date(log.createdAt), "MMM d, yyyy h:mm a"),
+    priority: 0,
+    sortable: false,
+  },
+  {
+    id: "user",
+    header: "User",
+    cell: (log) => log.userName,
+    priority: 1,
+  },
+  {
+    id: "ingredient",
+    header: "Ingredient",
+    cell: (log) => <span className="font-medium">{log.ingredientName}</span>,
+    priority: 0,
+  },
+  {
+    id: "change",
+    header: "Change",
+    cell: (log) => {
+      const delta = parseFloat(log.change || "0")
+      const color = delta > 0 ? "text-status-ok" : delta < 0 ? "text-status-critical" : ""
+      return (
+        <span className={cn("font-mono tabular-nums", color)}>
+          {delta > 0 ? "+" : ""}{delta} {log.unit}
+        </span>
+      )
+    },
+    priority: 0,
+    align: "right",
+  },
+  {
+    id: "source",
+    header: "Source",
+    cell: (log) => {
+      const info = sourceLabels[log.source]
+      return (
+        <Badge variant="outline" className={info?.color}>
+          {info?.label || log.source}
+        </Badge>
+      )
+    },
+    priority: 1,
+  },
+  {
+    id: "reason",
+    header: "Reason",
+    cell: (log) => (
+      <div className="max-w-[200px] truncate text-muted-foreground text-sm">
+        {log.reason
+          ? `${log.reason}${log.reasonNote ? `: ${log.reasonNote}` : ""}`
+          : log.reasonNote || "-"}
+      </div>
+    ),
+    priority: 2,
+  },
+]
+
 export default function AuditLogPage() {
   const [data, setData] = useState<AuditData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -99,11 +155,6 @@ export default function AuditLogPage() {
     fetchLogs()
   }, [fetchLogs])
 
-  function handleSearch() {
-    setPage(1)
-    fetchLogs()
-  }
-
   function clearFilters() {
     setSource("")
     setUserId("")
@@ -112,25 +163,11 @@ export default function AuditLogPage() {
     setPage(1)
   }
 
-  function getSourceBadge(src: string) {
-    const info = sourceLabels[src] || { label: src, color: "bg-muted text-foreground" }
-    return (
-      <Badge variant="outline" className={info.color}>
-        {info.label}
-      </Badge>
-    )
-  }
-
-  function formatChange(log: AuditLog): string {
-    if (log.field === "quantity" && log.change) {
-      const change = parseFloat(log.change)
-      return change >= 0 ? `+${change} ${log.unit}` : `${change} ${log.unit}`
-    }
-    return `${log.oldValue} -> ${log.newValue}`
-  }
+  const hasFilters = source || userId || dateFrom || dateTo
 
   return (
     <div className="p-4 md:p-6 space-y-6">
+      {/* Page header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -144,178 +181,110 @@ export default function AuditLogPage() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="space-y-2">
-              <Label>Source</Label>
-              <Select value={source} onValueChange={setSource}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Sources" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  {data?.filters.sources.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {sourceLabels[s]?.label || s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Source FilterPills */}
+      <FilterPills
+        options={
+          data?.filters.sources.map((s) => ({
+            label: sourceLabels[s]?.label || s,
+            value: s,
+          })) || []
+        }
+        value={source || null}
+        onChange={(val) => {
+          setSource(val || "")
+          setPage(1)
+        }}
+        ariaLabel="Filter by source"
+      />
 
-            <div className="space-y-2">
-              <Label>User</Label>
-              <Select value={userId} onValueChange={setUserId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Users" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  {data?.filters.users.map((u) => (
-                    <SelectItem key={u.id} value={u.id.toString()}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Date and User filters */}
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="space-y-2">
+          <Label>User</Label>
+          <Select value={userId} onValueChange={(val) => { setUserId(val); setPage(1) }}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Users" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              {data?.filters.users.map((u) => (
+                <SelectItem key={u.id} value={u.id.toString()}>
+                  {u.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-            <div className="space-y-2">
-              <Label>From Date</Label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
+        <div className="space-y-2">
+          <Label>From Date</Label>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
+          />
+        </div>
 
-            <div className="space-y-2">
-              <Label>To Date</Label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
+        <div className="space-y-2">
+          <Label>To Date</Label>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
+          />
+        </div>
 
-            <div className="flex items-end gap-2">
-              <Button onClick={handleSearch} disabled={loading}>
-                <Search className="h-4 w-4 mr-2" />
-                Search
-              </Button>
-              <Button variant="outline" onClick={clearFilters}>
-                Clear
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        {hasFilters && (
+          <Button variant="outline" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        )}
+      </div>
 
       {/* Summary */}
-      {data && (
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">
-              Showing {data.logs.length} of {data.total} entries
-            </p>
-          </CardContent>
-        </Card>
+      {data && !loading && (
+        <p className="text-sm text-muted-foreground">
+          Showing {data.logs.length} of {data.total} entries
+        </p>
       )}
 
-      {/* Results */}
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <Table aria-label="Audit log entries">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date/Time</TableHead>
-                  <TableHead>Ingredient</TableHead>
-                  <TableHead>Change</TableHead>
-                  <TableHead className="hidden sm:table-cell">Source</TableHead>
-                  <TableHead className="hidden md:table-cell">Reason</TableHead>
-                  <TableHead>User</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.logs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="text-sm">
-                      {format(new Date(log.createdAt), "MMM d, yyyy h:mm a")}
-                    </TableCell>
-                    <TableCell className="font-medium">{log.ingredientName}</TableCell>
-                    <TableCell>
-                      <span
-                        className={
-                          log.change && parseFloat(log.change) < 0
-                            ? "text-red-600"
-                            : log.change && parseFloat(log.change) > 0
-                            ? "text-green-600"
-                            : ""
-                        }
-                      >
-                        {formatChange(log)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">{getSourceBadge(log.source)}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <div>
-                        {log.reason && (
-                          <span className="text-sm">{log.reason}</span>
-                        )}
-                        {log.reasonNote && (
-                          <p className="text-xs text-muted-foreground">{log.reasonNote}</p>
-                        )}
-                        {!log.reason && !log.reasonNote && (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{log.userName}</TableCell>
-                  </TableRow>
-                ))}
-                {data?.logs.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No audit logs found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+      {/* DataTable */}
+      <DataTable<AuditLog>
+        columns={columns}
+        data={data?.logs || []}
+        rowKey={(log) => log.id}
+        loading={loading}
+        emptyIcon={<History className="h-10 w-10" />}
+        emptyTitle="No audit logs found"
+        emptyDescription="Try adjusting your filters or check back later."
+        pageSize={9999}
+      />
 
-          {/* Pagination */}
-          {data && data.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm">
-                Page {page} of {data.totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
-                disabled={page === data.totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </>
+      {/* Server-side pagination */}
+      {data && data.totalPages > 1 && !loading && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm">
+            Page {page} of {data.totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+            disabled={page === data.totalPages}
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       )}
     </div>
   )
