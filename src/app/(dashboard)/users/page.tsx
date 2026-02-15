@@ -5,15 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -30,7 +21,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import { StatusDot } from "@/components/ui/status-dot"
+import { Plus, Pencil, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
 
 interface User {
@@ -42,7 +35,7 @@ interface User {
   permTransactions: boolean
   permUsers: boolean
   permSettings: boolean
-  permVoid: boolean // 003-transaction-fixes
+  permVoid: boolean
   status: string
 }
 
@@ -55,7 +48,7 @@ interface UserFormData {
   permTransactions: boolean
   permUsers: boolean
   permSettings: boolean
-  permVoid: boolean // 003-transaction-fixes
+  permVoid: boolean
 }
 
 const initialFormData: UserFormData = {
@@ -67,7 +60,7 @@ const initialFormData: UserFormData = {
   permTransactions: false,
   permUsers: false,
   permSettings: false,
-  permVoid: false, // 003-transaction-fixes
+  permVoid: false,
 }
 
 const permissions = [
@@ -76,11 +69,16 @@ const permissions = [
   { key: "permTransactions" as const, label: "Transactions" },
   { key: "permUsers" as const, label: "Users" },
   { key: "permSettings" as const, label: "Settings" },
-  { key: "permVoid" as const, label: "Void Transactions" }, // 003-transaction-fixes
+  { key: "permVoid" as const, label: "Void Transactions" },
 ]
+
+function getActivePermissions(user: User) {
+  return permissions.filter((p) => user[p.key])
+}
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -90,8 +88,12 @@ export default function UsersPage() {
   const [formData, setFormData] = useState<UserFormData>(initialFormData)
 
   const fetchUsers = useCallback(async () => {
-    const res = await fetch("/api/users")
-    setUsers(await res.json())
+    try {
+      const res = await fetch("/api/users")
+      setUsers(await res.json())
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -109,7 +111,7 @@ export default function UsersPage() {
       permTransactions: user?.permTransactions || false,
       permUsers: user?.permUsers || false,
       permSettings: user?.permSettings || false,
-      permVoid: user?.permVoid || false, // 003-transaction-fixes
+      permVoid: user?.permVoid || false,
     })
     setFormOpen(true)
   }
@@ -142,7 +144,7 @@ export default function UsersPage() {
         permTransactions: formData.permTransactions,
         permUsers: formData.permUsers,
         permSettings: formData.permSettings,
-        permVoid: formData.permVoid, // 003-transaction-fixes
+        permVoid: formData.permVoid,
       }
 
       if (!editUser) {
@@ -192,30 +194,61 @@ export default function UsersPage() {
     }
   }
 
-  function getStatusDisplay(status: string) {
-    const isOnline = status.startsWith("Logged In")
-    return (
-      <Badge variant={isOnline ? "default" : "secondary"}>
-        {isOnline ? "Online" : "Offline"}
-      </Badge>
-    )
-  }
-
-  function getPermissionBadges(user: User) {
-    const activePerms = permissions.filter((p) => user[p.key])
-    if (activePerms.length === 0) {
-      return <span className="text-muted-foreground text-sm">None</span>
-    }
-    return (
-      <div className="flex flex-wrap gap-1">
-        {activePerms.map((p) => (
-          <Badge key={p.key} variant="outline">
-            {p.label}
-          </Badge>
-        ))}
-      </div>
-    )
-  }
+  const columns: DataTableColumn<User>[] = [
+    {
+      id: "fullname",
+      header: "Name",
+      cell: (u) => (
+        <div>
+          <div className="font-medium">{u.fullname}</div>
+          <div className="text-xs text-muted-foreground">{u.username}</div>
+        </div>
+      ),
+      priority: 0,
+    },
+    {
+      id: "permissions",
+      header: "Permissions",
+      cell: (u) => {
+        const perms = getActivePermissions(u)
+        if (perms.length === 0) return <span className="text-muted-foreground">None</span>
+        return <span className="text-sm text-muted-foreground">{perms.length} permissions</span>
+      },
+      priority: 1,
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: (u) => {
+        const isOnline = u.status.startsWith("Logged In")
+        return <StatusDot variant={isOnline ? "ok" : "neutral"} label={isOnline ? "Online" : "Offline"} />
+      },
+      priority: 0,
+      align: "center",
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: (u) => (
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button size="icon" variant="ghost" onClick={() => openForm(u)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          {u.id !== 1 && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setDeleteId(u.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      ),
+      priority: 0,
+      align: "right",
+    },
+  ]
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -226,50 +259,20 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      <Table aria-label="Users">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Username</TableHead>
-            <TableHead>Full Name</TableHead>
-            <TableHead>Permissions</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-24">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell className="font-medium">{user.username}</TableCell>
-              <TableCell>{user.fullname}</TableCell>
-              <TableCell>{getPermissionBadges(user)}</TableCell>
-              <TableCell>{getStatusDisplay(user.status)}</TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openForm(user)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  {user.id !== 1 && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => setDeleteId(user.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {users.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                No users found
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      <DataTable
+        columns={columns}
+        data={users}
+        rowKey={(u) => u.id}
+        loading={loading}
+        emptyIcon={<Users className="h-10 w-10" />}
+        emptyTitle="No users"
+        emptyDescription="Add your first user to get started"
+        emptyAction={
+          <Button onClick={() => openForm()}>
+            <Plus className="h-4 w-4 mr-2" />Add User
+          </Button>
+        }
+      />
 
       <Dialog open={formOpen} onOpenChange={closeForm}>
         <DialogContent className="max-w-md">
