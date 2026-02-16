@@ -11,14 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import { StatusDot } from "@/components/ui/status-dot"
 import {
   Dialog,
   DialogContent,
@@ -43,7 +37,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Plus, Pencil, Trash2, RefreshCw, Package, ClipboardList, Info, Loader2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Package, ClipboardList, Info, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { formatDualUnitDisplay, formatCurrency } from "@/lib/ingredient-utils"
@@ -378,13 +372,119 @@ export default function IngredientsPage() {
     setNewAliasMultiplier(multiplier.toString())
   }
 
-  if (loading) {
-    return (
-      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+  const columns: DataTableColumn<Ingredient>[] = [
+    {
+      id: "name",
+      header: "Name",
+      cell: (ing) => (
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{ing.name}</span>
+          {ing.isOverhead && <Badge variant="outline" className="text-xs">Overhead</Badge>}
+          {ing.sellable && <Badge variant="secondary" className="text-xs">Sellable</Badge>}
+        </div>
+      ),
+      priority: 0,
+    },
+    {
+      id: "category",
+      header: "Category",
+      cell: (ing) => <Badge variant="outline">{ing.category}</Badge>,
+      priority: 1,
+    },
+    {
+      id: "stock",
+      header: "Stock",
+      cell: (ing) => {
+        const stockVariant = {
+          ok: "ok" as const,
+          low: "warning" as const,
+          critical: "critical" as const,
+          out: "critical" as const,
+        }[ing.stockStatus]
+        const stockLabel = {
+          ok: "In Stock",
+          low: "Low",
+          critical: "Critical",
+          out: "Out",
+        }[ing.stockStatus]
+        return (
+          <div className="flex items-center gap-2">
+            <span className="font-mono tabular-nums">
+              {formatDualUnitDisplay(ing.quantity, ing.packageSize, ing.packageUnit, ing.baseUnit)}
+            </span>
+            <StatusDot variant={stockVariant} label={stockLabel} />
+          </div>
+        )
+      },
+      priority: 0,
+    },
+    {
+      id: "parLevel",
+      header: "Par Level",
+      cell: (ing) => (
+        <span className="font-mono tabular-nums">
+          {ing.parLevel} {ing.baseUnit}
+        </span>
+      ),
+      priority: 2,
+      align: "right",
+    },
+    {
+      id: "cost",
+      header: "Cost",
+      cell: (ing) => (
+        <div className="text-right">
+          <div className="font-mono tabular-nums">{formatCurrency(ing.costPerBaseUnit)}/{ing.baseUnit}</div>
+          {ing.packageUnit !== ing.baseUnit && (
+            <div className="text-xs text-muted-foreground">{formatCurrency(ing.costPerPackage)}/{ing.packageUnit}</div>
+          )}
+        </div>
+      ),
+      priority: 2,
+      align: "right",
+    },
+    {
+      id: "vendor",
+      header: "Vendor",
+      cell: (ing) => ing.vendorName || "\u2014",
+      priority: 3,
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: (ing) => (
+        <div className="flex items-center gap-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); openForm(ing) }}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Edit</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteId(ing.id) }}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setRestockIngredient(ing); setRestockCostPerPackage(ing.costPerPackage.toString()) }}>
+                  <Package className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Restock</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      ),
+      priority: 0,
+    },
+  ]
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -406,106 +506,21 @@ export default function IngredientsPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-      <Table aria-label="Ingredients">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead className="hidden sm:table-cell">Category</TableHead>
-            <TableHead className="text-right">Stock</TableHead>
-            <TableHead className="text-right hidden md:table-cell">Min. Stock</TableHead>
-            <TableHead className="text-right hidden md:table-cell">Cost/Unit</TableHead>
-            <TableHead className="hidden lg:table-cell">Vendor</TableHead>
-            <TableHead className="w-24">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {ingredients.map((ingredient) => (
-            <TableRow key={ingredient.id}>
-              <TableCell className="font-medium">
-                <div className="flex items-center gap-2">
-                  {ingredient.name}
-                  {ingredient.isOverhead && (
-                    <Badge variant="outline" className="text-xs">Overhead</Badge>
-                  )}
-                  {ingredient.sellable && (
-                    <Badge variant="outline" className="text-xs bg-green-50">Sellable</Badge>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell className="hidden sm:table-cell">
-                <Badge variant="outline">{ingredient.category}</Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex flex-col items-end gap-1">
-                  <span className="text-sm">
-                    {formatDualUnitDisplay(
-                      ingredient.quantity,
-                      ingredient.packageSize,
-                      ingredient.packageUnit,
-                      ingredient.baseUnit
-                    )}
-                  </span>
-                  {ingredient.stockStatus === "critical" && (
-                    <Badge variant="destructive" className="text-xs">Critical</Badge>
-                  )}
-                  {ingredient.stockStatus === "low" && (
-                    <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">Low</Badge>
-                  )}
-                  {ingredient.stockStatus === "out" && (
-                    <Badge variant="destructive" className="text-xs">Out</Badge>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell className="text-right hidden md:table-cell">
-                {ingredient.parLevel} {ingredient.packageUnit}
-              </TableCell>
-              <TableCell className="text-right hidden md:table-cell">
-                <div className="flex flex-col items-end">
-                  <span>{formatCurrency(ingredient.costPerBaseUnit)}/{ingredient.baseUnit}</span>
-                  {ingredient.packageSize !== 1 && (
-                    <span className="text-xs text-muted-foreground">
-                      {formatCurrency(ingredient.costPerPackage)}/{ingredient.packageUnit}
-                    </span>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell className="text-muted-foreground hidden lg:table-cell">
-                {ingredient.vendorName || "—"}
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      setRestockIngredient(ingredient)
-                      setRestockCostPerPackage(ingredient.costPerPackage.toString())
-                    }}
-                    title="Restock"
-                  >
-                    <Package className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => openForm(ingredient)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(ingredient.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {ingredients.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                No ingredients found. Add your first ingredient to start building recipes.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={ingredients}
+        rowKey={(ing) => ing.id}
+        loading={loading}
+        pageSize={20}
+        emptyIcon={<ClipboardList className="size-10" />}
+        emptyTitle="No ingredients"
+        emptyDescription="Add your first ingredient to get started."
+        emptyAction={
+          <Button size="sm" onClick={() => openForm()}>
+            <Plus className="h-4 w-4 mr-2" /> Add Ingredient
+          </Button>
+        }
+      />
 
       {/* Add/Edit Dialog - New Dual-Unit Form */}
       <Dialog open={formOpen} onOpenChange={closeForm}>
