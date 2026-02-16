@@ -1,48 +1,60 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { StatusDot } from "@/components/ui/status-dot"
 import { OrderCard } from "./order-card"
 import type { KitchenOrder } from "@/hooks/use-kitchen-orders"
 
 interface OrderColumnProps {
-  title: string
   status: "new" | "cooking" | "ready"
   orders: KitchenOrder[]
   onUpdateStatus: (orderId: number, status: string) => void
   onToggleRush: (orderId: number, isRush: boolean) => void
+  className?: string
 }
 
 const statusConfig = {
-  new: { nextStatus: "cooking", actionLabel: "Start" },
-  cooking: { nextStatus: "ready", actionLabel: "Ready" },
-  ready: { nextStatus: "served", actionLabel: "Served" },
+  new: {
+    nextStatus: "cooking",
+    actionLabel: "Start",
+    dotVariant: "info" as const,
+    label: "New",
+  },
+  cooking: {
+    nextStatus: "ready",
+    actionLabel: "Ready",
+    dotVariant: "warning" as const,
+    label: "Cooking",
+  },
+  ready: {
+    nextStatus: "served",
+    actionLabel: "Served",
+    dotVariant: "ok" as const,
+    label: "Ready",
+  },
 }
 
 export function OrderColumn({
-  title,
   status,
   orders,
   onUpdateStatus,
   onToggleRush,
+  className,
 }: OrderColumnProps) {
   const config = statusConfig[status]
 
   return (
-    <div className="flex-1 min-w-[280px] max-w-[380px]">
+    <div className={cn("flex-1 min-w-[280px]", className)}>
       {/* Column Header */}
-      <div
-        className={cn(
-          "px-4 py-2 rounded-t-lg font-semibold flex items-center justify-between",
-          status === "new" &&
-            "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-          status === "cooking" &&
-            "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
-          status === "ready" &&
-            "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-        )}
-      >
-        <span>{title}</span>
-        <span className="text-sm font-normal opacity-70">{orders.length}</span>
+      <div className="bg-muted px-4 py-2.5 rounded-t-lg flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <StatusDot variant={config.dotVariant} />
+          <span className="text-sm font-semibold text-foreground">
+            {config.label}
+          </span>
+        </div>
+        <Badge variant="secondary">{orders.length}</Badge>
       </div>
 
       {/* Column Body */}

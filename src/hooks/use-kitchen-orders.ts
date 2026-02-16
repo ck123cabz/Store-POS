@@ -176,6 +176,20 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
     return () => clearInterval(interval)
   }, [fetchOrders, pollInterval])
 
+  // Local timer: increment secondsInStatus every 30s between polls
+  // Server poll overwrites with accurate values every 5s
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setOrders((prev) =>
+        prev.map((order) => ({
+          ...order,
+          secondsInStatus: order.secondsInStatus + 30,
+        }))
+      )
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [])
+
   // Group orders by status for kanban columns
   const ordersByStatus = {
     new: orders.filter((o) => o.status === "new"),

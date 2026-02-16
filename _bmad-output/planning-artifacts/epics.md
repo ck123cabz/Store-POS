@@ -460,11 +460,13 @@ So that I can serve the next customer while waiting for a previous one.
 **And** held orders are recallable from the POS screen
 **And** the dialog follows the modal pattern: centered, 480px max, closable via X/backdrop/Escape
 
-## Epic 4: Data Tables, Panels & Shared Components
+## Epic 4: Data Tables, Panels & Shared Components ✅ COMPLETE
 
 **Goal:** Build the reusable data display infrastructure — DataTable, StatusDot, EntityLink, DetailPanel, SummaryCard, FilterPills — that powers every data page in the app.
 
 **Dependencies:** Epic 1 (Design Tokens), Epic 2 (App Shell) must be complete.
+
+**Status:** All 8 stories complete (4.1-4.8). Committed as f14e5d9.
 
 ### Story 4.1: Build StatusDot Component
 
@@ -608,13 +610,13 @@ So that every data page has a consistent, high-quality experience.
 **And** Waste page: date, ingredient (EntityLink), quantity, reason. FilterPills.
 **And** all EntityLinks open the correct DetailPanel
 
-## Epic 5: Kitchen Order Board
+## Epic 5: Kitchen Order Board ✅
 
 **Goal:** Rebuild the kitchen order board as a real-time kanban with urgency-based visual escalation, sound notifications, and optimized touch targets for kitchen staff.
 
 **Dependencies:** Epic 1 (Design Tokens), Epic 4 (StatusDot) must be complete.
 
-### Story 5.1: Build KitchenOrderCard Component
+### Story 5.1: Build KitchenOrderCard Component ✅
 
 As a kitchen staff member,
 I want clear order cards showing items, time, and urgency at a glance,
@@ -633,7 +635,7 @@ So that I can prioritize cooking and never miss an overdue order.
 **And** tap card body expands to show full item list + rush toggle
 **And** pulse animation respects prefers-reduced-motion
 
-### Story 5.2: Build Kitchen Board Layout
+### Story 5.2: Build Kitchen Board Layout ✅
 
 As a kitchen staff member,
 I want a 3-column kanban board showing NEW, COOKING, and READY orders,
@@ -651,7 +653,7 @@ So that I can see all order statuses at once and manage the kitchen flow.
 **And** page header: "Kitchen Orders" + "Today's Completed" button + sound toggle
 **And** works in both light and dark mode
 
-### Story 5.3: Kitchen Board Real-Time Updates
+### Story 5.3: Kitchen Board Real-Time Updates ✅
 
 As a kitchen staff member,
 I want the board to update in real-time without manual refresh,
