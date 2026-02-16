@@ -8,7 +8,7 @@ import { ProductsTab } from "./components/products-tab"
 import { ProductPanel } from "./components/product-panel"
 import { CategoriesTab } from "./components/categories-tab"
 import { ProductForm } from "@/components/products/product-form"
-import { cn } from "@/lib/utils"
+import { DetailPanel } from "@/components/ui/detail-panel"
 
 interface IngredientShortage {
   id: number
@@ -188,14 +188,15 @@ export default function MenuPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Main Content */}
-      <div className={cn(
-        "flex-1 overflow-auto p-4 md:p-6",
-        selectedProduct && "hidden md:block md:pr-0"
-      )}>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="flex-1 overflow-auto p-4 md:p-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Menu</h1>
+            <p className="text-muted-foreground mt-1">Manage products and categories</p>
+          </div>
+
+          <div className="flex items-center gap-3">
             <TabsList>
               <TabsTrigger value="products">Products</TabsTrigger>
               <TabsTrigger value="categories">Categories</TabsTrigger>
@@ -206,42 +207,46 @@ export default function MenuPage() {
               {activeTab === "products" ? "Add Product" : "Add Category"}
             </Button>
           </div>
+        </div>
 
-          <TabsContent value="products" className="mt-4">
-            {loading ? (
-              <div className="text-center py-12 text-muted-foreground">Loading...</div>
-            ) : (
-              <ProductsTab
-                products={products}
-                categories={categories}
-                selectedProductId={selectedProduct?.id ?? null}
-                onSelectProduct={handleSelectProduct}
-                targetMargin={settings.targetTrueMarginPercent}
-                externalCategoryFilter={categoryFilter}
-                onClearExternalFilter={handleClearCategoryFilter}
-              />
-            )}
-          </TabsContent>
+        <TabsContent value="products" className="mt-4">
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">Loading...</div>
+          ) : (
+            <ProductsTab
+              products={products}
+              categories={categories}
+              selectedProductId={selectedProduct?.id ?? null}
+              onSelectProduct={handleSelectProduct}
+              onAddProduct={handleAddProduct}
+              targetMargin={settings.targetTrueMarginPercent}
+              externalCategoryFilter={categoryFilter}
+              onClearExternalFilter={handleClearCategoryFilter}
+            />
+          )}
+        </TabsContent>
 
-          <TabsContent value="categories" className="mt-4">
-            {loading ? (
-              <div className="text-center py-12 text-muted-foreground">Loading...</div>
-            ) : (
-              <CategoriesTab
-                categories={categories}
-                onReorder={handleReorderCategories}
-                onEdit={handleEditCategory}
-                onDelete={handleDeleteCategory}
-                onFilterByCategory={handleFilterByCategory}
-              />
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+        <TabsContent value="categories" className="mt-4">
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">Loading...</div>
+          ) : (
+            <CategoriesTab
+              categories={categories}
+              onReorder={handleReorderCategories}
+              onEdit={handleEditCategory}
+              onDelete={handleDeleteCategory}
+              onFilterByCategory={handleFilterByCategory}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
 
-      {/* Slide-out Panel - shown in both view and edit mode */}
-      {selectedProduct && (
-        <div className="w-full md:w-96 lg:w-[450px] shrink-0">
+      {/* Detail Panel overlay (Sheet from right) */}
+      <DetailPanel
+        open={!!selectedProduct}
+        onOpenChange={(open) => { if (!open) handleClosePanel() }}
+      >
+        {selectedProduct && (
           <ProductPanel
             product={selectedProduct}
             onClose={handleClosePanel}
@@ -252,8 +257,8 @@ export default function MenuPage() {
             categories={categories.map(c => ({ id: c.id, name: c.name }))}
             targetMargin={settings.targetTrueMarginPercent}
           />
-        </div>
-      )}
+        )}
+      </DetailPanel>
 
       {/* Add New Product Dialog */}
       <ProductForm

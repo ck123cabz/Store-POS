@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -26,11 +27,33 @@ interface DiscrepancyModalProps {
   currentNote?: string
 }
 
+/**
+ * Computes the variance color class based on how negative the variance is
+ * relative to the expected value.
+ *   - >= 0: status-ok (green)
+ *   - slightly negative (within 5%): status-warning (amber)
+ *   - significantly negative (> 5%): status-critical (red)
+ */
+function getVarianceColor(variance: number, expected: number): string {
+  if (variance >= 0) return "text-status-ok"
+  if (expected === 0) return "text-status-critical"
+  const pct = Math.abs(variance / expected) * 100
+  if (pct <= 5) return "text-status-warning"
+  return "text-status-critical"
+}
+
+function getVarianceBgColor(variance: number, expected: number): string {
+  if (variance >= 0) return "bg-status-ok/10"
+  if (expected === 0) return "bg-status-critical/10"
+  const pct = Math.abs(variance / expected) * 100
+  if (pct <= 5) return "bg-status-warning/10"
+  return "bg-status-critical/10"
+}
+
 // Inner form component that resets state when key changes
 function DiscrepancyForm({
   onConfirm,
   onClose,
-  ingredientName,
   expected,
   unit,
   initialActual,
@@ -39,7 +62,6 @@ function DiscrepancyForm({
 }: {
   onConfirm: (actual: number, reason: string, reasonNote?: string) => void
   onClose: () => void
-  ingredientName: string
   expected: number
   unit: string
   initialActual: string
@@ -58,6 +80,15 @@ function DiscrepancyForm({
     reason !== "" &&
     (!requiresNote || reasonNote.trim() !== "")
 
+  const parsedActual = actual !== "" ? parseFloat(actual) : null
+  const variance = parsedActual !== null ? parsedActual - expected : null
+  const variancePct =
+    variance !== null && expected !== 0
+      ? (variance / expected) * 100
+      : variance !== null && expected === 0
+        ? (parsedActual! > 0 ? 100 : 0)
+        : null
+
   function handleSubmit() {
     if (!canSubmit) return
     onConfirm(parseFloat(actual), reason, reasonNote.trim() || undefined)
@@ -65,18 +96,12 @@ function DiscrepancyForm({
 
   return (
     <>
-      <div className="space-y-4 py-4">
-        {/* Ingredient info */}
-        <div className="rounded-lg bg-muted p-3">
-          <p className="font-medium">{ingredientName}</p>
-          <p className="text-sm text-muted-foreground">
-            Expected: {expected} {unit}
-          </p>
-        </div>
-
+      <div className="space-y-4">
         {/* Actual count input */}
         <div className="space-y-2">
-          <Label htmlFor="actual">Actual Count</Label>
+          <Label htmlFor="actual" className="text-sm font-medium">
+            Actual Count ({unit})
+          </Label>
           <Input
             id="actual"
             type="number"
@@ -84,50 +109,86 @@ function DiscrepancyForm({
             min="0"
             value={actual}
             onChange={(e) => setActual(e.target.value)}
-            placeholder={`Enter count in ${unit}`}
+            placeholder="0"
             autoFocus
+            className="h-14 text-2xl font-mono tabular-nums text-center"
           />
+
+          {/* Variance display */}
+          {variance !== null && (
+            <div
+              className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 ${getVarianceBgColor(variance, expected)}`}
+            >
+              <span
+                className={`text-sm font-medium font-mono tabular-nums ${getVarianceColor(variance, expected)}`}
+              >
+                {variance >= 0 ? "+" : ""}
+                {Number.isInteger(variance) ? variance : variance.toFixed(2)}{" "}
+                {unit}
+                {variancePct !== null && (
+                  <span className="ml-1 opacity-80">
+                    ({variancePct >= 0 ? "+" : ""}
+                    {variancePct.toFixed(1)}%)
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Reason quick picks */}
+        {/* Reason pill grid */}
         <div className="space-y-2">
-          <Label id="discrepancy-reason-label">Reason for Discrepancy</Label>
-          <div className="grid grid-cols-2 gap-2" role="group" aria-labelledby="discrepancy-reason-label">
+          <Label id="discrepancy-reason-label" className="text-sm font-medium">
+            Reason
+          </Label>
+          <div
+            className="grid grid-cols-2 gap-2"
+            role="group"
+            aria-labelledby="discrepancy-reason-label"
+          >
             {DISCREPANCY_REASONS.map((r) => (
-              <Button
+              <button
                 key={r.value}
                 type="button"
-                variant={reason === r.value ? "default" : "outline"}
-                size="sm"
-                className="justify-start"
+                className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  reason === r.value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-input bg-background text-foreground hover:bg-muted"
+                }`}
                 onClick={() => setReason(r.value)}
               >
-                <span className="mr-2">{r.icon}</span>
+                <span className="text-base leading-none">{r.icon}</span>
                 {r.label}
-              </Button>
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Note field (required for some reasons) */}
-        {(requiresNote || reasonNote) && (
+        {/* Note field (always visible when reason selected, required for some) */}
+        {reason !== "" && (
           <div className="space-y-2">
-            <Label htmlFor="note">
-              {requiresNote ? "Note (required)" : "Note (optional)"}
+            <Label htmlFor="note" className="text-sm font-medium">
+              Note{requiresNote ? "" : " (optional)"}
             </Label>
             <Textarea
               id="note"
               value={reasonNote}
               onChange={(e) => setReasonNote(e.target.value)}
-              placeholder="Add details..."
+              placeholder="Add details about this discrepancy..."
               rows={2}
+              className="resize-none"
             />
+            {requiresNote && reasonNote.trim() === "" && (
+              <p className="text-xs text-muted-foreground">
+                A note is required for this reason
+              </p>
+            )}
           </div>
         )}
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="ghost" onClick={onClose}>
           Cancel
         </Button>
         <Button onClick={handleSubmit} disabled={!canSubmit}>
@@ -156,7 +217,10 @@ export function DiscrepancyModal({
     return `${ingredientName}-${currentActual}-${currentReason}-${currentNote}`
   }, [open, ingredientName, currentActual, currentReason, currentNote])
 
-  const initialActual = currentActual !== null && currentActual !== undefined ? String(currentActual) : ""
+  const initialActual =
+    currentActual !== null && currentActual !== undefined
+      ? String(currentActual)
+      : ""
   const initialReason = currentReason || ""
   const initialNote = currentNote || ""
 
@@ -164,7 +228,14 @@ export function DiscrepancyModal({
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Count Discrepancy</DialogTitle>
+          <DialogTitle>{ingredientName}</DialogTitle>
+          <DialogDescription>
+            Expected:{" "}
+            <span className="font-mono tabular-nums font-medium">
+              {expected}
+            </span>{" "}
+            {unit}
+          </DialogDescription>
         </DialogHeader>
 
         {open && (
@@ -172,7 +243,6 @@ export function DiscrepancyModal({
             key={formKey}
             onConfirm={onConfirm}
             onClose={onClose}
-            ingredientName={ingredientName}
             expected={expected}
             unit={unit}
             initialActual={initialActual}

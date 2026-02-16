@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { StatusDot } from "@/components/ui/status-dot"
 import { GripVertical, ChevronRight, ChevronDown, Pencil, Trash2, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/ingredient-utils"
@@ -54,66 +55,48 @@ interface CategoriesTabProps {
   onFilterByCategory: (categoryId: number) => void
 }
 
-function getStockHealthDisplay(stockHealth: StockHealth): {
-  text: string
-  variant: "default" | "secondary" | "destructive"
-  className: string
+function getStockHealthStatusDot(stockHealth: StockHealth): {
+  variant: "ok" | "warning" | "critical" | "neutral"
+  label: string
 } {
   const { available, low, critical, out } = stockHealth
   const total = available + low + critical + out
 
   if (total === 0) {
-    return {
-      text: "No products",
-      variant: "secondary",
-      className: "bg-gray-100 text-gray-600",
-    }
+    return { variant: "neutral", label: "No products" }
   }
 
   if (out > 0) {
     const issueCount = low + critical
     if (issueCount > 0) {
-      return {
-        text: `${issueCount} low, ${out} out`,
-        variant: "destructive",
-        className: "bg-red-100 text-red-800",
-      }
+      return { variant: "critical", label: `${issueCount} low, ${out} out` }
     }
-    return {
-      text: `${out} out`,
-      variant: "destructive",
-      className: "bg-red-100 text-red-800",
-    }
+    return { variant: "critical", label: `${out} out` }
   }
 
   if (low > 0 || critical > 0) {
     const issueCount = low + critical
-    return {
-      text: `${issueCount} low`,
-      variant: "secondary",
-      className: "bg-yellow-100 text-yellow-800",
-    }
+    return { variant: "warning", label: `${issueCount} low` }
   }
 
-  return {
-    text: "All available",
-    variant: "default",
-    className: "bg-green-100 text-green-800",
-  }
+  return { variant: "ok", label: "All available" }
 }
 
-function getProductStatusBadge(status: "available" | "low" | "critical" | "out") {
+function getProductStatusDot(status: "available" | "low" | "critical" | "out"): {
+  variant: "ok" | "warning" | "critical"
+  label: string
+} {
   switch (status) {
     case "available":
-      return { text: "Available", className: "bg-green-100 text-green-800" }
+      return { variant: "ok", label: "Available" }
     case "low":
-      return { text: "Low", className: "bg-yellow-100 text-yellow-800" }
+      return { variant: "warning", label: "Low" }
     case "critical":
-      return { text: "Critical", className: "bg-orange-100 text-orange-800" }
+      return { variant: "warning", label: "Critical" }
     case "out":
-      return { text: "Out", className: "bg-red-100 text-red-800" }
+      return { variant: "critical", label: "Out" }
     default:
-      return { text: "Unknown", className: "bg-gray-100 text-gray-600" }
+      return { variant: "ok", label: "Unknown" }
   }
 }
 
@@ -186,7 +169,7 @@ export function CategoriesTab({
             <TableBody ref={provided.innerRef} {...provided.droppableProps}>
               {categories.map((category, index) => {
                 const isExpanded = expandedIds.has(category.id)
-                const stockDisplay = getStockHealthDisplay(category.stockHealth)
+                const stockDisplay = getStockHealthStatusDot(category.stockHealth)
 
                 return (
                   <Draggable
@@ -200,7 +183,7 @@ export function CategoriesTab({
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           className={cn(
-                            snapshot.isDragging && "bg-muted shadow-lg"
+                            snapshot.isDragging && "bg-muted shadow-float"
                           )}
                         >
                           <TableCell
@@ -237,12 +220,10 @@ export function CategoriesTab({
                           </TableCell>
 
                           <TableCell>
-                            <Badge
+                            <StatusDot
                               variant={stockDisplay.variant}
-                              className={stockDisplay.className}
-                            >
-                              {stockDisplay.text}
-                            </Badge>
+                              label={stockDisplay.label}
+                            />
                           </TableCell>
 
                           <TableCell className="text-right">
@@ -277,7 +258,7 @@ export function CategoriesTab({
                                 </div>
                                 <div className="grid gap-1">
                                   {category.products.map((product) => {
-                                    const statusBadge = getProductStatusBadge(
+                                    const statusDot = getProductStatusDot(
                                       product.availability.status
                                     )
                                     return (
@@ -289,15 +270,13 @@ export function CategoriesTab({
                                           {product.name}
                                         </span>
                                         <div className="flex items-center gap-3">
-                                          <span className="text-sm text-muted-foreground">
+                                          <span className="text-sm text-muted-foreground font-mono tabular-nums">
                                             {formatCurrency(product.price)}
                                           </span>
-                                          <Badge
-                                            variant="secondary"
-                                            className={cn("text-xs", statusBadge.className)}
-                                          >
-                                            {statusBadge.text}
-                                          </Badge>
+                                          <StatusDot
+                                            variant={statusDot.variant}
+                                            label={statusDot.label}
+                                          />
                                         </div>
                                       </div>
                                     )

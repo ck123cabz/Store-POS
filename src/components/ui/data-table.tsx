@@ -44,6 +44,8 @@ interface DataTableProps<T> {
   rowKey: (row: T) => string | number
   /** Row click handler */
   onRowClick?: (row: T) => void
+  /** Optional callback to add classes to a row */
+  rowClassName?: (row: T) => string | undefined
   /** Loading state */
   loading?: boolean
   /** Empty state icon */
@@ -84,6 +86,7 @@ function DataTable<T>({
   data,
   rowKey,
   onRowClick,
+  rowClassName,
   loading = false,
   emptyIcon,
   emptyTitle = "No data",
@@ -217,7 +220,7 @@ function DataTable<T>({
     return paginatedData.map((row) => (
       <TableRow
         key={rowKey(row)}
-        className={cn("h-11", onRowClick && "cursor-pointer")}
+        className={cn("h-11", onRowClick && "cursor-pointer", rowClassName?.(row))}
         onClick={onRowClick ? () => onRowClick(row) : undefined}
       >
         {columns.map((col) => {

@@ -42,6 +42,7 @@ import Link from "next/link"
 import { toast } from "sonner"
 import { formatDualUnitDisplay, formatCurrency } from "@/lib/ingredient-utils"
 import { PURCHASE_UNITS, BASE_UNITS } from "@/types/ingredient"
+import { RestockDialog } from "@/components/inventory/restock-dialog"
 
 interface Ingredient {
   id: number
@@ -119,9 +120,6 @@ export default function IngredientsPage() {
 
   // Restock state
   const [restockIngredient, setRestockIngredient] = useState<Ingredient | null>(null)
-  const [restockQuantity, setRestockQuantity] = useState("")
-  const [restockCostPerPackage, setRestockCostPerPackage] = useState("")
-  const [restocking, setRestocking] = useState(false)
 
   // Form state - new dual-unit system
   const [name, setName] = useState("")
@@ -292,33 +290,6 @@ export default function IngredientsPage() {
     }
   }
 
-  async function handleRestock() {
-    if (!restockIngredient || !restockQuantity) return
-    setRestocking(true)
-    try {
-      const res = await fetch(`/api/ingredients/${restockIngredient.id}/restock`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quantity: parseFloat(restockQuantity),
-          costPerPackage: restockCostPerPackage ? parseFloat(restockCostPerPackage) : undefined,
-          userId: 1, // TODO: Get from session
-          userName: "Admin", // TODO: Get from session
-        }),
-      })
-      if (!res.ok) throw new Error("Failed")
-      toast.success(`Restocked ${restockQuantity} ${restockIngredient.packageUnit}(s) of ${restockIngredient.name}`)
-      setRestockIngredient(null)
-      setRestockQuantity("")
-      setRestockCostPerPackage("")
-      fetchData()
-    } catch {
-      toast.error("Failed to restock ingredient")
-    } finally {
-      setRestocking(false)
-    }
-  }
-
   async function handleAddAlias() {
     if (!editIngredient || !newAliasName.trim() || !newAliasMultiplier) return
 
@@ -473,7 +444,7 @@ export default function IngredientsPage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setRestockIngredient(ing); setRestockCostPerPackage(ing.costPerPackage.toString()) }}>
+                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setRestockIngredient(ing) }}>
                   <Package className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -907,67 +878,13 @@ export default function IngredientsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Restock Dialog - Updated for dual-unit system */}
-      <Dialog open={!!restockIngredient} onOpenChange={() => setRestockIngredient(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Restock {restockIngredient?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">
-              Current: {restockIngredient && formatDualUnitDisplay(
-                restockIngredient.quantity,
-                restockIngredient.packageSize,
-                restockIngredient.packageUnit,
-                restockIngredient.baseUnit
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="restockQty">{restockIngredient?.packageUnit}(s) to Add *</Label>
-              <Input
-                id="restockQty"
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={restockQuantity}
-                onChange={(e) => setRestockQuantity(e.target.value)}
-                placeholder={`Enter number of ${restockIngredient?.packageUnit}s`}
-                autoFocus
-              />
-              {restockIngredient && restockIngredient.packageSize !== 1 && restockQuantity && (
-                <p className="text-xs text-muted-foreground">
-                  = {(parseFloat(restockQuantity) * restockIngredient.packageSize).toFixed(1)} {restockIngredient.baseUnit}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="restockCost">New Cost per {restockIngredient?.packageUnit} (₱)</Label>
-              <Input
-                id="restockCost"
-                type="number"
-                step="0.01"
-                min="0"
-                value={restockCostPerPackage}
-                onChange={(e) => setRestockCostPerPackage(e.target.value)}
-                placeholder="Leave blank to keep current"
-              />
-              {restockIngredient && restockCostPerPackage && restockIngredient.packageSize > 1 && (
-                <p className="text-xs text-muted-foreground">
-                  = {formatCurrency(parseFloat(restockCostPerPackage) / restockIngredient.packageSize)} per {restockIngredient.baseUnit}
-                </p>
-              )}
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setRestockIngredient(null)}>
-                Cancel
-              </Button>
-              <Button onClick={handleRestock} disabled={restocking || !restockQuantity}>
-                {restocking ? "Restocking..." : "Restock"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Restock Dialog */}
+      <RestockDialog
+        open={!!restockIngredient}
+        onOpenChange={(open) => { if (!open) setRestockIngredient(null) }}
+        ingredient={restockIngredient}
+        onSuccess={fetchData}
+      />
     </div>
   )
 }

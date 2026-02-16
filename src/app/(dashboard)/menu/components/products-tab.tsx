@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import Image from "next/image"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -9,8 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ProductsTable } from "./products-table"
-import { Search } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import { StatusDot } from "@/components/ui/status-dot"
+import { formatCurrency } from "@/lib/ingredient-utils"
+import { cn } from "@/lib/utils"
+import { Search, ShoppingBag, Plus, AlertTriangle } from "lucide-react"
 
 interface IngredientShortage {
   id: number
@@ -48,9 +54,29 @@ interface ProductsTabProps {
   categories: Category[]
   selectedProductId: number | null
   onSelectProduct: (product: Product) => void
+  onAddProduct?: () => void
   targetMargin?: number
   externalCategoryFilter?: number | null
   onClearExternalFilter?: () => void
+}
+
+function getStockStatusDot(status: "available" | "low" | "critical" | "out") {
+  switch (status) {
+    case "available":
+      return { variant: "ok" as const, label: "Available" }
+    case "low":
+      return { variant: "warning" as const, label: "Low" }
+    case "critical":
+      return { variant: "critical" as const, label: "Critical" }
+    case "out":
+      return { variant: "critical" as const, label: "Out" }
+  }
+}
+
+function getMarginColor(marginPercent: number, targetMargin: number): string {
+  if (marginPercent >= targetMargin) return "text-status-ok"
+  if (marginPercent >= targetMargin * 0.75) return "text-status-warning"
+  return "text-status-critical"
 }
 
 export function ProductsTab({
@@ -58,6 +84,7 @@ export function ProductsTab({
   categories,
   selectedProductId,
   onSelectProduct,
+  onAddProduct,
   targetMargin = 65,
   externalCategoryFilter,
   onClearExternalFilter,
@@ -101,6 +128,96 @@ export function ProductsTab({
     })
   }, [products, search, effectiveCategoryFilter, statusFilter])
 
+  const columns: DataTableColumn<Product>[] = [
+    {
+      id: "image",
+      header: "",
+      cell: (product) =>
+        product.image ? (
+          <Image
+            src={product.image}
+            alt={product.name}
+            width={40}
+            height={40}
+            className="rounded object-cover size-10"
+          />
+        ) : (
+          <div className="size-10 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs">
+            No img
+          </div>
+        ),
+      priority: 2,
+      minWidth: "56px",
+    },
+    {
+      id: "name",
+      header: "Product",
+      cell: (product) => (
+        <div className="flex flex-col">
+          <span className="font-medium">{product.name}</span>
+          <Badge variant="outline" className="w-fit text-xs mt-1">
+            {product.categoryName}
+          </Badge>
+        </div>
+      ),
+      priority: 0,
+    },
+    {
+      id: "price",
+      header: "Price",
+      cell: (product) => (
+        <span className="font-mono tabular-nums">
+          {formatCurrency(product.price)}
+        </span>
+      ),
+      priority: 1,
+      align: "right",
+    },
+    {
+      id: "cost",
+      header: "Cost",
+      cell: (product) => (
+        <span className="font-mono tabular-nums">
+          {product.trueCost != null ? formatCurrency(product.trueCost) : "\u2014"}
+        </span>
+      ),
+      priority: 2,
+      align: "right",
+    },
+    {
+      id: "margin",
+      header: "Margin",
+      cell: (product) => {
+        if (product.trueMarginPercent == null) {
+          return <span className="text-muted-foreground">{"\u2014"}</span>
+        }
+        const marginBelowTarget = product.trueMarginPercent < targetMargin
+        return (
+          <span
+            className={cn(
+              "flex items-center gap-1 font-mono tabular-nums justify-end",
+              getMarginColor(product.trueMarginPercent, targetMargin)
+            )}
+          >
+            {marginBelowTarget && <AlertTriangle className="h-3 w-3" />}
+            {product.trueMarginPercent.toFixed(0)}%
+          </span>
+        )
+      },
+      priority: 2,
+      align: "right",
+    },
+    {
+      id: "stock",
+      header: "Stock",
+      cell: (product) => {
+        const dot = getStockStatusDot(product.availability.status)
+        return <StatusDot variant={dot.variant} label={dot.label} />
+      },
+      priority: 0,
+    },
+  ]
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -143,12 +260,26 @@ export function ProductsTab({
         </Select>
       </div>
 
-      {/* Table */}
-      <ProductsTable
-        products={filteredProducts}
-        selectedId={selectedProductId}
-        onSelect={onSelectProduct}
-        targetMargin={targetMargin}
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={filteredProducts}
+        rowKey={(p) => p.id}
+        pageSize={20}
+        onRowClick={onSelectProduct}
+        rowClassName={(p) =>
+          p.id === selectedProductId ? "bg-muted" : undefined
+        }
+        emptyIcon={<ShoppingBag className="size-10" />}
+        emptyTitle="No products"
+        emptyDescription="Add your first product to get started."
+        emptyAction={
+          onAddProduct ? (
+            <Button size="sm" onClick={onAddProduct}>
+              <Plus className="h-4 w-4 mr-2" /> Add Product
+            </Button>
+          ) : undefined
+        }
       />
     </div>
   )

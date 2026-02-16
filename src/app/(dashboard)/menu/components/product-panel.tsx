@@ -1,12 +1,17 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { X, Pencil, Trash2, Loader2, Info } from "lucide-react"
+import { Pencil, Loader2, Info, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
+import { StatusDot } from "@/components/ui/status-dot"
+import {
+  DetailPanelHeader,
+  DetailPanelContent,
+  DetailPanelFooter,
+} from "@/components/ui/detail-panel"
 import {
   Select,
   SelectContent,
@@ -112,6 +117,13 @@ interface ProductPanelProps {
   hourlyLaborRate?: number
 }
 
+/** Returns the semantic margin color class based on margin percentage thresholds */
+function marginColorClass(marginPercent: number): string {
+  if (marginPercent >= 65) return "text-status-ok"
+  if (marginPercent >= 50) return "text-status-warning"
+  return "text-status-critical"
+}
+
 export function ProductPanel({
   product,
   onClose,
@@ -123,9 +135,6 @@ export function ProductPanel({
   targetMargin = 65,
   hourlyLaborRate = 100,
 }: ProductPanelProps) {
-  const marginBelowTarget =
-    product.trueMarginPercent != null && product.trueMarginPercent < targetMargin
-
   // Calculate labor cost
   const laborCost = product.prepTime
     ? (product.prepTime / 60) * hourlyLaborRate
@@ -334,6 +343,17 @@ export function ProductPanel({
 
   // Save handler
   const handleSave = async () => {
+    // Validation
+    if (!formData.name.trim()) {
+      toast.error("Product name is required")
+      return
+    }
+    const price = parseFloat(formData.price)
+    if (!price || price <= 0) {
+      toast.error("Price must be greater than 0")
+      return
+    }
+
     setSaving(true)
     try {
       let imageFilename = null
@@ -392,176 +412,145 @@ export function ProductPanel({
     }
   }
 
-  const editMarginBelowTarget = editCosts.trueMarginPercent < targetMargin
+  // ─── EDIT MODE ─────────────────────────────────────────────────────────────
 
-  // EDIT MODE
   if (editMode) {
     if (loadingEditData) {
       return (
-        <div className="h-full flex flex-col border-l bg-background">
-          <div className="flex items-center justify-between p-4 border-b">
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={onCancelEdit}>
+        <>
+          <DetailPanelHeader
+            title={`Edit ${product.name}`}
+          />
+          <DetailPanelContent className="flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </DetailPanelContent>
+          <DetailPanelFooter>
+            <div className="flex items-center justify-between gap-2">
+              <Button variant="ghost" onClick={onCancelEdit} disabled>
                 Cancel
               </Button>
-              <Button size="sm" disabled>
-                Save
-              </Button>
+              <Button disabled>Save</Button>
             </div>
-          </div>
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        </div>
+          </DetailPanelFooter>
+        </>
       )
     }
 
     return (
-      <div className="h-full flex flex-col border-l bg-background">
-        {/* Header - Edit Mode */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onCancelEdit} disabled={saving}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save"
-              )}
-            </Button>
-          </div>
-        </div>
+      <>
+        <DetailPanelHeader
+          title={`Edit ${product.name}`}
+        />
 
-        {/* Content - Edit Mode */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Basic Info */}
+        {/* Content - scrollable */}
+        <DetailPanelContent>
           <div className="space-y-4">
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Product name"
-              />
-            </div>
+            {/* ── Section: Basic Info ── */}
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-name" className="text-sm font-medium">
+                  Name
+                </Label>
+                <Input
+                  id="edit-name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="Product name"
+                  className="h-10"
+                />
+              </div>
 
-            {/* Category */}
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select
-                value={formData.categoryId.toString()}
-                onValueChange={(v) => setFormData((prev) => ({ ...prev, categoryId: parseInt(v) }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Category</Label>
+                <Select
+                  value={formData.categoryId.toString()}
+                  onValueChange={(v) =>
+                    setFormData((prev) => ({ ...prev, categoryId: parseInt(v) }))
+                  }
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id.toString()}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Image */}
-            <div className="space-y-2">
-              <Label>Image</Label>
-              <div className="flex items-center gap-4">
-                {(imagePreview || product.image) ? (
-                  <Image
-                    src={imagePreview || product.image}
-                    alt={product.name}
-                    width={64}
-                    height={64}
-                    className="rounded object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs">
-                    No image
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Image</Label>
+                <div className="flex items-center gap-4">
+                  {imagePreview || product.image ? (
+                    <Image
+                      src={imagePreview || product.image}
+                      alt={product.name}
+                      width={64}
+                      height={64}
+                      className="rounded-md object-cover"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">
+                      No image
+                    </div>
+                  )}
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                    />
                   </div>
-                )}
-                <div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                  />
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Pricing Card */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Pricing</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="price">Price</Label>
+            <Separator />
+
+            {/* ── Section: Pricing ── */}
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-price" className="text-sm font-medium">
+                Price
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono">
+                  ₱
+                </span>
                 <Input
-                  id="price"
+                  id="edit-price"
                   type="number"
                   step="0.01"
                   min="0"
                   value={formData.price}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, price: e.target.value }))
+                  }
                   placeholder="0.00"
+                  className="h-10 pl-7 font-mono tabular-nums"
                 />
               </div>
+            </div>
 
-              {/* Cost Summary */}
-              <div className="grid grid-cols-3 gap-4 text-center pt-2 border-t">
-                <div>
-                  <p className="text-lg font-semibold">{formatCurrency(editCosts.trueCost)}</p>
-                  <p className="text-xs text-muted-foreground">Cost</p>
-                </div>
-                <div>
-                  <p className="text-lg font-semibold">{formatCurrency(editCosts.trueMargin)}</p>
-                  <p className="text-xs text-muted-foreground">Margin</p>
-                </div>
-                <div>
-                  <p
-                    className={cn(
-                      "text-lg font-semibold",
-                      editMarginBelowTarget && "text-orange-600"
-                    )}
-                  >
-                    {editCosts.trueMarginPercent.toFixed(1)}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {targetMargin && `(target: ${targetMargin}%)`}
-                  </p>
-                </div>
+            <Separator />
+
+            {/* ── Section: Recipe Builder ── */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">
+                  Recipe
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  {recipeIngredients.length} ingredient{recipeIngredients.length !== 1 ? "s" : ""}
+                </span>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Recipe Card */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                Recipe ({recipeIngredients.length} ingredients)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
               {recipeIngredients.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No ingredients in recipe. Add ingredients below.
@@ -585,12 +574,12 @@ export function ProductPanel({
                         key={item.ingredientId}
                         className="flex items-center gap-2 p-2 rounded-md border bg-muted/30"
                       >
-                        {/* Ingredient name */}
+                        {/* Ingredient name + cost/unit */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
                             {item.ingredientName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground font-mono tabular-nums">
                             {formatCurrency(item.costPerUnit)}/{item.baseUnit}
                           </p>
                         </div>
@@ -608,13 +597,15 @@ export function ProductPanel({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="w-16 h-8 text-right"
+                            className="w-16 h-8 text-right font-mono tabular-nums"
                           />
 
                           {showUnitDropdown ? (
                             <Select
                               value={item.unit}
-                              onValueChange={(v) => handleUnitChange(item.ingredientId, v)}
+                              onValueChange={(v) =>
+                                handleUnitChange(item.ingredientId, v)
+                              }
                             >
                               <SelectTrigger className="w-20 h-8">
                                 <SelectValue />
@@ -645,13 +636,20 @@ export function ProductPanel({
                               </TooltipTrigger>
                               <TooltipContent>
                                 <div className="space-y-1 text-xs">
-                                  <p>= {item.baseQuantity.toFixed(2)} {item.baseUnit} (raw)</p>
-                                  {item.yieldFactor && item.yieldFactor > 0 && (
-                                    <p>
-                                      ≈ {(item.baseQuantity * item.yieldFactor).toFixed(2)}{" "}
-                                      {item.baseUnit} (cooked)
-                                    </p>
-                                  )}
+                                  <p>
+                                    = {item.baseQuantity.toFixed(2)} {item.baseUnit}{" "}
+                                    (raw)
+                                  </p>
+                                  {item.yieldFactor &&
+                                    item.yieldFactor > 0 && (
+                                      <p>
+                                        ≈{" "}
+                                        {(
+                                          item.baseQuantity * item.yieldFactor
+                                        ).toFixed(2)}{" "}
+                                        {item.baseUnit} (cooked)
+                                      </p>
+                                    )}
                                 </div>
                               </TooltipContent>
                             </Tooltip>
@@ -659,7 +657,7 @@ export function ProductPanel({
                         )}
 
                         {/* Line cost */}
-                        <div className="w-16 text-right text-sm">
+                        <div className="w-16 text-right text-sm font-mono tabular-nums">
                           {formatCurrency(item.lineCost)}
                         </div>
 
@@ -670,7 +668,7 @@ export function ProductPanel({
                           className="h-8 w-8 text-destructive hover:text-destructive"
                           onClick={() => handleRemoveIngredient(item.ingredientId)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Minus className="h-4 w-4" />
                         </Button>
                       </div>
                     )
@@ -681,11 +679,11 @@ export function ProductPanel({
               {/* Add Ingredient Dropdown */}
               {unusedIngredients.length > 0 && (
                 <div className="pt-2 border-t">
-                  <Label className="text-xs text-muted-foreground mb-1 block">
+                  <Label className="text-xs text-muted-foreground mb-1.5 block">
                     Add Ingredient
                   </Label>
                   <Select onValueChange={handleAddIngredient} value="">
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full h-10">
                       <SelectValue placeholder="Select ingredient to add..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -693,7 +691,7 @@ export function ProductPanel({
                         <SelectItem key={ing.id} value={ing.id.toString()}>
                           <span className="flex items-center gap-2">
                             <span>{ing.name}</span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground font-mono tabular-nums">
                               ({formatCurrency(ing.costPerBaseUnit)}/{ing.baseUnit})
                             </span>
                           </span>
@@ -703,156 +701,236 @@ export function ProductPanel({
                   </Select>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Labor & Overhead Card */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Labor & Overhead</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <Separator />
+
+            {/* ── Section: Labor & Overhead ── */}
+            <div className="space-y-4">
+              <Label className="text-sm font-medium">Labor & Overhead</Label>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="prepTime">Prep Time (minutes)</Label>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="edit-prepTime"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Prep Time (minutes)
+                  </Label>
                   <Input
-                    id="prepTime"
+                    id="edit-prepTime"
                     type="number"
                     min="0"
                     value={prepTime || ""}
                     onChange={(e) => setPrepTime(parseInt(e.target.value) || 0)}
                     placeholder="0"
+                    className="h-10 font-mono tabular-nums"
                   />
                   {prepTime > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      = {formatCurrency(editCosts.laborCost)} at {formatCurrency(hourlyLaborRate)}/hr
+                    <p className="text-xs text-muted-foreground font-mono tabular-nums">
+                      = {formatCurrency(editCosts.laborCost)} at{" "}
+                      {formatCurrency(hourlyLaborRate)}/hr
                     </p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="overheadCost">Overhead Allocation</Label>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="edit-overheadCost"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Overhead Allocation
+                  </Label>
                   <Input
-                    id="overheadCost"
+                    id="edit-overheadCost"
                     type="number"
                     min="0"
                     step="0.01"
                     value={overheadCost || ""}
-                    onChange={(e) => setOverheadCost(parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setOverheadCost(parseFloat(e.target.value) || 0)
+                    }
                     placeholder="0.00"
+                    className="h-10 font-mono tabular-nums"
                   />
                   <p className="text-xs text-muted-foreground">
                     Per-unit overhead cost
                   </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
 
-        {/* Footer - Edit Mode */}
-        <div className="p-4 border-t">
-          <Button variant="destructive" size="sm" className="w-full">
-            Delete Product
-          </Button>
-        </div>
-      </div>
+            <Separator />
+
+            {/* ── Section: Cost Summary ── */}
+            <div className="rounded-md bg-muted p-4 space-y-2">
+              <p className="text-sm font-medium mb-3">Cost Summary</p>
+
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Food Cost</span>
+                <span className="font-mono tabular-nums">
+                  {formatCurrency(editCosts.foodCost)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Labor Cost</span>
+                <span className="font-mono tabular-nums">
+                  {formatCurrency(editCosts.laborCost)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Overhead</span>
+                <span className="font-mono tabular-nums">
+                  {formatCurrency(editCosts.overheadCost)}
+                </span>
+              </div>
+
+              <Separator className="my-2" />
+
+              <div className="flex items-center justify-between text-sm font-semibold">
+                <span>Total Cost</span>
+                <span className="font-mono tabular-nums">
+                  {formatCurrency(editCosts.trueCost)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Margin</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono tabular-nums">
+                    {formatCurrency(editCosts.trueMargin)}
+                  </span>
+                  <span
+                    className={cn(
+                      "font-mono tabular-nums font-medium",
+                      marginColorClass(editCosts.trueMarginPercent)
+                    )}
+                  >
+                    {editCosts.trueMarginPercent.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground pt-1">
+                Target: {targetMargin}%
+              </p>
+            </div>
+          </div>
+        </DetailPanelContent>
+
+        {/* Footer */}
+        <DetailPanelFooter>
+          <div className="flex items-center justify-between gap-2">
+            <Button variant="ghost" onClick={onCancelEdit} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save"
+              )}
+            </Button>
+          </div>
+        </DetailPanelFooter>
+      </>
     )
   }
 
-  // VIEW MODE
-  return (
-    <div className="h-full flex flex-col border-l bg-background">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="sm" onClick={onEdit}>
-          <Pencil className="h-4 w-4 mr-2" />
-          Edit
-        </Button>
-      </div>
+  // ─── VIEW MODE ─────────────────────────────────────────────────────────────
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Product Header */}
-        <div className="flex items-start gap-4">
-          {product.image ? (
+  // Food cost for view mode
+  const foodCost =
+    product.trueCost != null
+      ? product.trueCost - laborCost - (product.overheadCost ?? 0)
+      : null
+
+  return (
+    <>
+      <DetailPanelHeader
+        title={product.name}
+        description={product.categoryName}
+        actions={
+          <Button variant="ghost" size="sm" onClick={onEdit}>
+            <Pencil className="h-4 w-4 mr-1.5" />
+            Edit
+          </Button>
+        }
+      />
+
+      {/* Content - scrollable */}
+      <DetailPanelContent className="space-y-6">
+        {/* Product Image */}
+        {product.image ? (
+          <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
             <Image
               src={product.image}
               alt={product.name}
-              width={64}
-              height={64}
-              className="rounded object-cover"
+              fill
+              className="object-cover"
             />
-          ) : (
-            <div className="w-16 h-16 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs">
-              No image
+          </div>
+        ) : (
+          <div className="aspect-video w-full rounded-md bg-muted flex items-center justify-center text-muted-foreground text-sm">
+            No image
+          </div>
+        )}
+
+        {/* Pricing Row */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium">Pricing</h3>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-xl font-semibold font-mono tabular-nums">
+                {formatCurrency(product.price)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Price</p>
             </div>
-          )}
-          <div>
-            <h2 className="text-xl font-semibold">{product.name}</h2>
-            <Badge variant="outline">{product.categoryName}</Badge>
+            <div>
+              <p className="text-xl font-semibold font-mono tabular-nums">
+                {product.trueCost != null ? formatCurrency(product.trueCost) : "-"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Cost</p>
+            </div>
+            <div>
+              <p
+                className={cn(
+                  "text-xl font-semibold font-mono tabular-nums",
+                  product.trueMarginPercent != null &&
+                    marginColorClass(product.trueMarginPercent)
+                )}
+              >
+                {product.trueMarginPercent != null
+                  ? `${product.trueMarginPercent.toFixed(0)}%`
+                  : "-"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Margin{" "}
+                {targetMargin && (
+                  <span className="text-muted-foreground">
+                    (target: {targetMargin}%)
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Pricing Card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pricing</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(product.price)}
-                </p>
-                <p className="text-xs text-muted-foreground">Price</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {product.trueCost != null
-                    ? formatCurrency(product.trueCost)
-                    : "-"}
-                </p>
-                <p className="text-xs text-muted-foreground">Cost</p>
-              </div>
-              <div>
-                <p
-                  className={cn(
-                    "text-2xl font-bold",
-                    marginBelowTarget && "text-orange-600"
-                  )}
-                >
-                  {product.trueMarginPercent != null
-                    ? `${product.trueMarginPercent.toFixed(0)}%`
-                    : "-"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Margin {targetMargin && `(target: ${targetMargin}%)`}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recipe Card */}
+        {/* Recipe Section */}
         {product.recipeItems && product.recipeItems.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
+          <>
+            <Separator />
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-sm font-medium">
-                  Recipe - {product.recipeItems.length} ingredients
-                </CardTitle>
-                {product.trueCost != null && (
-                  <span className="text-sm text-muted-foreground">
-                    Food Cost: {formatCurrency(product.trueCost - laborCost - (product.overheadCost ?? 0))}
+                <h3 className="text-sm font-medium">
+                  Recipe ({product.recipeItems.length})
+                </h3>
+                {foodCost != null && (
+                  <span className="text-xs text-muted-foreground font-mono tabular-nums">
+                    Food Cost: {formatCurrency(foodCost)}
                   </span>
                 )}
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {product.recipeItems.map((item) => {
                   const issue = allIssues.find(
                     (i) => i.id === item.ingredient.id
@@ -860,59 +938,52 @@ export function ProductPanel({
                   return (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between text-sm"
+                      className="flex items-center justify-between text-sm py-1"
                     >
-                      <div className="flex items-center gap-2">
-                        <span>{item.ingredient.name}</span>
-                        <span className="text-muted-foreground">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate">{item.ingredient.name}</span>
+                        <span className="text-muted-foreground font-mono tabular-nums shrink-0">
                           {item.quantity} {item.ingredient.baseUnit}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-muted-foreground font-mono tabular-nums">
                           {formatCurrency(
                             item.quantity * item.ingredient.costPerBaseUnit
                           )}
                         </span>
                         {issue ? (
-                          <Badge
+                          <StatusDot
                             variant={
+                              issue.status === "missing" ? "critical" : "warning"
+                            }
+                            label={
                               issue.status === "missing"
-                                ? "destructive"
-                                : "secondary"
+                                ? `Need ${issue.needPerUnit}/unit`
+                                : `${issue.have} left`
                             }
                             className="text-xs"
-                          >
-                            {issue.status === "missing"
-                              ? `Missing ${issue.needPerUnit}/unit`
-                              : `${issue.have} left`}
-                          </Badge>
+                          />
                         ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-xs bg-green-50 text-green-700"
-                          >
-                            OK
-                          </Badge>
+                          <StatusDot variant="ok" label="OK" className="text-xs" />
                         )}
                       </div>
                     </div>
                   )
                 })}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </>
         )}
 
-        {/* Stock Summary Card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Stock Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between">
-              <span>Can make:</span>
-              <span className="font-medium">
+        {/* Stock Summary */}
+        <Separator />
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium">Stock Summary</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Can make</span>
+              <span className="font-medium font-mono tabular-nums">
                 {product.availability.maxProducible != null
                   ? `${product.availability.maxProducible} units`
                   : "Unlimited"}
@@ -920,38 +991,40 @@ export function ProductPanel({
             </div>
 
             {product.availability.limitingIngredientDetails && (
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Limited by:</span>
-                <span>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Limited by</span>
+                <span className="text-muted-foreground text-right">
                   {product.availability.limitingIngredientDetails.name} (
-                  {product.availability.limitingIngredientDetails.have} left,
-                  need {product.availability.limitingIngredientDetails.needPerUnit}
+                  <span className="font-mono tabular-nums">
+                    {product.availability.limitingIngredientDetails.have}
+                  </span>{" "}
+                  left, need{" "}
+                  <span className="font-mono tabular-nums">
+                    {product.availability.limitingIngredientDetails.needPerUnit}
+                  </span>
                   /unit)
                 </span>
               </div>
             )}
 
             {allIssues.length > 0 && (
-              <div className="pt-2 border-t">
-                <p className="text-sm font-medium mb-2">
-                  Issues ({allIssues.length}):
+              <div className="pt-2 border-t space-y-1.5">
+                <p className="text-sm font-medium">
+                  Issues ({allIssues.length})
                 </p>
                 <ul className="space-y-1">
                   {allIssues.map((issue) => (
                     <li
                       key={issue.id}
-                      className="text-sm flex justify-between"
+                      className="text-sm flex justify-between items-center"
                     >
-                      <span
-                        className={cn(
-                          issue.status === "missing"
-                            ? "text-red-600"
-                            : "text-yellow-600"
-                        )}
-                      >
-                        {issue.name}
-                      </span>
-                      <span className="text-muted-foreground">
+                      <StatusDot
+                        variant={
+                          issue.status === "missing" ? "critical" : "warning"
+                        }
+                        label={issue.name}
+                      />
+                      <span className="text-muted-foreground font-mono tabular-nums">
                         {issue.status === "missing"
                           ? `need ${issue.needPerUnit}/unit`
                           : `${issue.have} left`}
@@ -961,47 +1034,45 @@ export function ProductPanel({
                 </ul>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Labor & Overhead Card */}
+        {/* Labor & Overhead */}
         {(product.prepTime || product.overheadCost) && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                Labor & Overhead
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <>
+            <Separator />
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium">Labor & Overhead</h3>
               <div className="grid grid-cols-2 gap-4">
-                {product.prepTime && (
+                {product.prepTime != null && product.prepTime > 0 && (
                   <div>
-                    <p className="text-lg font-medium">{product.prepTime} min</p>
+                    <p className="text-lg font-medium font-mono tabular-nums">
+                      {product.prepTime} min
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Prep time ({formatCurrency(laborCost)})
+                      Prep time (
+                      <span className="font-mono tabular-nums">
+                        {formatCurrency(laborCost)}
+                      </span>
+                      )
                     </p>
                   </div>
                 )}
-                {product.overheadCost && (
+                {product.overheadCost != null && product.overheadCost > 0 && (
                   <div>
-                    <p className="text-lg font-medium">
+                    <p className="text-lg font-medium font-mono tabular-nums">
                       {formatCurrency(product.overheadCost)}
                     </p>
                     <p className="text-xs text-muted-foreground">Overhead</p>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </>
         )}
-      </div>
+      </DetailPanelContent>
 
-      {/* Footer */}
-      <div className="p-4 border-t">
-        <Button variant="destructive" size="sm" className="w-full">
-          Delete Product
-        </Button>
-      </div>
-    </div>
+      {/* No footer in view mode (delete moved to edit mode context) */}
+    </>
   )
 }
