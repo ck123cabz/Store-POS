@@ -14,22 +14,17 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, RefreshCw, AlertTriangle, TrendingDown } from "lucide-react"
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
+import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
+import { FilterPills } from "@/components/ui/filter-pills"
+import { StatusDot } from "@/components/ui/status-dot"
+import { Plus } from "lucide-react"
 import { toast } from "sonner"
 
 interface WasteLog {
@@ -73,6 +68,71 @@ const WASTE_REASONS = [
   "Other",
 ]
 
+const columns: DataTableColumn<WasteLog>[] = [
+  {
+    id: "date",
+    header: "Date",
+    cell: (item) => new Date(item.date).toLocaleDateString(),
+    priority: 0,
+  },
+  {
+    id: "ingredient",
+    header: "Ingredient",
+    cell: (item) => <span className="font-medium">{item.ingredientName}</span>,
+    priority: 0,
+  },
+  {
+    id: "quantity",
+    header: "Qty",
+    cell: (item) => (
+      <span className="font-mono tabular-nums">
+        {item.quantity} {item.unit}
+      </span>
+    ),
+    priority: 0,
+    align: "right",
+  },
+  {
+    id: "reason",
+    header: "Reason",
+    cell: (item) => <Badge variant="outline">{item.reason}</Badge>,
+    priority: 1,
+  },
+  {
+    id: "cost",
+    header: "Est. Cost",
+    cell: (item) => (
+      <span className="font-mono tabular-nums text-status-critical">
+        ₱{item.estimatedCost.toFixed(2)}
+      </span>
+    ),
+    priority: 0,
+    align: "right",
+  },
+  {
+    id: "preventable",
+    header: "Preventable",
+    cell: (item) => (
+      <StatusDot
+        variant={item.preventable ? "critical" : "neutral"}
+        label={item.preventable ? "Yes" : "No"}
+      />
+    ),
+    priority: 1,
+    align: "center",
+  },
+  {
+    id: "notes",
+    header: "Notes",
+    cell: (item) => (
+      <span className="text-muted-foreground text-sm max-w-[200px] truncate block">
+        {item.notes || "—"}
+      </span>
+    ),
+    priority: 2,
+  },
+]
+
 export default function WastePage() {
   const [data, setData] = useState<WasteResponse | null>(null)
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
@@ -81,6 +141,7 @@ export default function WastePage() {
   const [submitting, setSubmitting] = useState(false)
 
   // Date filter
+  const [activeFilter, setActiveFilter] = useState<string | null>("7d")
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() - 7)
@@ -121,6 +182,26 @@ export default function WastePage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  function handleFilterChange(value: string | null) {
+    setActiveFilter(value)
+    const today = new Date()
+    if (value === "7d") {
+      const d = new Date()
+      d.setDate(d.getDate() - 7)
+      setDateFrom(d.toISOString().split("T")[0])
+      setDateTo(today.toISOString().split("T")[0])
+    } else if (value === "30d") {
+      const d = new Date()
+      d.setDate(d.getDate() - 30)
+      setDateFrom(d.toISOString().split("T")[0])
+      setDateTo(today.toISOString().split("T")[0])
+    } else if (value === "month") {
+      const d = new Date(today.getFullYear(), today.getMonth(), 1)
+      setDateFrom(d.toISOString().split("T")[0])
+      setDateTo(today.toISOString().split("T")[0])
+    }
+  }
 
   function openForm() {
     setDate(new Date().toISOString().split("T")[0])
@@ -170,14 +251,6 @@ export default function WastePage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
   const summary = data?.summary
   const items = data?.items || []
 
@@ -196,136 +269,74 @@ export default function WastePage() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Entries
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{summary.totalEntries}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Waste Cost
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-red-600">
-                ₱{summary.totalCost.toLocaleString()}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                Preventable Cost
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-amber-600">
-                ₱{summary.preventableCost.toLocaleString()}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingDown className="h-4 w-4" />
-                Preventable %
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {summary.preventablePercent}%
-                {summary.preventablePercent > 50 && (
-                  <Badge variant="destructive" className="ml-2">High</Badge>
-                )}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <SummaryCardGrid>
+          <SummaryCard label="Total Entries" value={summary.totalEntries.toString()} />
+          <SummaryCard
+            label="Total Waste Cost"
+            value={`₱${summary.totalCost.toLocaleString()}`}
+          />
+          <SummaryCard
+            label="Preventable Cost"
+            value={`₱${summary.preventableCost.toLocaleString()}`}
+          />
+          <SummaryCard
+            label="Preventable %"
+            value={`${summary.preventablePercent}%`}
+            trend={summary.preventablePercent > 50 ? "down" : "neutral"}
+            trendLabel={summary.preventablePercent > 50 ? "High" : "Normal"}
+          />
+        </SummaryCardGrid>
       )}
 
-      {/* Date Filters */}
-      <div className="flex gap-4 items-end">
-        <div className="space-y-2">
-          <Label>From</Label>
-          <Input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="w-40"
-          />
+      {/* FilterPills + Date Inputs */}
+      <div className="space-y-4">
+        <FilterPills
+          options={[
+            { label: "Last 7 Days", value: "7d" },
+            { label: "Last 30 Days", value: "30d" },
+            { label: "This Month", value: "month" },
+          ]}
+          value={activeFilter}
+          onChange={handleFilterChange}
+          ariaLabel="Date range filters"
+        />
+        <div className="flex gap-4 items-end">
+          <div className="space-y-2">
+            <Label>From</Label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value)
+                setActiveFilter(null)
+              }}
+              className="w-40"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>To</Label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value)
+                setActiveFilter(null)
+              }}
+              className="w-40"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label>To</Label>
-          <Input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="w-40"
-          />
-        </div>
-        <Button variant="outline" onClick={fetchData}>
-          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-        </Button>
       </div>
 
-      {/* Table */}
-      <Table aria-label="Waste log">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Ingredient</TableHead>
-            <TableHead className="text-right">Qty</TableHead>
-            <TableHead>Reason</TableHead>
-            <TableHead className="text-right">Est. Cost</TableHead>
-            <TableHead>Preventable</TableHead>
-            <TableHead>Notes</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>
-                {new Date(item.date).toLocaleDateString()}
-              </TableCell>
-              <TableCell className="font-medium">{item.ingredientName}</TableCell>
-              <TableCell className="text-right">
-                {item.quantity} {item.unit}
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline">{item.reason}</Badge>
-              </TableCell>
-              <TableCell className="text-right text-red-600">
-                ₱{item.estimatedCost.toFixed(2)}
-              </TableCell>
-              <TableCell>
-                {item.preventable ? (
-                  <Badge variant="destructive">Yes</Badge>
-                ) : (
-                  <Badge variant="secondary">No</Badge>
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
-                {item.notes || "—"}
-              </TableCell>
-            </TableRow>
-          ))}
-          {items.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                No waste entries for this period.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={items}
+        rowKey={(item) => item.id}
+        loading={loading}
+        emptyTitle="No waste entries"
+        emptyDescription="No waste entries for this period."
+      />
 
       {/* Log Waste Dialog */}
       <Dialog open={formOpen} onOpenChange={closeForm}>
