@@ -1,14 +1,91 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-// Get Monday of current week
-function getWeekStart(): Date {
-  const d = new Date()
+type PeriodType = "today" | "week" | "month" | "quarter"
+
+// Get Monday of the week containing the given date
+function getWeekStart(date: Date = new Date()): Date {
+  const d = new Date(date)
   const day = d.getDay()
   const diff = d.getDate() - day + (day === 0 ? -6 : 1)
   d.setDate(diff)
   d.setHours(0, 0, 0, 0)
   return d
+}
+
+// Get the first day of the month containing the given date
+function getMonthStart(date: Date = new Date()): Date {
+  const d = new Date(date)
+  d.setDate(1)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// Get the first day of the quarter containing the given date
+function getQuarterStart(date: Date = new Date()): Date {
+  const d = new Date(date)
+  const quarterMonth = Math.floor(d.getMonth() / 3) * 3
+  d.setMonth(quarterMonth, 1)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// Compute date range for a period
+function getPeriodRange(period: PeriodType, referenceDate: Date = new Date()): { start: Date; end: Date } {
+  const now = new Date(referenceDate)
+
+  switch (period) {
+    case "today": {
+      const start = new Date(now)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(start)
+      end.setHours(23, 59, 59, 999)
+      return { start, end }
+    }
+    case "week": {
+      const start = getWeekStart(now)
+      const end = new Date(start)
+      end.setDate(end.getDate() + 6)
+      end.setHours(23, 59, 59, 999)
+      return { start, end }
+    }
+    case "month": {
+      const start = getMonthStart(now)
+      const end = new Date(start)
+      end.setMonth(end.getMonth() + 1)
+      end.setDate(0) // last day of the month
+      end.setHours(23, 59, 59, 999)
+      return { start, end }
+    }
+    case "quarter": {
+      const start = getQuarterStart(now)
+      const end = new Date(start)
+      end.setMonth(end.getMonth() + 3)
+      end.setDate(0) // last day of the quarter
+      end.setHours(23, 59, 59, 999)
+      return { start, end }
+    }
+  }
+}
+
+// Get the reference date for the "previous" equivalent period
+function getPreviousPeriodRef(period: PeriodType, referenceDate: Date = new Date()): Date {
+  const d = new Date(referenceDate)
+
+  switch (period) {
+    case "today":
+      d.setDate(d.getDate() - 1)
+      return d
+    case "week":
+      d.setDate(d.getDate() - 7)
+      return d
+    case "month":
+      d.setMonth(d.getMonth() - 1)
+      return d
+    case "quarter":
+      d.setMonth(d.getMonth() - 3)
+      return d
+  }
 }
 
 // Traffic light status based on value vs target
@@ -25,8 +102,108 @@ function getStatus(value: number, target: number, higherIsBetter: boolean = true
   }
 }
 
-export async function GET() {
+interface PeriodMetrics {
+  revenue: number
+  transactionCount: number
+  avgTicket: number
+  foodCostPercent: number
+  dayparts: Array<{ name: string; revenue: number; transactions: number; avgTicket: number }>
+  topItems: Array<{ name: string; quantity: number; revenue: number }>
+  // Extended fields for lever calculations (only computed for current period)
+  destinationPercent: number
+  drinkOnlyCount: number
+}
+
+async function computeMetrics(start: Date, end: Date): Promise<PeriodMetrics> {
+  const [transactions, purchases] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { status: 1, createdAt: { gte: start, lte: end } },
+      include: { customer: true, items: true },
+    }),
+    prisma.purchase.findMany({
+      where: { date: { gte: start, lte: end }, category: "Food" },
+    }),
+  ])
+
+  const revenue = transactions.reduce((sum, t) => sum + Number(t.total), 0)
+  const transactionCount = transactions.length
+  const avgTicket = transactionCount > 0 ? revenue / transactionCount : 0
+
+  const purchaseTotal = purchases.reduce((sum, p) => sum + Number(p.amount), 0)
+  const foodCostPercent = revenue > 0 ? (purchaseTotal / revenue) * 100 : 0
+
+  // Daypart economics
+  const daypartData: Record<string, { revenue: number; transactions: number }> = {
+    Morning: { revenue: 0, transactions: 0 },
+    Midday: { revenue: 0, transactions: 0 },
+    Afternoon: { revenue: 0, transactions: 0 },
+    Evening: { revenue: 0, transactions: 0 },
+  }
+  transactions.forEach((t) => {
+    const hour = t.createdAt.getHours()
+    let daypart = "Evening"
+    if (hour >= 6 && hour < 10) daypart = "Morning"
+    else if (hour >= 10 && hour < 14) daypart = "Midday"
+    else if (hour >= 14 && hour < 18) daypart = "Afternoon"
+    daypartData[daypart].revenue += Number(t.total)
+    daypartData[daypart].transactions++
+  })
+
+  const dayparts = Object.entries(daypartData).map(([name, data]) => ({
+    name,
+    revenue: Math.round(data.revenue * 100) / 100,
+    transactions: data.transactions,
+    avgTicket: data.transactions > 0
+      ? Math.round((data.revenue / data.transactions) * 100) / 100
+      : 0,
+  }))
+
+  // Top items
+  const itemSales: Record<string, { name: string; quantity: number; revenue: number }> = {}
+  transactions.forEach((t) => {
+    t.items.forEach((item) => {
+      if (!itemSales[item.productId]) {
+        itemSales[item.productId] = { name: item.productName, quantity: 0, revenue: 0 }
+      }
+      itemSales[item.productId].quantity += item.quantity
+      itemSales[item.productId].revenue += Number(item.price) * item.quantity
+    })
+  })
+  const topItems = Object.values(itemSales)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+
+  // Traffic source / drink-only for lever calculations
+  const destinationCustomers = transactions.filter(
+    (t) => t.customer?.customerType === "Destination"
+  ).length
+  const destinationPercent = transactionCount > 0
+    ? (destinationCustomers / transactionCount) * 100
+    : 0
+  const drinkOnlyCount = transactions.filter((t) => t.isDrinkOnly).length
+
+  return {
+    revenue: Math.round(revenue * 100) / 100,
+    transactionCount,
+    avgTicket: Math.round(avgTicket * 100) / 100,
+    foodCostPercent: Math.round(foodCostPercent * 10) / 10,
+    dayparts,
+    topItems,
+    destinationPercent,
+    drinkOnlyCount,
+  }
+}
+
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const period = (searchParams.get("period") || "week") as PeriodType
+
+    // Validate period param
+    if (!["today", "week", "month", "quarter"].includes(period)) {
+      return NextResponse.json({ error: "Invalid period. Use: today, week, month, quarter" }, { status: 400 })
+    }
+
     // Get settings for targets
     const settings = await prisma.settings.findFirst()
     const targets = {
@@ -39,47 +216,25 @@ export async function GET() {
       trueMarginPercent: settings?.targetTrueMarginPercent ? Number(settings.targetTrueMarginPercent) : 65,
     }
 
-    const weekStart = getWeekStart()
-    const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekEnd.getDate() + 6)
-    weekEnd.setHours(23, 59, 59, 999)
+    const now = new Date()
+    const currentRange = getPeriodRange(period, now)
+    const previousRef = getPreviousPeriodRef(period, now)
+    const previousRange = getPeriodRange(period, previousRef)
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayEnd = new Date(today)
-    todayEnd.setHours(23, 59, 59, 999)
-
-    // Fetch all data in parallel
-    const [
-      weekTransactions,
-      todayTransactions,
-      laborLogs,
-      wasteLogs,
-      purchases,
-      products,
-      customers,
-    ] = await Promise.all([
-      prisma.transaction.findMany({
-        where: { status: 1, createdAt: { gte: weekStart, lte: weekEnd } },
-        include: { customer: true, items: true },
-      }),
-      prisma.transaction.findMany({
-        where: { status: 1, createdAt: { gte: today, lte: todayEnd } },
-      }),
+    // Compute current and previous period metrics in parallel, plus other data
+    const [currentMetrics, previousMetrics, products, customers, laborLogs, wasteLogs, weekPurchases] = await Promise.all([
+      computeMetrics(currentRange.start, currentRange.end),
+      computeMetrics(previousRange.start, previousRange.end),
+      prisma.product.findMany({ where: { trueCost: { not: null } } }),
+      prisma.customer.findMany({ where: { visitCount: { gt: 0 } } }),
       prisma.laborLog.findMany({
-        where: { date: { gte: weekStart, lte: weekEnd } },
+        where: { date: { gte: currentRange.start, lte: currentRange.end } },
       }),
       prisma.wasteLog.findMany({
-        where: { date: { gte: weekStart, lte: weekEnd } },
+        where: { date: { gte: currentRange.start, lte: currentRange.end } },
       }),
       prisma.purchase.findMany({
-        where: { date: { gte: weekStart, lte: weekEnd }, category: "Food" },
-      }),
-      prisma.product.findMany({
-        where: { trueCost: { not: null } },
-      }),
-      prisma.customer.findMany({
-        where: { visitCount: { gt: 0 } },
+        where: { date: { gte: currentRange.start, lte: currentRange.end }, category: "Food" },
       }),
     ])
 
@@ -89,58 +244,17 @@ export async function GET() {
       ? productsWithMargin.reduce((sum, p) => sum + Number(p.trueMarginPercent), 0) / productsWithMargin.length
       : 0
 
-    // LEVER 2: Traffic Source
-    const destinationCustomers = weekTransactions.filter(
-      (t) => t.customer?.customerType === "Destination"
-    ).length
-    const destinationPercent = weekTransactions.length > 0
-      ? (destinationCustomers / weekTransactions.length) * 100
-      : 0
+    // LEVER 2: Traffic Source (computed inside computeMetrics)
+    const destinationPercent = currentMetrics.destinationPercent
 
     // LEVER 3: Ticket Size
-    const weekRevenue = weekTransactions.reduce((sum, t) => sum + Number(t.total), 0)
-    const weekTransactionCount = weekTransactions.length
-    const avgTicket = weekTransactionCount > 0 ? weekRevenue / weekTransactionCount : 0
-
-    const todayRevenue = todayTransactions.reduce((sum, t) => sum + Number(t.total), 0)
-    const todayTransactionCount = todayTransactions.length
-    const todayAvgTicket = todayTransactionCount > 0 ? todayRevenue / todayTransactionCount : 0
-
-    // LEVER 4: Menu Focus - Top sellers
-    const itemSales: Record<string, { name: string; quantity: number; revenue: number }> = {}
-    weekTransactions.forEach((t) => {
-      t.items.forEach((item) => {
-        if (!itemSales[item.productId]) {
-          itemSales[item.productId] = { name: item.productName, quantity: 0, revenue: 0 }
-        }
-        itemSales[item.productId].quantity += item.quantity
-        itemSales[item.productId].revenue += Number(item.price) * item.quantity
-      })
-    })
-    const topItems = Object.values(itemSales)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5)
-
-    // LEVER 5: Daypart Economics
-    const daypartData: Record<string, { revenue: number; transactions: number }> = {
-      Morning: { revenue: 0, transactions: 0 },
-      Midday: { revenue: 0, transactions: 0 },
-      Afternoon: { revenue: 0, transactions: 0 },
-      Evening: { revenue: 0, transactions: 0 },
-    }
-    weekTransactions.forEach((t) => {
-      const hour = t.createdAt.getHours()
-      let daypart = "Evening"
-      if (hour >= 6 && hour < 10) daypart = "Morning"
-      else if (hour >= 10 && hour < 14) daypart = "Midday"
-      else if (hour >= 14 && hour < 18) daypart = "Afternoon"
-      daypartData[daypart].revenue += Number(t.total)
-      daypartData[daypart].transactions++
-    })
+    const foodAttachmentRate = currentMetrics.transactionCount > 0
+      ? ((currentMetrics.transactionCount - currentMetrics.drinkOnlyCount) / currentMetrics.transactionCount) * 100
+      : 0
 
     // LEVER 6: Cash Conversion
     const wasteCost = wasteLogs.reduce((sum, w) => sum + Number(w.estimatedCost), 0)
-    const purchaseTotal = purchases.reduce((sum, p) => sum + Number(p.amount), 0)
+    const purchaseTotal = weekPurchases.reduce((sum, p) => sum + Number(p.amount), 0)
     const spoilageRate = purchaseTotal > 0 ? (wasteCost / purchaseTotal) * 100 : 0
 
     // LEVER 7: Repeat Rate
@@ -153,77 +267,62 @@ export async function GET() {
       (sum, l) => sum + Number(l.hoursWorked) + Number(l.otHours),
       0
     )
-    const revPerLaborHour = laborHours > 0 ? weekRevenue / laborHours : 0
-
-    // LEVER 3 continued: Drink-only analysis
-    const drinkOnlyTransactions = weekTransactions.filter((t) => t.isDrinkOnly).length
-    const foodAttachmentRate = weekTransactionCount > 0
-      ? ((weekTransactionCount - drinkOnlyTransactions) / weekTransactionCount) * 100
-      : 0
-
-    // Food cost % (simplified - purchases / revenue)
-    const foodCostPercent = weekRevenue > 0 ? (purchaseTotal / weekRevenue) * 100 : 0
+    const revPerLaborHour = laborHours > 0 ? currentMetrics.revenue / laborHours : 0
 
     return NextResponse.json({
       period: {
-        weekStart,
-        weekEnd,
-        today,
+        type: period,
+        start: currentRange.start,
+        end: currentRange.end,
+        today: new Date().toISOString(),
       },
       summary: {
-        todayRevenue: Math.round(todayRevenue * 100) / 100,
-        todayTransactions: todayTransactionCount,
-        weekRevenue: Math.round(weekRevenue * 100) / 100,
-        weekTransactions: weekTransactionCount,
+        revenue: currentMetrics.revenue,
+        transactions: currentMetrics.transactionCount,
+        avgTicket: currentMetrics.avgTicket,
+        foodCostPercent: currentMetrics.foodCostPercent,
       },
+      previousPeriod: {
+        revenue: previousMetrics.revenue,
+        transactions: previousMetrics.transactionCount,
+        avgTicket: previousMetrics.avgTicket,
+        foodCostPercent: previousMetrics.foodCostPercent,
+      },
+      dayparts: currentMetrics.dayparts,
+      topItems: currentMetrics.topItems,
       levers: {
-        // Lever 1: Unit Economics
         unitEconomics: {
           avgTrueMargin: Math.round(avgTrueMargin * 10) / 10,
           target: targets.trueMarginPercent,
           status: getStatus(avgTrueMargin, targets.trueMarginPercent),
-          foodCostPercent: Math.round(foodCostPercent * 10) / 10,
+          foodCostPercent: currentMetrics.foodCostPercent,
           foodCostTarget: targets.foodCostPercent,
-          foodCostStatus: getStatus(foodCostPercent, targets.foodCostPercent, false),
+          foodCostStatus: getStatus(currentMetrics.foodCostPercent, targets.foodCostPercent, false),
         },
-        // Lever 2: Traffic Source
         trafficSource: {
           destinationPercent: Math.round(destinationPercent * 10) / 10,
           target: targets.destinationPercent,
           status: getStatus(destinationPercent, targets.destinationPercent),
         },
-        // Lever 3: Ticket Size
         ticketSize: {
-          avgTicket: Math.round(avgTicket * 100) / 100,
-          todayAvgTicket: Math.round(todayAvgTicket * 100) / 100,
+          avgTicket: currentMetrics.avgTicket,
           target: targets.ticketSize,
-          status: getStatus(avgTicket, targets.ticketSize),
+          status: getStatus(currentMetrics.avgTicket, targets.ticketSize),
           foodAttachmentRate: Math.round(foodAttachmentRate * 10) / 10,
         },
-        // Lever 4: Menu Focus
         menuFocus: {
-          topItems,
+          topItems: currentMetrics.topItems,
           heroItemsCount: products.filter((p) => p.isHeroItem).length,
         },
-        // Lever 5: Daypart Economics
         daypartEconomics: {
-          dayparts: Object.entries(daypartData).map(([name, data]) => ({
-            name,
-            revenue: Math.round(data.revenue * 100) / 100,
-            transactions: data.transactions,
-            avgTicket: data.transactions > 0
-              ? Math.round((data.revenue / data.transactions) * 100) / 100
-              : 0,
-          })),
+          dayparts: currentMetrics.dayparts,
         },
-        // Lever 6: Cash Conversion
         cashConversion: {
           wasteCost: Math.round(wasteCost * 100) / 100,
           spoilageRate: Math.round(spoilageRate * 10) / 10,
           target: 5,
           status: getStatus(spoilageRate, 5, false),
         },
-        // Lever 7: Repeat Rate
         repeatRate: {
           repeatRate: Math.round(repeatRate * 10) / 10,
           repeatCustomers,
@@ -231,7 +330,6 @@ export async function GET() {
           target: targets.repeatRate,
           status: getStatus(repeatRate, targets.repeatRate),
         },
-        // Lever 8: Labor Leverage
         laborLeverage: {
           laborHours: Math.round(laborHours * 10) / 10,
           revPerLaborHour: Math.round(revPerLaborHour * 100) / 100,
