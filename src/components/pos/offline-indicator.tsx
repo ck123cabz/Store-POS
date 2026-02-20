@@ -80,6 +80,7 @@ export function OfflineIndicator({
               className={cn("relative", className)}
               onClick={handleSync}
               disabled={isSyncing || !hasPending}
+              aria-label={isOffline ? `Offline – ${pendingCount} pending` : hasPending ? `${pendingCount} pending sync` : "Online"}
             >
               {isOffline ? (
                 <WifiOff className="h-5 w-5 text-destructive" />

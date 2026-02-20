@@ -615,7 +615,7 @@ export function ProductPanel({
                                 handleUnitChange(item.ingredientId, v)
                               }
                             >
-                              <SelectTrigger className="w-20 h-8">
+                              <SelectTrigger className="w-20 h-8" aria-label={`Unit for ${item.ingredientName}`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
