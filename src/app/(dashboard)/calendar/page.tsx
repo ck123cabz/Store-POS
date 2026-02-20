@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { format, addMonths, subMonths, isFuture } from "date-fns"
+import { format, addMonths, subMonths, isFuture, parseISO } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -243,6 +243,9 @@ export default function CalendarPage() {
   // Get first day offset for calendar grid
   const firstDayOffset = data?.days[0]?.dayOfWeek || 0
 
+  // Active days for mobile list (days with transactions)
+  const activeDays = data?.days.filter((d) => d.transactions > 0) ?? []
+
   if (loading) {
     return <CalendarSkeleton />
   }
@@ -342,7 +345,7 @@ export default function CalendarPage() {
 
               {/* T083-T093: Day cells with vibe color coding and accessibility */}
               {data.days.map((day) => {
-                const dateObj = new Date(day.date)
+                const dateObj = parseISO(day.date)
                 // T090: Future dates get neutral styling (EC-23)
                 const isFutureDate = isFuture(dateObj)
                 // T083: Get vibe color classes using utility
@@ -433,17 +436,13 @@ export default function CalendarPage() {
               <span className="ml-1">{data.year}</span>
             )}
           </div>
-          {(() => {
-            const activeDays = data.days.filter((d) => d.transactions > 0)
-            if (activeDays.length === 0) {
-              return (
-                <p className="text-sm text-muted-foreground py-8 text-center">
-                  No activity this month
-                </p>
-              )
-            }
-            return activeDays.map((day) => {
-              const dateObj = new Date(day.date)
+          {activeDays.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No activity this month
+            </p>
+          ) : (
+            activeDays.map((day) => {
+              const dateObj = parseISO(day.date)
               const vibeClasses = getVibeColorClasses(day.vibe as VibeLevel)
               const isToday = day.date === format(new Date(), "yyyy-MM-dd")
               return (
@@ -482,7 +481,7 @@ export default function CalendarPage() {
                 </button>
               )
             })
-          })()}
+          )}
         </div>
       )}
 
