@@ -265,8 +265,8 @@ export default function UsersPage() {
         rowKey={(u) => u.id}
         loading={loading}
         emptyIcon={<Users className="h-10 w-10" />}
-        emptyTitle="No users"
-        emptyDescription="Add your first user to get started"
+        emptyTitle="No team members yet"
+        emptyDescription="Add your first user to start managing your team."
         emptyAction={
           <Button onClick={() => openForm()}>
             <Plus className="h-4 w-4 mr-2" />Add User

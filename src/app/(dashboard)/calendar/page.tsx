@@ -13,7 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
+import { ChevronLeft, ChevronRight, RefreshCw, CalendarDays } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { getVibeColorClasses, getVibeLabel, type VibeLevel } from "@/lib/vibe-colors"
 import { cn } from "@/lib/utils"
 
@@ -437,9 +438,11 @@ export default function CalendarPage() {
             )}
           </div>
           {activeDays.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              No activity this month
-            </p>
+            <EmptyState
+              icon={<CalendarDays className="h-10 w-10" />}
+              title="No activity this month"
+              description="Sales data will appear here as transactions are recorded."
+            />
           ) : (
             activeDays.map((day) => {
               const dateObj = parseISO(day.date)
@@ -617,7 +620,11 @@ export default function CalendarPage() {
               )}
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-8">No data available</p>
+            <EmptyState
+              icon={<CalendarDays className="h-10 w-10" />}
+              title="No data available"
+              description="No transactions were recorded on this day."
+            />
           )}
         </DialogContent>
       </Dialog>

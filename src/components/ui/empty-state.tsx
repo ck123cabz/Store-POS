@@ -15,7 +15,7 @@ function EmptyState({ icon, title, description, action, className }: EmptyStateP
       {icon && (
         <div className="text-muted-foreground/30 mb-4">{icon}</div>
       )}
-      <h3 className="font-semibold text-base tracking-tight text-muted-foreground">{title}</h3>
+      <h3 className="font-semibold text-lg tracking-tight text-muted-foreground">{title}</h3>
       {description && (
         <p className="text-sm text-muted-foreground/70 mt-2 max-w-[280px] leading-relaxed">{description}</p>
       )}

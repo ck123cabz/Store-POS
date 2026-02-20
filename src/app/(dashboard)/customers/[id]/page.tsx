@@ -41,6 +41,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
 import { TabSettlement } from "@/components/customers/tab-settlement"
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -629,11 +630,11 @@ export default function CustomerProfilePage() {
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Receipt className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No payment history</p>
-                  <p className="text-sm mt-1">Settlements will appear here</p>
-                </div>
+                <EmptyState
+                  icon={<Receipt className="h-10 w-10" />}
+                  title="No payment history yet"
+                  description="Settlements will appear here once payments are made."
+                />
               )}
             </CardContent>
           </Card>

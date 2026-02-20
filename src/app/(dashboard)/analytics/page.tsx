@@ -18,6 +18,8 @@ import { FilterPills } from "@/components/ui/filter-pills"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
 import type { TrendDirection } from "@/components/ui/summary-card"
+import { EmptyState } from "@/components/ui/empty-state"
+import { BarChart3 } from "lucide-react"
 
 // ---------- Types ----------
 
@@ -365,9 +367,12 @@ export default function AnalyticsPage() {
           <CardContent>
             <div className="h-64">
               {topItems.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                  No sales data for this period
-                </div>
+                <EmptyState
+                  icon={<BarChart3 className="h-10 w-10" />}
+                  title="No sales data for this period"
+                  description="Transactions will appear here once sales begin."
+                  className="py-6"
+                />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart

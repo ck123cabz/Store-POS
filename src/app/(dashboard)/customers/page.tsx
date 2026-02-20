@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Plus, Pencil, Trash2, Eye } from "lucide-react"
+import { Plus, Pencil, Trash2, Eye, Users } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/format-currency"
 import { useSettings } from "@/hooks/use-settings"
@@ -281,14 +281,9 @@ export default function CustomersPage() {
         rowKey={(c) => c.id}
         onRowClick={(c) => router.push(`/customers/${c.id}`)}
         loading={loading}
+        emptyIcon={<Users className="h-10 w-10" />}
         emptyTitle="No customers yet"
-        emptyDescription="Add your first customer to get started"
-        emptyAction={
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Customer
-          </Button>
-        }
+        emptyDescription="They'll appear here after their first visit."
       />
 
       <Dialog open={formOpen} onOpenChange={closeForm}>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { RefreshCw, Save, Send, X, ChevronDown, ChevronUp } from "lucide-react"
+import { RefreshCw, Save, Send, X, ChevronDown, ChevronUp, ClipboardList } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -25,6 +25,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { EmptyState } from "@/components/ui/empty-state"
 import { CountItemRow } from "@/components/inventory-count/count-item-row"
 import { DiscrepancyModal } from "@/components/inventory-count/discrepancy-modal"
 import type { CountItem, CountEntry, CountDraft } from "@/types/inventory-count"
@@ -298,6 +299,13 @@ export default function InventoryCountPage() {
       </Card>
 
       {/* Items by category */}
+      {items.length === 0 ? (
+        <EmptyState
+          icon={<ClipboardList className="h-10 w-10" />}
+          title="No ingredients to count"
+          description="Add ingredients first, then come back to run an inventory count."
+        />
+      ) : (
       <div className="space-y-4">
         {categories.map((category) => {
           const categoryItems = categorizedItems[category]
@@ -343,6 +351,7 @@ export default function InventoryCountPage() {
           )
         })}
       </div>
+      )}
 
       {/* Discrepancy modal */}
       {discrepancyItem && (

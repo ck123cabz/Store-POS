@@ -16,7 +16,7 @@ import {
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { FilterPills } from "@/components/ui/filter-pills"
 import { cn } from "@/lib/utils"
-import { RefreshCw, History, ChevronLeft, ChevronRight } from "lucide-react"
+import { RefreshCw, History, FileText, ChevronLeft, ChevronRight } from "lucide-react"
 
 interface AuditLog {
   id: number
@@ -254,9 +254,13 @@ export default function AuditLogPage() {
         data={data?.logs || []}
         rowKey={(log) => log.id}
         loading={loading}
-        emptyIcon={<History className="h-10 w-10" />}
-        emptyTitle="No audit logs found"
-        emptyDescription="Try adjusting your filters or check back later."
+        emptyIcon={<FileText className="h-10 w-10" />}
+        emptyTitle="No activity recorded yet"
+        emptyDescription={
+          hasFilters
+            ? "No entries match your filters."
+            : "Inventory changes will be logged here automatically."
+        }
         pageSize={9999}
       />
 

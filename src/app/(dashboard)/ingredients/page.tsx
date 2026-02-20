@@ -483,9 +483,9 @@ export default function IngredientsPage() {
         rowKey={(ing) => ing.id}
         loading={loading}
         pageSize={20}
-        emptyIcon={<ClipboardList className="size-10" />}
-        emptyTitle="No ingredients"
-        emptyDescription="Add your first ingredient to get started."
+        emptyIcon={<Package className="size-10" />}
+        emptyTitle="No ingredients tracked yet"
+        emptyDescription="Add your first ingredient to start managing inventory."
         emptyAction={
           <Button size="sm" onClick={() => openForm()}>
             <Plus className="h-4 w-4 mr-2" /> Add Ingredient

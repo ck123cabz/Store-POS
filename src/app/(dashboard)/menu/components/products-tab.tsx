@@ -16,7 +16,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { StatusDot } from "@/components/ui/status-dot"
 import { formatCurrency } from "@/lib/ingredient-utils"
 import { cn } from "@/lib/utils"
-import { Search, ShoppingBag, Plus, AlertTriangle } from "lucide-react"
+import { Search, UtensilsCrossed, Plus, AlertTriangle } from "lucide-react"
 
 interface IngredientShortage {
   id: number
@@ -270,8 +270,8 @@ export function ProductsTab({
         rowClassName={(p) =>
           p.id === selectedProductId ? "bg-muted" : undefined
         }
-        emptyIcon={<ShoppingBag className="size-10" />}
-        emptyTitle="No products"
+        emptyIcon={<UtensilsCrossed className="size-10" />}
+        emptyTitle="Your menu is a blank canvas"
         emptyDescription="Add your first product to get started."
         emptyAction={
           onAddProduct ? (

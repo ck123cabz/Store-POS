@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface Task {
   id: number
@@ -421,11 +422,11 @@ function TimelineView({
       <CardContent className="space-y-4">
         {/* T060: No tasks empty state (EC-12) */}
         {tasks.length === 0 ? (
-          <div className="text-center py-8">
-            <Circle className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground">No tasks for today</p>
-            <p className="text-sm text-muted-foreground/70 mt-1">Enjoy your day off!</p>
-          </div>
+          <EmptyState
+            icon={<CheckCircle2 className="h-10 w-10" />}
+            title="No tasks for today"
+            description="Enjoy your day off! Tasks will appear here when scheduled."
+          />
         ) : (
           sectionOrder.map((section) => {
             const sectionTasks = groupedTasks[section]

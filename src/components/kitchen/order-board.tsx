@@ -156,7 +156,7 @@ export function OrderBoard() {
         <EmptyState
           icon={<ChefHat className="h-12 w-12" />}
           title="Kitchen is clear"
-          description="No pending orders. New orders will appear here automatically."
+          description="No pending orders right now. New orders will appear here automatically."
         />
       ) : (
         <>

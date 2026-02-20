@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { format } from "date-fns"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { getDateRange, type DateRangeType } from "@/lib/date-ranges"
 import { Input } from "@/components/ui/input"
@@ -564,18 +565,22 @@ export default function TransactionsPage() {
         loading={loading}
         pageSize={15}
         emptyIcon={<ReceiptText className="size-10" />}
-        emptyTitle="No transactions found"
+        emptyTitle="No transactions yet"
         emptyDescription={
           activeQuickFilter || dateFrom || dateTo || status || userId || till
-            ? "Try adjusting your filters or clearing them."
-            : "Transactions will appear here once sales are recorded."
+            ? "No transactions match your filters."
+            : "Your first sale is going to feel great."
         }
         emptyAction={
           (activeQuickFilter || dateFrom || dateTo || status || userId || till) ? (
             <Button variant="outline" size="sm" onClick={clearFilters}>
               Clear filters
             </Button>
-          ) : undefined
+          ) : (
+            <Button size="sm" asChild>
+              <Link href="/pos">Go to POS</Link>
+            </Button>
+          )
         }
       />
 

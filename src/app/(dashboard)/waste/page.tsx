@@ -24,7 +24,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
 import { FilterPills } from "@/components/ui/filter-pills"
 import { StatusDot } from "@/components/ui/status-dot"
-import { Plus } from "lucide-react"
+import { Plus, Trash2 as WasteIcon } from "lucide-react"
 import { toast } from "sonner"
 
 interface WasteLog {
@@ -334,8 +334,9 @@ export default function WastePage() {
         data={items}
         rowKey={(item) => item.id}
         loading={loading}
-        emptyTitle="No waste entries"
-        emptyDescription="No waste entries for this period."
+        emptyIcon={<WasteIcon className="h-10 w-10" />}
+        emptyTitle="No waste recorded"
+        emptyDescription="That's a good thing! Log waste here when it happens to track trends."
       />
 
       {/* Log Waste Dialog */}
