@@ -13,7 +13,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Volume2, VolumeX, History, Loader2, ChefHat } from "lucide-react"
+import { Volume2, VolumeX, History, ChefHat } from "lucide-react"
 import { toast } from "sonner"
 import { OrderColumn } from "./order-column"
 import {

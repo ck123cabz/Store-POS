@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { RefreshCw, Save, Send, X, ChevronDown, ChevronUp, ClipboardList } from "lucide-react"
+import { Save, Send, X, ChevronDown, ChevronUp, ClipboardList } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
