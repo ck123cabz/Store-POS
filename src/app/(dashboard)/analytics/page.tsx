@@ -64,12 +64,9 @@ const PERIOD_OPTIONS = [
   { label: "This Quarter", value: "quarter" as const },
 ]
 
-const PERIOD_LABELS: Record<PeriodValue, string> = {
-  today: "Today",
-  week: "This Week",
-  month: "This Month",
-  quarter: "This Quarter",
-}
+const PERIOD_LABELS = Object.fromEntries(
+  PERIOD_OPTIONS.map(({ value, label }) => [value, label])
+) as Record<PeriodValue, string>
 
 // Monochromatic bar opacities for daypart chart
 const DAYPART_OPACITIES = [0.5, 0.7, 0.85, 1.0]
@@ -94,26 +91,22 @@ function computeTrend(
   }
 
   const change = ((current - previous) / previous) * 100
-  const absChange = Math.abs(change).toFixed(1)
 
   if (Math.abs(change) < 0.5) {
     return { trend: "neutral", trendLabel: "No change" }
   }
 
+  const sign = change > 0 ? "+" : ""
+  const label = `${sign}${change.toFixed(1)}% vs prior`
+
   if (invertedIsBetter) {
     // For food cost: lower is better, so a decrease shows green (up arrow)
     const trend: TrendDirection = change < 0 ? "up" : "down"
-    return {
-      trend,
-      trendLabel: `${change > 0 ? "+" : ""}${change.toFixed(1)}% vs prior`,
-    }
+    return { trend, trendLabel: label }
   }
 
   const trend: TrendDirection = change > 0 ? "up" : "down"
-  return {
-    trend,
-    trendLabel: `${change > 0 ? "+" : "-"}${absChange}% vs prior`,
-  }
+  return { trend, trendLabel: label }
 }
 
 // ---------- Chart tooltip ----------

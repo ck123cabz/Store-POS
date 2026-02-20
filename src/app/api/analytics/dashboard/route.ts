@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 type PeriodType = "today" | "week" | "month" | "quarter"
@@ -88,20 +89,6 @@ function getPreviousPeriodRef(period: PeriodType, referenceDate: Date = new Date
   }
 }
 
-// Traffic light status based on value vs target
-function getStatus(value: number, target: number, higherIsBetter: boolean = true): "green" | "yellow" | "red" {
-  const ratio = value / target
-  if (higherIsBetter) {
-    if (ratio >= 1) return "green"
-    if (ratio >= 0.7) return "yellow"
-    return "red"
-  } else {
-    if (ratio <= 1) return "green"
-    if (ratio <= 1.3) return "yellow"
-    return "red"
-  }
-}
-
 interface PeriodMetrics {
   revenue: number
   transactionCount: number
@@ -109,16 +96,13 @@ interface PeriodMetrics {
   foodCostPercent: number
   dayparts: Array<{ name: string; revenue: number; transactions: number; avgTicket: number }>
   topItems: Array<{ name: string; quantity: number; revenue: number }>
-  // Extended fields for lever calculations (only computed for current period)
-  destinationPercent: number
-  drinkOnlyCount: number
 }
 
-async function computeMetrics(start: Date, end: Date): Promise<PeriodMetrics> {
+async function computeMetrics(start: Date, end: Date, summaryOnly?: boolean): Promise<PeriodMetrics> {
   const [transactions, purchases] = await Promise.all([
     prisma.transaction.findMany({
       where: { status: 1, createdAt: { gte: start, lte: end } },
-      include: { customer: true, items: true },
+      include: summaryOnly ? undefined : { customer: true, items: true },
     }),
     prisma.purchase.findMany({
       where: { date: { gte: start, lte: end }, category: "Food" },
@@ -131,6 +115,18 @@ async function computeMetrics(start: Date, end: Date): Promise<PeriodMetrics> {
 
   const purchaseTotal = purchases.reduce((sum, p) => sum + Number(p.amount), 0)
   const foodCostPercent = revenue > 0 ? (purchaseTotal / revenue) * 100 : 0
+
+  // For previous period comparisons, skip detailed calculations
+  if (summaryOnly) {
+    return {
+      revenue: Math.round(revenue * 100) / 100,
+      transactionCount,
+      avgTicket: Math.round(avgTicket * 100) / 100,
+      foodCostPercent: Math.round(foodCostPercent * 10) / 10,
+      dayparts: [],
+      topItems: [],
+    }
+  }
 
   // Daypart economics
   const daypartData: Record<string, { revenue: number; transactions: number }> = {
@@ -161,26 +157,20 @@ async function computeMetrics(start: Date, end: Date): Promise<PeriodMetrics> {
   // Top items
   const itemSales: Record<string, { name: string; quantity: number; revenue: number }> = {}
   transactions.forEach((t) => {
-    t.items.forEach((item) => {
-      if (!itemSales[item.productId]) {
-        itemSales[item.productId] = { name: item.productName, quantity: 0, revenue: 0 }
-      }
-      itemSales[item.productId].quantity += item.quantity
-      itemSales[item.productId].revenue += Number(item.price) * item.quantity
-    })
+    if ('items' in t && Array.isArray(t.items)) {
+      t.items.forEach((item: { productId: number; productName: string; quantity: number; price: number | string }) => {
+        const key = String(item.productId)
+        if (!itemSales[key]) {
+          itemSales[key] = { name: item.productName, quantity: 0, revenue: 0 }
+        }
+        itemSales[key].quantity += item.quantity
+        itemSales[key].revenue += Number(item.price) * item.quantity
+      })
+    }
   })
   const topItems = Object.values(itemSales)
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5)
-
-  // Traffic source / drink-only for lever calculations
-  const destinationCustomers = transactions.filter(
-    (t) => t.customer?.customerType === "Destination"
-  ).length
-  const destinationPercent = transactionCount > 0
-    ? (destinationCustomers / transactionCount) * 100
-    : 0
-  const drinkOnlyCount = transactions.filter((t) => t.isDrinkOnly).length
 
   return {
     revenue: Math.round(revenue * 100) / 100,
@@ -189,12 +179,15 @@ async function computeMetrics(start: Date, end: Date): Promise<PeriodMetrics> {
     foodCostPercent: Math.round(foodCostPercent * 10) / 10,
     dayparts,
     topItems,
-    destinationPercent,
-    drinkOnlyCount,
   }
 }
 
 export async function GET(request: NextRequest) {
+  const session = await auth()
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const period = (searchParams.get("period") || "week") as PeriodType
@@ -204,70 +197,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid period. Use: today, week, month, quarter" }, { status: 400 })
     }
 
-    // Get settings for targets
-    const settings = await prisma.settings.findFirst()
-    const targets = {
-      foodCostPercent: settings?.targetFoodCostPercent ? Number(settings.targetFoodCostPercent) : 32,
-      laborCostPercent: settings?.targetLaborCostPercent ? Number(settings.targetLaborCostPercent) : 30,
-      ticketSize: settings?.targetTicketSize ? Number(settings.targetTicketSize) : 85,
-      revPerLaborHour: settings?.targetRevPerLaborHour ? Number(settings.targetRevPerLaborHour) : 350,
-      repeatRate: settings?.targetRepeatRate ? Number(settings.targetRepeatRate) : 40,
-      destinationPercent: settings?.targetDestinationPercent ? Number(settings.targetDestinationPercent) : 25,
-      trueMarginPercent: settings?.targetTrueMarginPercent ? Number(settings.targetTrueMarginPercent) : 65,
-    }
-
     const now = new Date()
     const currentRange = getPeriodRange(period, now)
     const previousRef = getPreviousPeriodRef(period, now)
     const previousRange = getPeriodRange(period, previousRef)
 
-    // Compute current and previous period metrics in parallel, plus other data
-    const [currentMetrics, previousMetrics, products, customers, laborLogs, wasteLogs, weekPurchases] = await Promise.all([
+    // Compute current and previous period metrics in parallel
+    const [currentMetrics, previousMetrics] = await Promise.all([
       computeMetrics(currentRange.start, currentRange.end),
-      computeMetrics(previousRange.start, previousRange.end),
-      prisma.product.findMany({ where: { trueCost: { not: null } } }),
-      prisma.customer.findMany({ where: { visitCount: { gt: 0 } } }),
-      prisma.laborLog.findMany({
-        where: { date: { gte: currentRange.start, lte: currentRange.end } },
-      }),
-      prisma.wasteLog.findMany({
-        where: { date: { gte: currentRange.start, lte: currentRange.end } },
-      }),
-      prisma.purchase.findMany({
-        where: { date: { gte: currentRange.start, lte: currentRange.end }, category: "Food" },
-      }),
+      computeMetrics(previousRange.start, previousRange.end, true),
     ])
-
-    // LEVER 1: Unit Economics
-    const productsWithMargin = products.filter((p) => p.trueMarginPercent !== null)
-    const avgTrueMargin = productsWithMargin.length > 0
-      ? productsWithMargin.reduce((sum, p) => sum + Number(p.trueMarginPercent), 0) / productsWithMargin.length
-      : 0
-
-    // LEVER 2: Traffic Source (computed inside computeMetrics)
-    const destinationPercent = currentMetrics.destinationPercent
-
-    // LEVER 3: Ticket Size
-    const foodAttachmentRate = currentMetrics.transactionCount > 0
-      ? ((currentMetrics.transactionCount - currentMetrics.drinkOnlyCount) / currentMetrics.transactionCount) * 100
-      : 0
-
-    // LEVER 6: Cash Conversion
-    const wasteCost = wasteLogs.reduce((sum, w) => sum + Number(w.estimatedCost), 0)
-    const purchaseTotal = weekPurchases.reduce((sum, p) => sum + Number(p.amount), 0)
-    const spoilageRate = purchaseTotal > 0 ? (wasteCost / purchaseTotal) * 100 : 0
-
-    // LEVER 7: Repeat Rate
-    const repeatCustomers = customers.filter((c) => c.visitCount >= 2).length
-    const totalCustomers = customers.length
-    const repeatRate = totalCustomers > 0 ? (repeatCustomers / totalCustomers) * 100 : 0
-
-    // LEVER 8: Labor Leverage
-    const laborHours = laborLogs.reduce(
-      (sum, l) => sum + Number(l.hoursWorked) + Number(l.otHours),
-      0
-    )
-    const revPerLaborHour = laborHours > 0 ? currentMetrics.revenue / laborHours : 0
 
     return NextResponse.json({
       period: {
@@ -290,54 +229,6 @@ export async function GET(request: NextRequest) {
       },
       dayparts: currentMetrics.dayparts,
       topItems: currentMetrics.topItems,
-      levers: {
-        unitEconomics: {
-          avgTrueMargin: Math.round(avgTrueMargin * 10) / 10,
-          target: targets.trueMarginPercent,
-          status: getStatus(avgTrueMargin, targets.trueMarginPercent),
-          foodCostPercent: currentMetrics.foodCostPercent,
-          foodCostTarget: targets.foodCostPercent,
-          foodCostStatus: getStatus(currentMetrics.foodCostPercent, targets.foodCostPercent, false),
-        },
-        trafficSource: {
-          destinationPercent: Math.round(destinationPercent * 10) / 10,
-          target: targets.destinationPercent,
-          status: getStatus(destinationPercent, targets.destinationPercent),
-        },
-        ticketSize: {
-          avgTicket: currentMetrics.avgTicket,
-          target: targets.ticketSize,
-          status: getStatus(currentMetrics.avgTicket, targets.ticketSize),
-          foodAttachmentRate: Math.round(foodAttachmentRate * 10) / 10,
-        },
-        menuFocus: {
-          topItems: currentMetrics.topItems,
-          heroItemsCount: products.filter((p) => p.isHeroItem).length,
-        },
-        daypartEconomics: {
-          dayparts: currentMetrics.dayparts,
-        },
-        cashConversion: {
-          wasteCost: Math.round(wasteCost * 100) / 100,
-          spoilageRate: Math.round(spoilageRate * 10) / 10,
-          target: 5,
-          status: getStatus(spoilageRate, 5, false),
-        },
-        repeatRate: {
-          repeatRate: Math.round(repeatRate * 10) / 10,
-          repeatCustomers,
-          totalCustomers,
-          target: targets.repeatRate,
-          status: getStatus(repeatRate, targets.repeatRate),
-        },
-        laborLeverage: {
-          laborHours: Math.round(laborHours * 10) / 10,
-          revPerLaborHour: Math.round(revPerLaborHour * 100) / 100,
-          target: targets.revPerLaborHour,
-          status: getStatus(revPerLaborHour, targets.revPerLaborHour),
-        },
-      },
-      targets,
     })
   } catch (error) {
     console.error(error)
