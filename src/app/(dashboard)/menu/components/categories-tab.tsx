@@ -18,7 +18,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { StatusDot } from "@/components/ui/status-dot"
-import { GripVertical, ChevronRight, ChevronDown, Pencil, Trash2, ExternalLink } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
+import { GripVertical, ChevronRight, ChevronDown, Pencil, Trash2, ExternalLink, FolderOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/ingredient-utils"
 
@@ -145,9 +146,11 @@ export function CategoriesTab({
 
   if (categories.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        No categories found. Add your first category to get started.
-      </div>
+      <EmptyState
+        icon={<FolderOpen className="h-10 w-10" />}
+        title="No categories yet"
+        description="Add your first category to organize your menu."
+      />
     )
   }
 

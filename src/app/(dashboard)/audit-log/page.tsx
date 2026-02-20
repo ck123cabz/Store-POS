@@ -163,7 +163,7 @@ export default function AuditLogPage() {
     setPage(1)
   }
 
-  const hasFilters = source || userId || dateFrom || dateTo
+  const hasFilters = (source && source !== "all") || (userId && userId !== "all") || dateFrom || dateTo
 
   return (
     <div className="p-4 md:p-6 space-y-6">
