@@ -5,22 +5,19 @@ import { format, addMonths, subMonths, isFuture } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  ChevronLeft,
-  ChevronRight,
-  RefreshCw,
-  Calendar as CalendarIcon,
-  DollarSign,
-  TrendingUp,
-} from "lucide-react"
+import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import { getVibeColorClasses, getVibeLabel, type VibeLevel } from "@/lib/vibe-colors"
 import { cn } from "@/lib/utils"
+
+// ---------- Types ----------
 
 interface CalendarDay {
   date: string
@@ -80,11 +77,84 @@ interface DayDetail {
   }>
 }
 
+// ---------- Constants ----------
+
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+// ---------- Helpers ----------
 
 // T087: Cache type for vibe data per month
 type MonthCacheKey = string // "year-month" format
 type MonthCache = Map<MonthCacheKey, CalendarData>
+
+function formatCurrency(value: number): string {
+  return `₱${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+}
+
+function formatCurrencyDecimal(value: number): string {
+  return `₱${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+// ---------- Skeleton Loading ----------
+
+function CalendarSkeleton() {
+  return (
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Header skeleton */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-28" />
+          <Skeleton className="h-5 w-48" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-9 w-16 rounded-md" />
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-9 w-9 rounded-md" />
+        </div>
+      </div>
+
+      {/* SummaryCards skeleton */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Card key={i} className="gap-0 p-4 py-4 shadow-none">
+            <Skeleton className="h-3 w-20 mb-2" />
+            <Skeleton className="h-7 w-24" />
+          </Card>
+        ))}
+      </div>
+
+      {/* Calendar grid skeleton (desktop) */}
+      <Card className="shadow-none hidden sm:block">
+        <CardContent className="pt-6">
+          {/* Weekday headers */}
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {WEEKDAYS.map((day) => (
+              <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
+                {day}
+              </div>
+            ))}
+          </div>
+          {/* Day cells - 5 rows x 7 cols */}
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 35 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-square rounded-lg" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Mobile list skeleton */}
+      <div className="sm:hidden space-y-2">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-md" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---------- Main Page ----------
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -170,31 +240,11 @@ export default function CalendarPage() {
     setCurrentDate(new Date())
   }
 
-  function formatCurrency(value: number): string {
-    return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  }
-
   // Get first day offset for calendar grid
   const firstDayOffset = data?.days[0]?.dayOfWeek || 0
 
-  // Find max revenue for color scaling
-  const maxRevenue = data?.days.reduce((max, d) => Math.max(max, d.revenue), 0) || 1
-
-  function getRevenueIntensity(revenue: number): string {
-    if (revenue === 0) return "bg-muted/50"
-    const intensity = Math.min(revenue / maxRevenue, 1)
-    if (intensity > 0.75) return "bg-green-200"
-    if (intensity > 0.5) return "bg-green-100"
-    if (intensity > 0.25) return "bg-green-50"
-    return "bg-muted"
-  }
-
   if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <CalendarSkeleton />
   }
 
   return (
@@ -202,23 +252,32 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <CalendarIcon className="h-6 w-6" />
-            Sales Calendar
-          </h1>
-          <p className="text-muted-foreground mt-1">Month overview with daily performance</p>
+          <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {data ? (
+              <>
+                {data.monthName}
+                {data.year !== new Date().getFullYear() && (
+                  <span className="ml-1">{data.year}</span>
+                )}
+                {" "}overview
+              </>
+            ) : (
+              "Month overview with daily performance"
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={goToPreviousMonth}>
+          <Button variant="outline" size="icon" onClick={goToPreviousMonth} aria-label="Previous month">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button variant="outline" onClick={goToToday}>
             Today
           </Button>
-          <Button variant="outline" size="icon" onClick={goToNextMonth}>
+          <Button variant="outline" size="icon" onClick={goToNextMonth} aria-label="Next month">
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => fetchCalendar(true)}>
+          <Button variant="outline" size="icon" onClick={() => fetchCalendar(true)} aria-label="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -226,49 +285,39 @@ export default function CalendarPage() {
 
       {/* Month Summary */}
       {data && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-xl md:text-2xl font-bold">{formatCurrency(data.summary.totalRevenue)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-sm text-muted-foreground">Transactions</p>
-              <p className="text-xl md:text-2xl font-bold">{data.summary.totalTransactions}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-sm text-muted-foreground">Avg Daily</p>
-              <p className="text-xl md:text-2xl font-bold">{formatCurrency(data.summary.avgDailyRevenue)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-sm text-muted-foreground">Avg Ticket</p>
-              <p className="text-xl md:text-2xl font-bold">{formatCurrency(data.summary.avgTicket)}</p>
-            </CardContent>
-          </Card>
-          <Card className="col-span-2 sm:col-span-1">
-            <CardContent className="pt-4">
-              <p className="text-sm text-muted-foreground">Days Active</p>
-              <p className="text-xl md:text-2xl font-bold">{data.summary.daysWithSales}</p>
-            </CardContent>
-          </Card>
-        </div>
+        <SummaryCardGrid className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <SummaryCard
+            label="Total Revenue"
+            value={formatCurrency(data.summary.totalRevenue)}
+          />
+          <SummaryCard
+            label="Transactions"
+            value={data.summary.totalTransactions.toLocaleString()}
+          />
+          <SummaryCard
+            label="Avg Daily"
+            value={formatCurrency(data.summary.avgDailyRevenue)}
+          />
+          <SummaryCard
+            label="Avg Ticket"
+            value={formatCurrency(data.summary.avgTicket)}
+          />
+          <SummaryCard
+            label="Days Active"
+            value={String(data.summary.daysWithSales)}
+          />
+        </SummaryCardGrid>
       )}
 
-      {/* Calendar Grid */}
+      {/* Calendar Grid (tablet/desktop) */}
       {data && (
-        <Card>
+        <Card className="shadow-none hidden sm:block">
           <CardHeader className="pb-2">
             {/* T088: Year boundary display with year labels (EC-21) */}
-            <CardTitle className="text-center">
+            <CardTitle className="text-center text-sm font-medium text-muted-foreground uppercase tracking-wider">
               {data.monthName}
               {data.year !== new Date().getFullYear() && (
-                <span className="ml-2 text-muted-foreground font-normal text-base">
+                <span className="ml-2 font-normal">
                   {data.year}
                 </span>
               )}
@@ -278,7 +327,7 @@ export default function CalendarPage() {
             {/* Weekday headers */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {WEEKDAYS.map((day) => (
-                <div key={day} className="text-center text-xs md:text-sm font-medium text-muted-foreground py-2">
+                <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
                   {day}
                 </div>
               ))}
@@ -305,7 +354,7 @@ export default function CalendarPage() {
                 // Build aria-label for accessibility (T093, NFR-A07)
                 const ariaLabel = [
                   format(dateObj, "MMMM d, yyyy"),
-                  day.transactions > 0 ? `${formatCurrency(day.revenue)} revenue, ${day.transactions} transactions` : "No sales",
+                  day.transactions > 0 ? `${formatCurrencyDecimal(day.revenue)} revenue, ${day.transactions} transactions` : "No sales",
                   day.vibe ? `Vibe: ${vibeLabel}` : null,
                   isToday ? "Today" : null,
                   isFutureDate ? "Future date" : null,
@@ -326,9 +375,10 @@ export default function CalendarPage() {
                         ? "bg-muted/30" // T090: Future dates neutral (EC-23)
                         : day.vibe
                           ? vibeClasses.bg // T083: Apply vibe background
-                          : getRevenueIntensity(day.revenue), // Fallback to revenue-based
+                          : day.revenue > 0
+                            ? "bg-accent" // Activity days: subtle accent tint
+                            : "bg-muted/50", // No sales: muted
                       isToday && "ring-2 ring-primary",
-                      // T091: Adjacent month days muted (EC-24) - handled by empty cells
                     )}
                   >
                     <div className="h-full flex flex-col">
@@ -342,13 +392,13 @@ export default function CalendarPage() {
                       {day.transactions > 0 && (
                         <>
                           <span className={cn(
-                            "text-[10px] truncate hidden sm:block",
+                            "text-xs font-mono tabular-nums truncate",
                             day.vibe && !isFutureDate ? vibeClasses.text : "text-muted-foreground"
                           )}>
                             {formatCurrency(day.revenue)}
                           </span>
                           <span className={cn(
-                            "text-[10px] hidden sm:block",
+                            "text-xs font-mono tabular-nums",
                             day.vibe && !isFutureDate ? vibeClasses.text : "text-muted-foreground"
                           )}>
                             {day.transactions} tx
@@ -370,27 +420,73 @@ export default function CalendarPage() {
                 )
               })}
             </div>
-
-            {/* Legend */}
-            <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-muted border" /> No sales
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-green-50" /> Low
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-green-100" /> Medium
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-green-200" /> High
-              </span>
-            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Day Detail Modal */}
+      {/* Condensed Mobile List (phone) */}
+      {data && (
+        <div className="sm:hidden space-y-0">
+          <div className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+            {data.monthName}
+            {data.year !== new Date().getFullYear() && (
+              <span className="ml-1">{data.year}</span>
+            )}
+          </div>
+          {(() => {
+            const activeDays = data.days.filter((d) => d.transactions > 0)
+            if (activeDays.length === 0) {
+              return (
+                <p className="text-sm text-muted-foreground py-8 text-center">
+                  No activity this month
+                </p>
+              )
+            }
+            return activeDays.map((day) => {
+              const dateObj = new Date(day.date)
+              const vibeClasses = getVibeColorClasses(day.vibe as VibeLevel)
+              const isToday = day.date === format(new Date(), "yyyy-MM-dd")
+              return (
+                <button
+                  key={day.date}
+                  onClick={() => setSelectedDay(day)}
+                  className={cn(
+                    "w-full flex items-center justify-between py-3 px-2 border-b border-border transition-colors hover:bg-accent/50",
+                    isToday && "bg-accent/30"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Vibe dot */}
+                    {day.vibe && (
+                      <div
+                        className={cn("w-2 h-2 rounded-full shrink-0", vibeClasses.dot)}
+                        aria-hidden="true"
+                      />
+                    )}
+                    {!day.vibe && <div className="w-2 shrink-0" />}
+                    <span className="text-sm font-medium">
+                      {format(dateObj, "EEE d")}
+                      {isToday && (
+                        <span className="text-xs text-muted-foreground ml-1">(today)</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-right">
+                    <span className="text-sm font-mono tabular-nums font-medium">
+                      {formatCurrency(day.revenue)}
+                    </span>
+                    <span className="text-xs font-mono tabular-nums text-muted-foreground w-10 text-right">
+                      {day.transactions} tx
+                    </span>
+                  </div>
+                </button>
+              )
+            })
+          })()}
+        </div>
+      )}
+
+      {/* Day Detail Dialog */}
       <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -400,41 +496,51 @@ export default function CalendarPage() {
           </DialogHeader>
 
           {loadingDetail ? (
-            <div className="flex items-center justify-center py-8">
-              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="space-y-4">
+              {/* Skeleton summary cards */}
+              <div className="grid grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="gap-0 p-4 py-4 shadow-none">
+                    <Skeleton className="h-3 w-16 mb-2" />
+                    <Skeleton className="h-7 w-20" />
+                  </Card>
+                ))}
+              </div>
+              {/* Skeleton sections */}
+              <Card className="shadow-none">
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardContent>
+              </Card>
             </div>
           ) : dayDetail ? (
             <div className="space-y-6">
-              {/* Day Summary */}
-              <div className="grid grid-cols-3 gap-4">
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <DollarSign className="h-5 w-5 mx-auto text-muted-foreground" />
-                    <p className="text-xl md:text-2xl font-bold">{formatCurrency(dayDetail.summary.totalRevenue)}</p>
-                    <p className="text-xs text-muted-foreground">Revenue</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <TrendingUp className="h-5 w-5 mx-auto text-muted-foreground" />
-                    <p className="text-xl md:text-2xl font-bold">{dayDetail.summary.transactions}</p>
-                    <p className="text-xs text-muted-foreground">Transactions</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <DollarSign className="h-5 w-5 mx-auto text-muted-foreground" />
-                    <p className="text-xl md:text-2xl font-bold">{formatCurrency(dayDetail.summary.avgTicket)}</p>
-                    <p className="text-xs text-muted-foreground">Avg Ticket</p>
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Day Summary - SummaryCards */}
+              <SummaryCardGrid className="grid-cols-3">
+                <SummaryCard
+                  label="Revenue"
+                  value={formatCurrencyDecimal(dayDetail.summary.totalRevenue)}
+                />
+                <SummaryCard
+                  label="Transactions"
+                  value={String(dayDetail.summary.transactions)}
+                />
+                <SummaryCard
+                  label="Avg Ticket"
+                  value={formatCurrencyDecimal(dayDetail.summary.avgTicket)}
+                />
+              </SummaryCardGrid>
 
               {/* Daily Pulse */}
               {dayDetail.pulse && (
-                <Card>
+                <Card className="shadow-none">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Daily Pulse</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Daily Pulse</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -468,9 +574,9 @@ export default function CalendarPage() {
               )}
 
               {/* Daypart Breakdown */}
-              <Card>
+              <Card className="shadow-none">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">By Daypart</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">By Daypart</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -478,8 +584,8 @@ export default function CalendarPage() {
                       <div key={dp.daypart} className="flex justify-between items-center">
                         <span className="text-sm">{dp.daypart}</span>
                         <div className="text-sm text-right">
-                          <span className="font-medium">{formatCurrency(dp.revenue)}</span>
-                          <span className="text-muted-foreground ml-2">({dp.transactions} tx)</span>
+                          <span className="font-medium font-mono tabular-nums">{formatCurrency(dp.revenue)}</span>
+                          <span className="text-muted-foreground ml-2 font-mono tabular-nums">({dp.transactions} tx)</span>
                         </div>
                       </div>
                     ))}
@@ -489,9 +595,9 @@ export default function CalendarPage() {
 
               {/* Top Products */}
               {dayDetail.topProducts.length > 0 && (
-                <Card>
+                <Card className="shadow-none">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Top Products</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Top Products</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -501,8 +607,8 @@ export default function CalendarPage() {
                             {i + 1}. {product.name}
                           </span>
                           <div className="text-sm text-right">
-                            <span className="font-medium">{formatCurrency(product.revenue)}</span>
-                            <span className="text-muted-foreground ml-2">({product.quantity} sold)</span>
+                            <span className="font-medium font-mono tabular-nums">{formatCurrency(product.revenue)}</span>
+                            <span className="text-muted-foreground ml-2 font-mono tabular-nums">({product.quantity} sold)</span>
                           </div>
                         </div>
                       ))}
