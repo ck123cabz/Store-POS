@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Plus } from "lucide-react"
 import { ProductsTab } from "./components/products-tab"
 import { ProductPanel } from "./components/product-panel"
@@ -211,7 +212,27 @@ export default function MenuPage() {
 
         <TabsContent value="products" className="mt-4">
           {loading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading...</div>
+            <div className="space-y-4">
+              {/* Filter pills skeleton */}
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-8 w-20 rounded-full" />
+                ))}
+              </div>
+              {/* Product cards skeleton */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="rounded-lg border p-4 space-y-3">
+                    <Skeleton className="h-32 w-full rounded-md" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <div className="flex justify-between items-center">
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-5 w-20" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
             <ProductsTab
               products={products}
@@ -228,7 +249,17 @@ export default function MenuPage() {
 
         <TabsContent value="categories" className="mt-4">
           {loading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading...</div>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-4 rounded-lg border">
+                  <Skeleton className="h-5 w-5" />
+                  <Skeleton className="h-5 w-40" />
+                  <div className="flex-1" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              ))}
+            </div>
           ) : (
             <CategoriesTab
               categories={categories}

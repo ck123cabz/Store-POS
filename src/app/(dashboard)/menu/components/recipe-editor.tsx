@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Trash2, Plus, Loader2 } from "lucide-react"
 import { formatCurrency } from "@/lib/ingredient-utils"
 import { toast } from "sonner"
@@ -221,8 +222,31 @@ export function RecipeEditor({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-4 p-2">
+        {/* Cost summary skeleton */}
+        <Card>
+          <CardHeader className="pb-2">
+            <Skeleton className="h-4 w-28" />
+          </CardHeader>
+          <CardContent className="grid grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="space-y-1">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-6 w-20" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        {/* Recipe items skeleton */}
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-3 p-3 rounded-lg border">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-4 w-12" />
+            <div className="flex-1" />
+            <Skeleton className="h-8 w-8" />
+          </div>
+        ))}
       </div>
     )
   }

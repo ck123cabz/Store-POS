@@ -20,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { EmptyState } from "@/components/ui/empty-state"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   PauseCircle,
   Users,
@@ -418,10 +419,69 @@ export default function POSPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-7rem)]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading POS...</p>
+      <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[calc(100vh-7rem)] gap-0">
+        {/* Product grid skeleton */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header bar skeleton */}
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-9 w-20" />
+              <Skeleton className="h-9 w-24" />
+              <Skeleton className="h-9 w-9" />
+            </div>
+            <Skeleton className="h-9 w-9" />
+          </div>
+          {/* Category filter skeleton */}
+          <div className="flex gap-2 px-4 pt-4 pb-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-8 w-20 rounded-full" />
+            ))}
+          </div>
+          {/* Product cards skeleton */}
+          <div className="flex-1 px-4 py-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="rounded-lg border p-3 space-y-3">
+                  <Skeleton className="h-28 w-full rounded-md" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Cart panel skeleton (hidden on mobile) */}
+        <div className="hidden md:flex flex-shrink-0 border-l bg-background md:w-[380px] lg:w-[420px] flex-col">
+          <div className="p-4 border-b space-y-3">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="flex-1 p-4 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded" />
+                <div className="flex-1 space-y-1">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-4 w-12" />
+              </div>
+            ))}
+          </div>
+          <div className="p-4 border-t space-y-3">
+            <div className="flex justify-between">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="flex justify-between">
+              <Skeleton className="h-5 w-12" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-11 flex-1" />
+              <Skeleton className="h-11 flex-1" />
+            </div>
+          </div>
         </div>
       </div>
     )

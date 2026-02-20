@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { StatusDot } from "@/components/ui/status-dot"
 import {
   DetailPanelHeader,
@@ -421,8 +422,15 @@ export function ProductPanel({
           <DetailPanelHeader
             title={`Edit ${product.name}`}
           />
-          <DetailPanelContent className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <DetailPanelContent>
+            <div className="space-y-4 p-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
           </DetailPanelContent>
           <DetailPanelFooter>
             <div className="flex items-center justify-between gap-2">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { RefreshCw, Save, Send, X, ChevronDown, ChevronUp, ClipboardList } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
 import {
   AlertDialog,
@@ -227,8 +228,52 @@ export default function InventoryCountPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="p-6 space-y-6">
+        {/* Breadcrumb skeleton */}
+        <Skeleton className="h-4 w-48" />
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-28" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+        </div>
+        {/* Progress bar skeleton */}
+        <Card>
+          <CardContent className="pt-4">
+            <Skeleton className="h-2 w-full" />
+          </CardContent>
+        </Card>
+        {/* Category groups skeleton */}
+        {[1, 2, 3].map((i) => (
+          <Card key={i}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-28" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+                <Skeleton className="h-5 w-5" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {[1, 2, 3, 4].map((j) => (
+                <div key={j} className="flex items-center gap-4 py-2 border-b last:border-0">
+                  <Skeleton className="h-5 w-32" />
+                  <div className="flex-1" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-9 w-24" />
+                  <Skeleton className="h-9 w-20" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ))}
       </div>
     )
   }

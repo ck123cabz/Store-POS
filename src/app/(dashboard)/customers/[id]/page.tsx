@@ -25,6 +25,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Progress } from "@/components/ui/progress"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   ArrowLeft,
   User,
@@ -240,8 +241,113 @@ export default function CustomerProfilePage() {
   // Loading state
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="p-4 sm:p-6 space-y-6 max-w-4xl mx-auto">
+        {/* Breadcrumb skeleton */}
+        <Skeleton className="h-4 w-48" />
+        {/* Header skeleton */}
+        <div className="flex items-center gap-4">
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <div className="flex gap-2">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+          </div>
+        </div>
+        {/* Main content grid skeleton */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Left column */}
+          <div className="space-y-6">
+            {/* Contact Information card skeleton */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="space-y-1">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-52" />
+                </div>
+                <Skeleton className="h-9 w-16" />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-3 py-2">
+                    <Skeleton className="h-5 w-5" />
+                    <Skeleton className="h-4 w-40" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            {/* Visit Statistics card skeleton */}
+            <Card>
+              <CardHeader><Skeleton className="h-5 w-32" /></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="bg-muted rounded-xl p-4 text-center space-y-2">
+                      <Skeleton className="h-6 w-6 mx-auto" />
+                      <Skeleton className="h-8 w-16 mx-auto" />
+                      <Skeleton className="h-3 w-20 mx-auto" />
+                    </div>
+                  ))}
+                </div>
+                <Separator className="my-4" />
+                <div className="space-y-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="flex justify-between">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          {/* Right column */}
+          <div className="space-y-6">
+            {/* Tab Account card skeleton */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-28" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-xl p-4 bg-muted text-center space-y-2">
+                  <Skeleton className="h-3 w-24 mx-auto" />
+                  <Skeleton className="h-10 w-32 mx-auto" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <Skeleton className="h-2 w-full" />
+                </div>
+              </CardContent>
+            </Card>
+            {/* Payment History card skeleton */}
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-5 w-36" />
+                <Skeleton className="h-4 w-40" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between py-3 border-b last:border-0">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-3 w-28" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     )
   }
@@ -570,8 +676,19 @@ export default function CustomerProfilePage() {
             </CardHeader>
             <CardContent>
               {tabLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between py-3 border-b last:border-0">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-3 w-28" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-5 w-14 rounded-full" />
+                    </div>
+                  ))}
                 </div>
               ) : tabData?.settlements && tabData.settlements.length > 0 ? (
                 <div className="space-y-3">

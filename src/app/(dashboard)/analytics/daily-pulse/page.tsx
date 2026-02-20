@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Save, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -89,8 +90,67 @@ export default function DailyPulsePage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="p-6 space-y-6 max-w-2xl mx-auto">
+        {/* Breadcrumb skeleton */}
+        <Skeleton className="h-4 w-40" />
+        {/* Header skeleton */}
+        <div className="flex items-center gap-4">
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-8 w-36" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <Skeleton className="h-10 w-40" />
+        </div>
+        {/* Today's Numbers card skeleton */}
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-36" /></CardHeader>
+          <CardContent className="grid grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-7 w-24" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        {/* Upsell Tracking card skeleton */}
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-32" /></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        {/* Context card skeleton */}
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-20" /></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        {/* Quick Notes card skeleton */}
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-28" /></CardHeader>
+          <CardContent className="space-y-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        {/* Save button skeleton */}
+        <Skeleton className="h-10 w-full" />
       </div>
     )
   }
