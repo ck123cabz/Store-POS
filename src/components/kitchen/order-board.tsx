@@ -190,6 +190,7 @@ export function OrderBoard() {
             variant="ghost"
             size="icon"
             onClick={() => setSoundEnabled(!soundEnabled)}
+            aria-label={soundEnabled ? "Mute sound notifications" : "Enable sound notifications"}
             title={soundEnabled ? "Mute notifications" : "Enable notifications"}
           >
             {soundEnabled ? (

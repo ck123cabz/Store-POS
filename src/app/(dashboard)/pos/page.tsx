@@ -535,6 +535,7 @@ export default function POSPage() {
               variant="ghost"
               size="icon"
               className="h-9 w-9"
+              aria-label="Refresh products"
               onClick={() => fetchData(true)}
               disabled={isRefreshing}
             >

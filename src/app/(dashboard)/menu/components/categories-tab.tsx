@@ -201,6 +201,7 @@ export function CategoriesTab({
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
+                              aria-label={isExpanded ? `Collapse ${category.name}` : `Expand ${category.name}`}
                               onClick={() => toggleExpand(category.id)}
                               disabled={!category.products || category.products.length === 0}
                             >
@@ -235,6 +236,7 @@ export function CategoriesTab({
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
+                                aria-label={`Edit ${category.name}`}
                                 onClick={() => onEdit(category)}
                               >
                                 <Pencil className="h-4 w-4" />
@@ -243,6 +245,7 @@ export function CategoriesTab({
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-destructive hover:text-destructive"
+                                aria-label={`Delete ${category.name}`}
                                 onClick={() => onDelete(category)}
                               >
                                 <Trash2 className="h-4 w-4" />

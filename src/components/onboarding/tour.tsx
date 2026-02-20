@@ -96,6 +96,7 @@ export function OnboardingTour() {
             variant="ghost"
             size="icon"
             className="absolute right-2 top-2"
+            aria-label="Close tour"
             onClick={handleSkip}
           >
             <X className="h-4 w-4" />

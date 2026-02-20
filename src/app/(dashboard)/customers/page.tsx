@@ -225,7 +225,7 @@ export default function CustomersPage() {
           onClick={(e) => e.stopPropagation()}
         >
           <Link href={`/customers/${c.id}`}>
-            <Button size="icon" variant="ghost" className="min-h-11 min-w-11">
+            <Button size="icon" variant="ghost" className="min-h-11 min-w-11" aria-label={`View ${c.name}`}>
               <Eye className="h-4 w-4" />
             </Button>
           </Link>
@@ -234,6 +234,7 @@ export default function CustomersPage() {
             variant="ghost"
             onClick={() => openForm(c)}
             className="min-h-11 min-w-11"
+            aria-label={`Edit ${c.name}`}
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -242,6 +243,7 @@ export default function CustomersPage() {
             variant="ghost"
             onClick={() => setDeleteId(c.id)}
             className="min-h-11 min-w-11"
+            aria-label={`Delete ${c.name}`}
           >
             <Trash2 className="h-4 w-4" />
           </Button>

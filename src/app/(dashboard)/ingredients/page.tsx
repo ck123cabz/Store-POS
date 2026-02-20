@@ -428,7 +428,7 @@ export default function IngredientsPage() {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); openForm(ing) }}>
+                <Button size="icon" variant="ghost" aria-label={`Edit ${ing.name}`} onClick={(e) => { e.stopPropagation(); openForm(ing) }}>
                   <Pencil className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -436,7 +436,7 @@ export default function IngredientsPage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteId(ing.id) }}>
+                <Button size="icon" variant="ghost" aria-label={`Delete ${ing.name}`} onClick={(e) => { e.stopPropagation(); setDeleteId(ing.id) }}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -444,7 +444,7 @@ export default function IngredientsPage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setRestockIngredient(ing) }}>
+                <Button size="icon" variant="ghost" aria-label={`Restock ${ing.name}`} onClick={(e) => { e.stopPropagation(); setRestockIngredient(ing) }}>
                   <Package className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -741,6 +741,7 @@ export default function IngredientsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
+                          aria-label={`Remove unit alias ${alias.name}`}
                           onClick={() => handleRemoveAlias(alias.id)}
                         >
                           <Trash2 className="h-4 w-4" />

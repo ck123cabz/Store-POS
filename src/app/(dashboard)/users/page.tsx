@@ -231,13 +231,14 @@ export default function UsersPage() {
       header: "",
       cell: (u) => (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button size="icon" variant="ghost" onClick={() => openForm(u)}>
+          <Button size="icon" variant="ghost" aria-label={`Edit ${u.fullname}`} onClick={() => openForm(u)}>
             <Pencil className="h-4 w-4" />
           </Button>
           {u.id !== 1 && (
             <Button
               size="icon"
               variant="ghost"
+              aria-label={`Delete ${u.fullname}`}
               onClick={() => setDeleteId(u.id)}
             >
               <Trash2 className="h-4 w-4" />

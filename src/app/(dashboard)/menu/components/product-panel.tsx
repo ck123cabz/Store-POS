@@ -674,6 +674,7 @@ export function ProductPanel({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
+                          aria-label={`Remove ${item.ingredientName}`}
                           onClick={() => handleRemoveIngredient(item.ingredientId)}
                         >
                           <Minus className="h-4 w-4" />
