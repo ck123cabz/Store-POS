@@ -103,14 +103,14 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
                 <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
                 <TableCell className="text-right hidden sm:table-cell">
                   {product.availability.status === "available" && (
-                    <span className="text-sm text-green-600 dark:text-green-500 font-medium">
+                    <span className="text-sm text-status-ok font-medium">
                       In Stock
                     </span>
                   )}
                   {product.availability.status === "low" && (
                     <Badge
                       variant="outline"
-                      className="bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 border-yellow-300 dark:border-yellow-500/30"
+                      className="bg-status-warning/10 text-status-warning border-status-warning/30"
                     >
                       Can make {product.availability.maxProducible}
                     </Badge>
@@ -119,7 +119,7 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
                     <div className="flex flex-col items-end gap-0.5">
                       <Badge
                         variant="outline"
-                        className="bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-500 border-orange-300 dark:border-orange-500/30"
+                        className="bg-status-warning/15 text-status-warning border-status-warning/30"
                       >
                         Only {product.availability.maxProducible} left
                       </Badge>

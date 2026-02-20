@@ -276,7 +276,7 @@ export function RecipeEditor({
               <p
                 className={cn(
                   "text-lg font-semibold",
-                  marginBelowTarget && "text-orange-600"
+                  marginBelowTarget && "text-status-warning"
                 )}
               >
                 {costs.trueMarginPercent.toFixed(1)}%

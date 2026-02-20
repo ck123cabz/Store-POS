@@ -597,7 +597,7 @@ export default function IngredientsPage() {
 
             {/* Usage/Conversion Section - only show if units differ */}
             {showConversionSection && (
-              <div className="space-y-3 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
+              <div className="space-y-3 p-4 bg-status-info/10 rounded-lg border border-status-info/30">
                 <h3 className="font-medium text-sm">Usage (Conversion)</h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
@@ -639,7 +639,7 @@ export default function IngredientsPage() {
                       Cost per {baseUnit}
                       <Info className="h-3 w-3 text-muted-foreground" />
                     </Label>
-                    <div className="h-9 px-3 flex items-center bg-green-50 border border-green-200 rounded-md text-green-700 font-medium">
+                    <div className="h-9 px-3 flex items-center bg-status-ok/10 border border-status-ok/30 rounded-md text-status-ok font-medium">
                       {formatCurrency(calculatedCostPerBaseUnit)}
                     </div>
                   </div>
@@ -659,7 +659,7 @@ export default function IngredientsPage() {
             )}
 
             {/* Cooking Yield Section */}
-            <div className="space-y-3 p-4 bg-amber-50/50 rounded-lg border border-amber-100">
+            <div className="space-y-3 p-4 bg-status-warning/10 rounded-lg border border-status-warning/30">
               <div className="flex items-center justify-between">
                 <Label className="font-medium">Cooking Yield (Optional)</Label>
 <TooltipProvider delayDuration={0}>
@@ -701,7 +701,7 @@ export default function IngredientsPage() {
 
             {/* Recipe Units Section - Only show when editing existing ingredient */}
             {editIngredient && (
-              <div className="space-y-3 p-4 bg-purple-50/50 rounded-lg border border-purple-100">
+              <div className="space-y-3 p-4 bg-accent rounded-lg border border-border">
                 <div className="flex items-center justify-between">
                   <Label className="font-medium">Recipe Units</Label>
                   <TooltipProvider delayDuration={0}>
@@ -727,7 +727,7 @@ export default function IngredientsPage() {
                     {unitAliases.map((alias) => (
                       <div
                         key={alias.id}
-                        className="flex items-center justify-between p-2 bg-white rounded border"
+                        className="flex items-center justify-between p-2 bg-card rounded border"
                       >
                         <div>
                           <span className="font-medium">{alias.name}</span>

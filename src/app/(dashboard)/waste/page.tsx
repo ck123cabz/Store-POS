@@ -395,7 +395,7 @@ export default function WastePage() {
 
               <div className="space-y-2">
                 <Label>Est. Cost</Label>
-                <p className="text-lg font-semibold text-red-600 pt-2">
+                <p className="text-lg font-semibold text-status-critical pt-2">
                   ₱{estimatedCost.toFixed(2)}
                 </p>
               </div>

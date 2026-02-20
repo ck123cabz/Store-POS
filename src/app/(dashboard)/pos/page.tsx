@@ -561,7 +561,7 @@ export default function POSPage() {
               <ShoppingBag className="h-5 w-5" />
               <span>Cart</span>
               {cartItemCount > 0 && (
-                <Badge variant="secondary" className="bg-white text-primary ml-1 px-1.5 py-0 text-xs">
+                <Badge variant="secondary" className="bg-primary-foreground text-primary ml-1 px-1.5 py-0 text-xs">
                   {cartItemCount}
                 </Badge>
               )}

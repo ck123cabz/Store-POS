@@ -30,8 +30,8 @@ export function CountItemRow({
     <div
       className={cn(
         "flex items-center justify-between p-3 rounded-lg border",
-        isConfirmed && !hasDiscrepancy && "bg-green-50 border-green-200",
-        isConfirmed && hasDiscrepancy && "bg-amber-50 border-amber-200",
+        isConfirmed && !hasDiscrepancy && "bg-status-ok/10 border-status-ok/30",
+        isConfirmed && hasDiscrepancy && "bg-status-warning/10 border-status-warning/30",
         !isConfirmed && "bg-background"
       )}
     >
@@ -40,13 +40,13 @@ export function CountItemRow({
         <div className="flex items-center gap-2">
           <span className="font-medium truncate">{item.name}</span>
           {isConfirmed && !hasDiscrepancy && (
-            <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+            <Badge variant="outline" className="bg-status-ok/15 text-status-ok border-status-ok/30">
               <Check className="h-3 w-3 mr-1" />
               Matched
             </Badge>
           )}
           {isConfirmed && hasDiscrepancy && reasonInfo && (
-            <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
+            <Badge variant="outline" className="bg-status-warning/15 text-status-warning border-status-warning/30">
               <span className="mr-1">{reasonInfo.icon}</span>
               {entry.actual} {item.unit}
             </Badge>
@@ -70,7 +70,7 @@ export function CountItemRow({
               onClick={() => onQuickConfirm(item.ingredientId)}
               title="Confirm count matches"
             >
-              <Check className="h-4 w-4 text-green-600" />
+              <Check className="h-4 w-4 text-status-ok" />
             </Button>
             {/* Discrepancy button */}
             <Button
@@ -80,7 +80,7 @@ export function CountItemRow({
               onClick={() => onOpenDiscrepancy(item)}
               title="Report discrepancy"
             >
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTriangle className="h-4 w-4 text-status-warning" />
             </Button>
           </>
         ) : (

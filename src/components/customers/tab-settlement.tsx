@@ -149,8 +149,8 @@ export function TabSettlement({
       <Card>
         <CardContent className="pt-6">
           <div className="text-center py-4">
-            <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-3" />
-            <p className="text-lg font-medium text-green-700">No Outstanding Balance</p>
+            <CheckCircle2 className="h-12 w-12 text-status-ok mx-auto mb-3" />
+            <p className="text-lg font-medium text-status-ok">No Outstanding Balance</p>
             <p className="text-sm text-muted-foreground mt-1">
               This customer has a zero balance.
             </p>
@@ -166,9 +166,9 @@ export function TabSettlement({
       <Card>
         <CardContent className="pt-6">
           <div className="text-center py-6 space-y-4">
-            <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
+            <CheckCircle2 className="h-16 w-16 text-status-ok mx-auto" />
             <div>
-              <p className="text-xl font-bold text-green-700">Payment Successful!</p>
+              <p className="text-xl font-bold text-status-ok">Payment Successful!</p>
               <p className="text-3xl font-bold mt-2">
                 {currencySymbol}{lastSettlement.amount.toFixed(2)}
               </p>
@@ -195,9 +195,9 @@ export function TabSettlement({
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Current Balance Display */}
-        <div className="bg-amber-50 rounded-xl p-4 text-center">
-          <p className="text-sm text-amber-700 mb-1">Current Balance</p>
-          <p className="text-3xl font-bold text-amber-900">
+        <div className="bg-status-warning/10 rounded-xl p-4 text-center">
+          <p className="text-sm text-status-warning mb-1">Current Balance</p>
+          <p className="text-3xl font-bold text-foreground">
             {currencySymbol}{currentBalance.toFixed(2)}
           </p>
         </div>
@@ -292,10 +292,10 @@ export function TabSettlement({
 
         {/* Preview New Balance */}
         {parsedAmount > 0 && parsedAmount <= currentBalance && (
-          <div className="bg-green-50 rounded-xl p-4">
+          <div className="bg-status-ok/10 rounded-xl p-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-green-700">New Balance After Payment</span>
-              <span className="text-lg font-bold text-green-800">
+              <span className="text-sm text-status-ok">New Balance After Payment</span>
+              <span className="text-lg font-bold text-status-ok">
                 {currencySymbol}{(currentBalance - parsedAmount).toFixed(2)}
               </span>
             </div>

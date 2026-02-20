@@ -41,9 +41,9 @@ type ShiftSection = "opening" | "service" | "closing"
 
 // T055: Section configuration with colors
 const SECTION_CONFIG: Record<ShiftSection, { label: string; bgColor: string; textColor: string }> = {
-  opening: { label: "Opening", bgColor: "bg-amber-50", textColor: "text-amber-800" },
-  service: { label: "Service", bgColor: "bg-blue-50", textColor: "text-blue-800" },
-  closing: { label: "Closing", bgColor: "bg-purple-50", textColor: "text-purple-800" },
+  opening: { label: "Opening", bgColor: "bg-status-warning/10", textColor: "text-status-warning" },
+  service: { label: "Service", bgColor: "bg-status-info/10", textColor: "text-status-info" },
+  closing: { label: "Closing", bgColor: "bg-accent", textColor: "text-accent-foreground" },
 }
 
 // T055: Determine section based on deadline time
@@ -297,7 +297,7 @@ export default function EmployeeDashboard() {
             </div>
             <div className="mt-2 h-2 bg-accent rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all"
+                className="h-full bg-status-ok transition-all"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -308,7 +308,7 @@ export default function EmployeeDashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-              <Flame className="h-4 w-4 text-orange-500" /> Current Streak
+              <Flame className="h-4 w-4 text-status-warning" /> Current Streak
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -345,7 +345,7 @@ export default function EmployeeDashboard() {
                       key={milestone}
                       className={cn(
                         "absolute top-0 w-0.5 h-full",
-                        achieved ? "bg-orange-600" : "bg-muted-foreground/30"
+                        achieved ? "bg-status-warning" : "bg-muted-foreground/30"
                       )}
                       style={{ left: `${position}%` }}
                       title={`${milestone} days`}
@@ -354,7 +354,7 @@ export default function EmployeeDashboard() {
                 })}
                 {/* Progress fill */}
                 <div
-                  className="h-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all"
+                  className="h-full bg-status-warning transition-all"
                   style={{
                     width: `${Math.min((data.streak.currentStreak / STREAK_MILESTONES[STREAK_MILESTONES.length - 1]) * 100, 100)}%`
                   }}
@@ -364,7 +364,7 @@ export default function EmployeeDashboard() {
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
                 {[7, 30, 90].map((milestone) => (
                   <span key={milestone} className={cn(
-                    data.streak.currentStreak >= milestone && "text-orange-600 font-medium"
+                    data.streak.currentStreak >= milestone && "text-status-warning font-medium"
                   )}>
                     {milestone}d
                   </span>
@@ -378,7 +378,7 @@ export default function EmployeeDashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-              <Trophy className="h-4 w-4 text-yellow-500" /> Milestones
+              <Trophy className="h-4 w-4 text-status-warning" /> Milestones
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -497,7 +497,7 @@ function TimelineView({
                   </h3>
                   {/* T064: All section tasks done checkmark (EC-16) */}
                   {allComplete && (
-                    <div className="flex items-center gap-1 text-green-600">
+                    <div className="flex items-center gap-1 text-status-ok">
                       <Check className="h-4 w-4" />
                       <span className="text-sm font-medium">Complete</span>
                     </div>
@@ -580,9 +580,9 @@ function TaskCard({
       className={cn(
         "relative flex items-center gap-4 p-3 rounded-lg border transition-colors",
         // T057: Color-code by status
-        task.status === "completed" && "bg-green-50 border-green-200",
-        task.status === "overdue" && !isCompletedLate && "bg-red-50 border-red-200",
-        task.status === "in_progress" && "bg-blue-50 border-blue-200",
+        task.status === "completed" && "bg-status-ok/10 border-status-ok/30",
+        task.status === "overdue" && !isCompletedLate && "bg-status-critical/10 border-status-critical/30",
+        task.status === "in_progress" && "bg-status-info/10 border-status-info/30",
         task.status === "pending" && "bg-background border-border"
       )}
     >
@@ -592,11 +592,11 @@ function TaskCard({
       {/* Status Icon */}
       <div className="flex-shrink-0">
         {task.status === "completed" ? (
-          <CheckCircle2 className={cn("h-6 w-6", isCompletedLate ? "text-amber-600" : "text-green-600")} />
+          <CheckCircle2 className={cn("h-6 w-6", isCompletedLate ? "text-status-warning" : "text-status-ok")} />
         ) : task.status === "overdue" ? (
-          <AlertTriangle className="h-6 w-6 text-red-600" />
+          <AlertTriangle className="h-6 w-6 text-status-critical" />
         ) : task.status === "in_progress" ? (
-          <Clock className="h-6 w-6 text-blue-600" />
+          <Clock className="h-6 w-6 text-status-info" />
         ) : (
           <Circle className="h-6 w-6 text-muted-foreground" />
         )}
@@ -617,7 +617,7 @@ function TaskCard({
             <Badge variant="outline" className="text-xs">Required</Badge>
           )}
           {task.streakBreaking && (
-            <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+            <Badge variant="outline" className="text-xs text-status-warning border-status-warning/30">
               🔥 Streak
             </Badge>
           )}
@@ -629,7 +629,7 @@ function TaskCard({
           )}
           {/* T063: "completed late" label (EC-15) */}
           {isCompletedLate && (
-            <span className="text-amber-600"> · completed late</span>
+            <span className="text-status-warning"> · completed late</span>
           )}
         </div>
       </div>
@@ -667,7 +667,7 @@ function TaskCard({
         )}
         {task.status === "completed" && (
           <Badge variant="secondary" className={cn(
-            isCompletedLate ? "text-amber-700" : "text-green-700"
+            isCompletedLate ? "text-status-warning" : "text-status-ok"
           )}>
             {task.wasOnTime ? "On Time ✓" : "Late"}
           </Badge>
@@ -688,9 +688,9 @@ function AndonView({ tasks }: { tasks: Task[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
       {/* Completed */}
-      <Card className="border-green-200">
-        <CardHeader className="bg-green-50 rounded-t-lg">
-          <CardTitle className="text-green-700 flex items-center gap-2">
+      <Card className="border-status-ok/30">
+        <CardHeader className="bg-status-ok/10 rounded-t-lg">
+          <CardTitle className="text-status-ok flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5" />
             Completed ({grouped.completed.length})
           </CardTitle>
@@ -703,9 +703,9 @@ function AndonView({ tasks }: { tasks: Task[] }) {
       </Card>
 
       {/* In Progress */}
-      <Card className="border-blue-200">
-        <CardHeader className="bg-blue-50 rounded-t-lg">
-          <CardTitle className="text-blue-700 flex items-center gap-2">
+      <Card className="border-status-info/30">
+        <CardHeader className="bg-status-info/10 rounded-t-lg">
+          <CardTitle className="text-status-info flex items-center gap-2">
             <Clock className="h-5 w-5" />
             In Progress ({grouped.inProgress.length})
           </CardTitle>
@@ -733,9 +733,9 @@ function AndonView({ tasks }: { tasks: Task[] }) {
       </Card>
 
       {/* Overdue */}
-      <Card className="border-red-200">
-        <CardHeader className="bg-red-50 rounded-t-lg">
-          <CardTitle className="text-red-700 flex items-center gap-2">
+      <Card className="border-status-critical/30">
+        <CardHeader className="bg-status-critical/10 rounded-t-lg">
+          <CardTitle className="text-status-critical flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
             Overdue ({grouped.overdue.length})
           </CardTitle>
@@ -752,7 +752,7 @@ function AndonView({ tasks }: { tasks: Task[] }) {
 
 function AndonCard({ task }: { task: Task }) {
   return (
-    <div className="p-2 bg-white border rounded-md">
+    <div className="p-2 bg-card border rounded-md">
       <div className="flex items-center gap-2">
         <span className="text-lg">{task.icon}</span>
         <span className="font-medium text-sm truncate">{task.name}</span>

@@ -49,10 +49,10 @@ interface AuditData {
 }
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
-  manual_edit: { label: "Manual Edit", color: "bg-blue-100 text-blue-800" },
-  sale: { label: "Sale", color: "bg-green-100 text-green-800" },
-  inventory_count: { label: "Inventory Count", color: "bg-purple-100 text-purple-800" },
-  restock: { label: "Restock", color: "bg-orange-100 text-orange-800" },
+  manual_edit: { label: "Manual Edit", color: "bg-status-info/15 text-status-info" },
+  sale: { label: "Sale", color: "bg-status-ok/15 text-status-ok" },
+  inventory_count: { label: "Inventory Count", color: "bg-accent text-accent-foreground" },
+  restock: { label: "Restock", color: "bg-status-warning/15 text-status-warning" },
   import: { label: "Import", color: "bg-muted text-foreground" },
 }
 

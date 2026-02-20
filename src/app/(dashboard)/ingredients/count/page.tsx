@@ -300,7 +300,7 @@ export default function InventoryCountPage() {
           <p className="text-muted-foreground">
             {countedItems} of {totalItems} items counted
             {discrepancyCount > 0 && (
-              <span className="text-amber-600 ml-2">
+              <span className="text-status-warning ml-2">
                 ({discrepancyCount} discrepancies)
               </span>
             )}
@@ -444,7 +444,7 @@ export default function InventoryCountPage() {
               This will update {discrepancyCount} ingredient quantities based on
               your count. All changes will be logged to history.
               {countedItems < totalItems && (
-                <span className="block mt-2 text-amber-600">
+                <span className="block mt-2 text-status-warning">
                   Note: {totalItems - countedItems} items were not counted.
                 </span>
               )}

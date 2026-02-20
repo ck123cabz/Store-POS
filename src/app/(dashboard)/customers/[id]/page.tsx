@@ -599,11 +599,11 @@ export default function CustomerProfilePage() {
                   "rounded-xl p-4 text-center",
                   customer.tabBalance > 0
                     ? isOverCreditLimit
-                      ? "bg-red-50"
+                      ? "bg-status-critical/10"
                       : isNearCreditLimit
-                      ? "bg-amber-50"
-                      : "bg-blue-50"
-                    : "bg-green-50"
+                      ? "bg-status-warning/10"
+                      : "bg-status-info/10"
+                    : "bg-status-ok/10"
                 )}
               >
                 <p className="text-sm text-muted-foreground mb-1">Current Balance</p>
@@ -612,11 +612,11 @@ export default function CustomerProfilePage() {
                     "text-4xl font-bold",
                     customer.tabBalance > 0
                       ? isOverCreditLimit
-                        ? "text-red-600"
+                        ? "text-status-critical"
                         : isNearCreditLimit
-                        ? "text-amber-600"
-                        : "text-blue-600"
-                      : "text-green-600"
+                        ? "text-status-warning"
+                        : "text-status-info"
+                      : "text-status-ok"
                   )}
                 >
                   ₱{Number(customer.tabBalance).toFixed(2)}
@@ -632,9 +632,9 @@ export default function CustomerProfilePage() {
                       className={cn(
                         "font-medium",
                         isOverCreditLimit
-                          ? "text-red-600"
+                          ? "text-status-critical"
                           : isNearCreditLimit
-                          ? "text-amber-600"
+                          ? "text-status-warning"
                           : ""
                       )}
                     >
@@ -646,9 +646,9 @@ export default function CustomerProfilePage() {
                     className={cn(
                       "h-2",
                       isOverCreditLimit
-                        ? "[&>div]:bg-red-500"
+                        ? "[&>div]:bg-status-critical"
                         : isNearCreditLimit
-                        ? "[&>div]:bg-amber-500"
+                        ? "[&>div]:bg-status-warning"
                         : ""
                     )}
                   />
@@ -702,8 +702,8 @@ export default function CustomerProfilePage() {
                           className={cn(
                             "p-2 rounded-full",
                             settlement.paymentType === "Cash"
-                              ? "bg-green-100"
-                              : "bg-blue-100"
+                              ? "bg-status-ok/15"
+                              : "bg-status-info/15"
                           )}
                         >
                           {settlement.paymentType === "Cash" ? (
@@ -711,12 +711,12 @@ export default function CustomerProfilePage() {
                               className={cn(
                                 "h-4 w-4",
                                 settlement.paymentType === "Cash"
-                                  ? "text-green-600"
-                                  : "text-blue-600"
+                                  ? "text-status-ok"
+                                  : "text-status-info"
                               )}
                             />
                           ) : (
-                            <Smartphone className="h-4 w-4 text-blue-600" />
+                            <Smartphone className="h-4 w-4 text-status-info" />
                           )}
                         </div>
                         <div>

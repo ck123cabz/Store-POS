@@ -396,7 +396,7 @@ export default function TransactionsPage() {
             <div className="flex items-center gap-1.5">
               <span>{payment.label}</span>
               {payment.status === "pending" && (
-                <Badge variant="outline" className="text-amber-600 border-amber-300 text-[10px] px-1 py-0">
+                <Badge variant="outline" className="text-status-warning border-status-warning/30 text-[10px] px-1 py-0">
                   Pending
                 </Badge>
               )}
@@ -607,7 +607,7 @@ export default function TransactionsPage() {
                 <div className="flex items-center gap-2">
                   <span>{viewTransaction.paymentType || "-"}</span>
                   {viewTransaction.paymentStatus === "pending" && (
-                    <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                    <Badge variant="outline" className="text-status-warning border-status-warning/30 text-xs">
                       Pending
                     </Badge>
                   )}
@@ -667,7 +667,7 @@ export default function TransactionsPage() {
                 </div>
                 {viewTransaction.discount &&
                   parseFloat(viewTransaction.discount) > 0 && (
-                    <div className="flex justify-between text-red-600">
+                    <div className="flex justify-between text-status-critical">
                       <span>Discount</span>
                       <span>-{fmtCurrency(viewTransaction.discount)}</span>
                     </div>
