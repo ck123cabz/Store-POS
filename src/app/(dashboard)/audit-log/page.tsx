@@ -255,11 +255,18 @@ export default function AuditLogPage() {
         rowKey={(log) => log.id}
         loading={loading}
         emptyIcon={<FileText className="h-10 w-10" />}
-        emptyTitle="No activity recorded yet"
+        emptyTitle={hasFilters ? "No entries match your filters" : "No activity recorded yet"}
         emptyDescription={
           hasFilters
-            ? "No entries match your filters."
+            ? undefined
             : "Inventory changes will be logged here automatically."
+        }
+        emptyAction={
+          hasFilters ? (
+            <Button size="sm" variant="outline" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          ) : undefined
         }
         pageSize={9999}
       />

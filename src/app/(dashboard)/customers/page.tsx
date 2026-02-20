@@ -282,7 +282,7 @@ export default function CustomersPage() {
         onRowClick={(c) => router.push(`/customers/${c.id}`)}
         loading={loading}
         emptyIcon={<Users className="h-10 w-10" />}
-        emptyTitle="No customers yet"
+        emptyTitle="No regular customers yet"
         emptyDescription="They'll appear here after their first visit."
       />
 

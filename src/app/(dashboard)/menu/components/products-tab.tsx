@@ -16,7 +16,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { StatusDot } from "@/components/ui/status-dot"
 import { formatCurrency } from "@/lib/ingredient-utils"
 import { cn } from "@/lib/utils"
-import { Search, UtensilsCrossed, Plus, AlertTriangle } from "lucide-react"
+import { Search, UtensilsCrossed, Plus, AlertTriangle, SearchX } from "lucide-react"
 
 interface IngredientShortage {
   id: number
@@ -102,6 +102,17 @@ export function ProductsTab({
   const handleCategoryChange = (value: string) => {
     setCategoryFilter(value)
     // Clear external filter when user manually changes category
+    if (onClearExternalFilter && externalCategoryFilter !== null && externalCategoryFilter !== undefined) {
+      onClearExternalFilter()
+    }
+  }
+
+  const hasFilters = search !== "" || effectiveCategoryFilter !== "all" || statusFilter !== "all"
+
+  const clearFilters = () => {
+    setSearch("")
+    setCategoryFilter("all")
+    setStatusFilter("all")
     if (onClearExternalFilter && externalCategoryFilter !== null && externalCategoryFilter !== undefined) {
       onClearExternalFilter()
     }
@@ -270,11 +281,15 @@ export function ProductsTab({
         rowClassName={(p) =>
           p.id === selectedProductId ? "bg-muted" : undefined
         }
-        emptyIcon={<UtensilsCrossed className="size-10" />}
-        emptyTitle="Your menu is a blank canvas"
-        emptyDescription="Add your first product to get started."
+        emptyIcon={hasFilters ? <SearchX className="size-10" /> : <UtensilsCrossed className="size-10" />}
+        emptyTitle={hasFilters ? "No products match your filters" : "Your menu is a blank canvas"}
+        emptyDescription={hasFilters ? undefined : "Add your first product to get started."}
         emptyAction={
-          onAddProduct ? (
+          hasFilters ? (
+            <Button size="sm" variant="outline" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          ) : onAddProduct ? (
             <Button size="sm" onClick={onAddProduct}>
               <Plus className="h-4 w-4 mr-2" /> Add Product
             </Button>
