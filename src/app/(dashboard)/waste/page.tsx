@@ -360,7 +360,7 @@ export default function WastePage() {
             <div className="space-y-2">
               <Label>Ingredient *</Label>
               <Select value={ingredientId} onValueChange={setIngredientId}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Ingredient">
                   <SelectValue placeholder="Select ingredient" />
                 </SelectTrigger>
                 <SelectContent>
@@ -404,7 +404,7 @@ export default function WastePage() {
             <div className="space-y-2">
               <Label>Reason *</Label>
               <Select value={reason} onValueChange={setReason}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Waste reason">
                   <SelectValue placeholder="Select reason" />
                 </SelectTrigger>
                 <SelectContent>

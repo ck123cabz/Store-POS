@@ -335,7 +335,7 @@ export default function WeeklyScorecardPage() {
                     value={data.weekFocus || ""}
                     onValueChange={(v) => updateField("weekFocus", v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="This week's focus lever">
                       <SelectValue placeholder="Which lever?" />
                     </SelectTrigger>
                     <SelectContent>
@@ -383,7 +383,7 @@ export default function WeeklyScorecardPage() {
                   value={data.overallHealth || ""}
                   onValueChange={(v) => updateField("overallHealth", v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Overall health">
                     <SelectValue placeholder="How did this week feel?" />
                   </SelectTrigger>
                   <SelectContent>

@@ -236,6 +236,7 @@ export function ProductsTab({
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            aria-label="Search products"
             placeholder="Search products..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -244,7 +245,7 @@ export function ProductsTab({
         </div>
 
         <Select value={effectiveCategoryFilter} onValueChange={handleCategoryChange}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-40" aria-label="Filter by category">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>
@@ -258,7 +259,7 @@ export function ProductsTab({
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-40" aria-label="Filter by status">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>

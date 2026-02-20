@@ -522,7 +522,7 @@ export default function IngredientsPage() {
                 <div className="space-y-2">
                   <Label>Category *</Label>
                   <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Category">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -538,7 +538,7 @@ export default function IngredientsPage() {
                 <div className="space-y-2">
                   <Label>Vendor</Label>
                   <Select value={vendorId || "__none__"} onValueChange={(v) => setVendorId(v === "__none__" ? "" : v)}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Vendor">
                       <SelectValue placeholder="Optional" />
                     </SelectTrigger>
                     <SelectContent>
@@ -567,7 +567,7 @@ export default function IngredientsPage() {
                       setPackageSize("1")
                     }
                   }}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Purchase unit">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -601,8 +601,9 @@ export default function IngredientsPage() {
                 <h3 className="font-medium text-sm">Usage (Conversion)</h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
-                    <Label>Each {packageUnit} has</Label>
+                    <Label htmlFor="packageSize">Each {packageUnit} has</Label>
                     <Input
+                      id="packageSize"
                       type="number"
                       step="0.01"
                       min="0.01"
@@ -621,7 +622,7 @@ export default function IngredientsPage() {
                         setPackageSize("1")
                       }
                     }}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Unit for recipes">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

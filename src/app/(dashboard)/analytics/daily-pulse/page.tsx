@@ -248,7 +248,7 @@ export default function DailyPulsePage() {
                   value={data.weather || ""}
                   onValueChange={(v) => updateField("weather", v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Weather">
                     <SelectValue placeholder="Select weather" />
                   </SelectTrigger>
                   <SelectContent>
@@ -264,7 +264,7 @@ export default function DailyPulsePage() {
                   value={data.courtStatus || ""}
                   onValueChange={(v) => updateField("courtStatus", v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Court status">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -316,7 +316,7 @@ export default function DailyPulsePage() {
                   value={data.vibe || ""}
                   onValueChange={(v) => updateField("vibe", v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="How did today feel?">
                     <SelectValue placeholder="Select vibe" />
                   </SelectTrigger>
                   <SelectContent>

@@ -135,7 +135,7 @@ export function POSAlertBell({ currencySymbol, onSetPrice }: POSAlertBellProps) 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative">
+        <Button variant="ghost" size="sm" className="relative" aria-label={`${data.totalAlerts} inventory alerts`}>
           <Bell className={`h-5 w-5 ${hasCritical ? "text-status-critical" : "text-status-warning"}`} />
           <Badge
             variant={hasCritical ? "destructive" : "secondary"}

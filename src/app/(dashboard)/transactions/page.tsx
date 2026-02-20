@@ -473,7 +473,7 @@ export default function TransactionsPage() {
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Filter by status">
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
                     <SelectContent>
@@ -487,7 +487,7 @@ export default function TransactionsPage() {
                 <div className="space-y-2">
                   <Label>Cashier</Label>
                   <Select value={userId} onValueChange={setUserId}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Filter by cashier">
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
                     <SelectContent>
@@ -502,8 +502,9 @@ export default function TransactionsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>From Date</Label>
+                  <Label htmlFor="filter-date-from">From Date</Label>
                   <Input
+                    id="filter-date-from"
                     type="date"
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
@@ -511,8 +512,9 @@ export default function TransactionsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>To Date</Label>
+                  <Label htmlFor="filter-date-to">To Date</Label>
                   <Input
+                    id="filter-date-to"
                     type="date"
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
@@ -520,8 +522,9 @@ export default function TransactionsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Till</Label>
+                  <Label htmlFor="filter-till">Till</Label>
                   <Input
+                    id="filter-till"
                     type="number"
                     placeholder="All"
                     value={till}
@@ -761,7 +764,7 @@ export default function TransactionsPage() {
                   setVoidError(null)
                 }}
               >
-                <SelectTrigger data-testid="void-reason-select">
+                <SelectTrigger data-testid="void-reason-select" aria-label="Reason for voiding">
                   <SelectValue placeholder="Select a reason" />
                 </SelectTrigger>
                 <SelectContent>

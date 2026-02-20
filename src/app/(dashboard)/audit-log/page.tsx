@@ -202,7 +202,7 @@ export default function AuditLogPage() {
         <div className="space-y-2">
           <Label>User</Label>
           <Select value={userId} onValueChange={(val) => { setUserId(val); setPage(1) }}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px]" aria-label="Filter by user">
               <SelectValue placeholder="All Users" />
             </SelectTrigger>
             <SelectContent>
@@ -217,8 +217,9 @@ export default function AuditLogPage() {
         </div>
 
         <div className="space-y-2">
-          <Label>From Date</Label>
+          <Label htmlFor="audit-date-from">From Date</Label>
           <Input
+            id="audit-date-from"
             type="date"
             value={dateFrom}
             onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
@@ -226,8 +227,9 @@ export default function AuditLogPage() {
         </div>
 
         <div className="space-y-2">
-          <Label>To Date</Label>
+          <Label htmlFor="audit-date-to">To Date</Label>
           <Input
+            id="audit-date-to"
             type="date"
             value={dateTo}
             onChange={(e) => { setDateTo(e.target.value); setPage(1) }}

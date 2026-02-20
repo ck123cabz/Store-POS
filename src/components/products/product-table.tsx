@@ -147,14 +147,14 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
                       size="icon"
                       variant="ghost"
                       onClick={() => window.location.href = `/recipes/${product.id}`}
-                      title="Edit Recipe"
+                      aria-label={`Edit recipe for ${product.name}`}
                     >
                       <ChefHat className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => onEdit(product)}>
+                    <Button size="icon" variant="ghost" onClick={() => onEdit(product)} aria-label={`Edit ${product.name}`}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(product.id)}>
+                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(product.id)} aria-label={`Delete ${product.name}`}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

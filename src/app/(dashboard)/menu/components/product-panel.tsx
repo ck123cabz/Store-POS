@@ -479,7 +479,7 @@ export function ProductPanel({
                     setFormData((prev) => ({ ...prev, categoryId: parseInt(v) }))
                   }
                 >
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger className="h-10" aria-label="Category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -691,7 +691,7 @@ export function ProductPanel({
                     Add Ingredient
                   </Label>
                   <Select onValueChange={handleAddIngredient} value="">
-                    <SelectTrigger className="w-full h-10">
+                    <SelectTrigger className="w-full h-10" aria-label="Add ingredient">
                       <SelectValue placeholder="Select ingredient to add..." />
                     </SelectTrigger>
                     <SelectContent>

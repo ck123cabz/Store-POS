@@ -130,7 +130,7 @@ export function Cart({
               value={cart.customerId?.toString() || "0"}
               onValueChange={handleCustomerChange}
             >
-              <SelectTrigger className="h-8 text-sm">
+              <SelectTrigger className="h-8 text-sm" aria-label="Select customer">
                 <SelectValue placeholder="Walk in customer" />
               </SelectTrigger>
               <SelectContent>

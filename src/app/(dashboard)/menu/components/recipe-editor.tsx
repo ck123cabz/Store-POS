@@ -375,7 +375,7 @@ export function RecipeEditor({
                 Add Ingredient
               </Label>
               <Select onValueChange={handleAddIngredient} value="">
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full" aria-label="Add ingredient">
                   <SelectValue placeholder="Select ingredient to add..." />
                 </SelectTrigger>
                 <SelectContent>

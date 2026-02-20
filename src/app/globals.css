@@ -226,10 +226,34 @@
   display: none; /* Chrome/Safari/Opera */
 }
 
-/* Touch target minimum size enforcement for mobile */
+/* Suppress all animations when user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Touch target minimum size enforcement for coarse-pointer devices */
 @media (pointer: coarse) {
   .touch-target {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  /* Ensure standalone buttons and links meet 44px minimum */
+  [data-slot="button"],
+  [data-slot="pagination-link"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Filter pills need taller targets on touch */
+  [data-slot="filter-pills"] button {
+    min-height: 44px;
   }
 }
