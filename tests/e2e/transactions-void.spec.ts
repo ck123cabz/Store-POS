@@ -60,6 +60,18 @@ async function createTestTransaction(page: import('@playwright/test').Page) {
   }
 }
 
+/**
+ * Helper: Click the first data row in the transactions DataTable.
+ * The DataTable renders <tr> elements via TableRow with onRowClick handlers.
+ * We select rows inside <tbody> to skip the header row.
+ */
+async function clickFirstTransactionRow(page: import('@playwright/test').Page) {
+  // Wait for at least one data row to appear in the table body
+  const dataRow = page.locator('table tbody tr').first()
+  await expect(dataRow).toBeVisible({ timeout: 10000 })
+  await dataRow.click()
+}
+
 test.describe('Void Transaction Workflow', () => {
   // Run serially to avoid order_number race conditions
   test.describe.configure({ mode: 'serial' })
@@ -73,113 +85,119 @@ test.describe('Void Transaction Workflow', () => {
     await page.goto('/transactions')
     await page.waitForLoadState('networkidle')
 
-    // Find and click the first transaction row to view details
-    const viewButton = page.locator('[data-testid^="view-transaction-"]').first()
-    if (await viewButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await viewButton.click()
+    // Click the first transaction row to open the detail dialog
+    await clickFirstTransactionRow(page)
 
-      // Wait for dialog
-      const dialog = page.locator('[role="dialog"]')
-      await expect(dialog).toBeVisible()
+    // Wait for dialog to open
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
 
-      // Click void button if visible
-      const voidButton = dialog.locator('[data-testid="void-button"]')
-      if (await voidButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await voidButton.click()
+    // Click the Void Transaction button
+    const voidButton = dialog.locator('[data-testid="void-button"]')
+    await expect(voidButton).toBeVisible()
+    await voidButton.click()
 
-        // Select reason if a reason select is shown
-        const reasonSelect = page.locator('[data-testid="void-reason-select"]')
-        if (await reasonSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await reasonSelect.click()
-          const reasonOption = page.locator('[data-testid^="void-reason-"]').first()
-          if (await reasonOption.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await reasonOption.click()
-          }
-        }
+    // The void confirmation modal opens (a second dialog)
+    // Select a reason from the dropdown
+    const reasonSelect = page.locator('[data-testid="void-reason-select"]')
+    await expect(reasonSelect).toBeVisible()
+    await reasonSelect.click()
 
-        // Confirm void
-        const confirmButton = page.locator('[data-testid="confirm-void-button"]')
-        if (await confirmButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await confirmButton.click()
-          await expect(dialog.getByText(/Voided/i)).toBeVisible({ timeout: 5000 })
-        }
-      }
-    }
+    // Pick the first reason option
+    const reasonOption = page.getByRole('option').first()
+    await expect(reasonOption).toBeVisible()
+    await reasonOption.click()
+
+    // Confirm the void
+    const confirmButton = page.locator('[data-testid="confirm-void-button"]')
+    await expect(confirmButton).toBeVisible()
+    await confirmButton.click()
+
+    // The detail dialog should now show the "Transaction Voided" alert
+    await expect(dialog.getByText(/Transaction Voided/i)).toBeVisible({ timeout: 5000 })
   })
 
   test('shows voided badge and strikethrough for voided transactions', async ({ page }) => {
     await page.goto('/transactions')
     await page.waitForLoadState('networkidle')
 
-    const viewButton = page.locator('[data-testid^="view-transaction-"]').first()
-    if (await viewButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await viewButton.click()
+    // Click the first transaction row
+    await clickFirstTransactionRow(page)
 
-      const dialog = page.locator('[role="dialog"]')
-      await expect(dialog).toBeVisible()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
 
-      const voidButton = dialog.locator('[data-testid="void-button"]')
-      if (await voidButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await voidButton.click()
+    // Void the transaction
+    const voidButton = dialog.locator('[data-testid="void-button"]')
+    await expect(voidButton).toBeVisible()
+    await voidButton.click()
 
-        const reasonSelect = page.locator('[data-testid="void-reason-select"]')
-        if (await reasonSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await reasonSelect.click()
-          await page.locator('[data-testid^="void-reason-"]').first().click()
-        }
-        const confirmButton = page.locator('[data-testid="confirm-void-button"]')
-        if (await confirmButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await confirmButton.click()
-          await page.waitForTimeout(1000)
-        }
-      }
+    const reasonSelect = page.locator('[data-testid="void-reason-select"]')
+    await expect(reasonSelect).toBeVisible()
+    await reasonSelect.click()
+    await page.getByRole('option').first().click()
 
-      await page.keyboard.press('Escape')
-    }
+    const confirmButton = page.locator('[data-testid="confirm-void-button"]')
+    await expect(confirmButton).toBeVisible()
+    await confirmButton.click()
 
-    // Reload and check for voided styling
+    // Wait for the void to complete
+    await expect(dialog.getByText(/Transaction Voided/i)).toBeVisible({ timeout: 5000 })
+
+    // Close the dialog
+    await page.keyboard.press('Escape')
+
+    // Reload and check for voided styling on the transactions page
     await page.goto('/transactions')
     await page.waitForLoadState('networkidle')
 
-    const voidedBadge = page.getByText(/Voided/i).first()
-    if (await voidedBadge.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(voidedBadge).toBeVisible()
-    }
+    // Enable "Include voided transactions" filter since voided txs may be hidden by default
+    // Open the advanced filters collapsible
+    const advancedFilters = page.getByRole('button', { name: /Advanced Filters/i })
+    await advancedFilters.click()
+
+    const includeVoided = page.getByLabel(/Include voided transactions/i)
+    await includeVoided.click()
+
+    // Click Search to apply the filter
+    await page.getByRole('button', { name: /Search/i }).click()
+    await page.waitForLoadState('networkidle')
+
+    // The "Voided" status dot label should appear in the table
+    const voidedStatus = page.getByText('Voided').first()
+    await expect(voidedStatus).toBeVisible({ timeout: 5000 })
   })
 
   test('prevents voiding already voided transactions', async ({ page }) => {
     await page.goto('/transactions')
     await page.waitForLoadState('networkidle')
 
-    const viewButton = page.locator('[data-testid^="view-transaction-"]').first()
-    if (await viewButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await viewButton.click()
+    // Click the first transaction row
+    await clickFirstTransactionRow(page)
 
-      const dialog = page.locator('[role="dialog"]')
-      await expect(dialog).toBeVisible()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
 
-      const voidButton = dialog.locator('[data-testid="void-button"]')
-      if (await voidButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await voidButton.click()
+    // Void the transaction first
+    const voidButton = dialog.locator('[data-testid="void-button"]')
+    await expect(voidButton).toBeVisible()
+    await voidButton.click()
 
-        const reasonSelect = page.locator('[data-testid="void-reason-select"]')
-        if (await reasonSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await reasonSelect.click()
-          await page.locator('[data-testid^="void-reason-"]').first().click()
-        }
-        const confirmButton = page.locator('[data-testid="confirm-void-button"]')
-        if (await confirmButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await confirmButton.click()
-          await page.waitForTimeout(1000)
-        }
-      }
+    const reasonSelect = page.locator('[data-testid="void-reason-select"]')
+    await expect(reasonSelect).toBeVisible()
+    await reasonSelect.click()
+    await page.getByRole('option').first().click()
 
-      // After voiding, the void button should be disabled or hidden
-      const voidButtonAfter = dialog.locator('[data-testid="void-button"]')
-      if (await voidButtonAfter.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await expect(voidButtonAfter).toBeDisabled()
-      }
-    }
+    const confirmButton = page.locator('[data-testid="confirm-void-button"]')
+    await expect(confirmButton).toBeVisible()
+    await confirmButton.click()
+
+    // Wait for the void to complete
+    await expect(dialog.getByText(/Transaction Voided/i)).toBeVisible({ timeout: 5000 })
+
+    // After voiding, the void button should no longer be visible
+    // (the component conditionally renders it only when !isVoided)
+    await expect(dialog.locator('[data-testid="void-button"]')).not.toBeVisible()
   })
 
   test('user without permVoid cannot see void button', async ({ page }) => {

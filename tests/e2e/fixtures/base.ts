@@ -7,7 +7,7 @@
 import { test as base, expect, type Page, type Locator } from '@playwright/test'
 
 // 1x1 transparent PNG for GCash photo upload tests
-const TINY_PNG = Buffer.from(
+export const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAB' +
   'Nl7BcQAAAABJRU5ErkJggg==',
   'base64'

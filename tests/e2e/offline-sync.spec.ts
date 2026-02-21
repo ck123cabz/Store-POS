@@ -8,14 +8,7 @@
  * 3. Idempotency key prevents duplicates
  */
 
-import { test, expect } from './fixtures/base'
-
-// 1x1 transparent PNG for GCash photo upload tests
-const TINY_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAB' +
-  'Nl7BcQAAAABJRU5ErkJggg==',
-  'base64'
-)
+import { test, expect, TINY_PNG } from './fixtures/base'
 
 /**
  * Helper: simulate offline mode by blocking API routes and dispatching the browser offline event.
