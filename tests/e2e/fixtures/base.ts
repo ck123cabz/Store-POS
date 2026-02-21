@@ -20,21 +20,21 @@ export class POSPage {
   constructor(private page: Page) {}
 
   /**
-   * Get the cart item count badge locator
-   * UI shows: "N item" (singular) or "N items" (plural/zero)
+   * Get the cart item count badge locator.
+   * New cart UI shows "Cart" heading with a Badge containing the count number.
+   * The badge is inside the cart header next to the "Cart" h2.
    */
   cartItemCount(count: number): Locator {
-    if (count === 1) {
-      return this.page.getByText(/1 item(?!s)/)
-    }
-    return this.page.getByText(new RegExp(`${count} items`))
+    // The badge in the cart header shows just the number
+    return this.page.locator('h2:has-text("Cart") + [class*="badge"], h2:has-text("Cart") ~ [class*="badge"]')
+      .filter({ hasText: String(count) })
   }
 
   /**
-   * Get the Pay Now button - used for immediate payment
+   * Get the Pay button - shows "Pay ₱X.XX" (no longer "Pay Now")
    */
   payNowButton(): Locator {
-    return this.page.getByRole('button', { name: /Pay Now/ })
+    return this.page.getByRole('button', { name: /^Pay\s/ }).filter({ hasNot: this.page.locator('text=Later') })
   }
 
   /**
@@ -52,14 +52,20 @@ export class POSPage {
   }
 
   /**
-   * Assert cart shows specific item count
+   * Assert cart shows specific item count via the badge in the cart header.
+   * Falls back to checking the "Cart is empty" text when count is 0.
    */
   async expectCartItemCount(count: number): Promise<void> {
-    await expect(this.cartItemCount(count)).toBeVisible()
+    if (count === 0) {
+      // When cart is empty, the badge shows "0" and "Cart is empty" text is shown
+      await expect(this.page.getByText('Cart is empty')).toBeVisible()
+    } else {
+      await expect(this.cartItemCount(count)).toBeVisible()
+    }
   }
 
   /**
-   * Open payment modal by clicking Pay Now
+   * Open payment modal by clicking Pay button (shows "Pay ₱X.XX")
    */
   async openPaymentModal(): Promise<void> {
     await this.payNowButton().click()

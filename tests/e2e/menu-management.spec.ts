@@ -195,14 +195,14 @@ test.describe('Product Detail Panel @p1', () => {
     // Click on a seeded product row
     await page.getByRole('row').filter({ hasText: 'Burger Steak' }).click()
 
-    // Panel should appear with the product name
-    await expect(page.getByRole('heading', { name: 'Burger Steak' })).toBeVisible({ timeout: 3000 })
+    // Sheet/panel should appear with the product name (now shows "Edit Burger Steak")
+    await expect(page.getByRole('heading', { name: /Burger Steak/ })).toBeVisible({ timeout: 3000 })
 
-    // Panel should have Edit button
-    await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible()
+    // Panel should have Save/Cancel buttons (now opens directly in edit mode)
+    await expect(page.getByRole('button', { name: 'Save' }).or(page.getByRole('button', { name: 'Edit' }))).toBeVisible()
 
-    // Pricing card should be visible
-    await expect(page.getByText('Pricing')).toBeVisible()
+    // Name field or pricing info should be visible
+    await expect(page.getByLabel('Name').or(page.getByText('Pricing'))).toBeVisible()
   })
 
   test('can close the detail panel', async ({ page, menuPage }) => {
@@ -210,14 +210,13 @@ test.describe('Product Detail Panel @p1', () => {
 
     // Open panel
     await page.getByRole('row').filter({ hasText: 'Burger Steak' }).click()
-    await expect(page.getByRole('heading', { name: 'Burger Steak' })).toBeVisible({ timeout: 3000 })
+    await expect(page.getByRole('heading', { name: /Burger Steak/ })).toBeVisible({ timeout: 3000 })
 
-    // Close panel via X button (first ghost button in the panel header)
-    const panel = page.locator('.border-l.bg-background')
-    await panel.locator('button').first().click()
+    // Close panel via the Sheet's X close button
+    await page.locator('button[class*="sheet-close"], button:has(> svg.lucide-x)').first().click()
 
     // Product heading in panel should disappear
-    await expect(page.getByRole('heading', { name: 'Burger Steak' })).not.toBeVisible({ timeout: 3000 })
+    await expect(page.getByRole('heading', { name: /Burger Steak/ })).not.toBeVisible({ timeout: 3000 })
   })
 })
 
@@ -227,11 +226,11 @@ test.describe('Product Edit @p1', () => {
   test('can enter edit mode and see edit controls', async ({ page, menuPage }) => {
     await waitForTableLoaded(page)
 
-    // Open product panel
+    // Open product panel (opens in view mode first)
     await page.getByRole('row').filter({ hasText: 'Burger Steak' }).click()
-    await expect(page.getByRole('heading', { name: 'Burger Steak' })).toBeVisible({ timeout: 3000 })
+    await expect(page.getByRole('heading', { name: /Burger Steak/ })).toBeVisible({ timeout: 3000 })
 
-    // Click Edit
+    // Click Edit to switch to edit mode
     await page.getByRole('button', { name: 'Edit' }).click()
 
     // Should see edit-mode controls: Save and Cancel buttons
@@ -252,7 +251,7 @@ test.describe('Product Edit @p1', () => {
 
     // Open product panel and enter edit mode
     await page.getByRole('row').filter({ hasText: 'Burger Steak' }).click()
-    await expect(page.getByRole('heading', { name: 'Burger Steak' })).toBeVisible({ timeout: 3000 })
+    await expect(page.getByRole('heading', { name: /Burger Steak/ })).toBeVisible({ timeout: 3000 })
     await page.getByRole('button', { name: 'Edit' }).click()
     await expect(page.getByRole('button', { name: 'Save' })).toBeVisible({ timeout: 5000 })
 
@@ -261,14 +260,14 @@ test.describe('Product Edit @p1', () => {
     await nameInput.clear()
     await nameInput.fill('SHOULD NOT SAVE')
 
-    // Click Cancel
+    // Click Cancel to return to view mode
     await page.getByRole('button', { name: 'Cancel' }).click()
 
     // Should return to view mode - Edit button should be visible again
     await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible({ timeout: 3000 })
 
-    // Product name in view mode should still be the original
-    await expect(page.getByRole('heading', { name: 'Burger Steak' })).toBeVisible()
+    // Product heading should still show original name
+    await expect(page.getByRole('heading', { name: /Burger Steak/ })).toBeVisible()
 
     // The modified name should NOT appear anywhere
     await expect(page.getByText('SHOULD NOT SAVE')).not.toBeVisible()

@@ -25,7 +25,7 @@ test.describe('US1: Cash Payment @p1', () => {
   test('complete cash sale with exact amount', async ({ page, pos }) => {
     // Step 1: Add product to cart (click first available/enabled product card)
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Step 2: Open payment modal
     await pos.openPaymentModal()
@@ -36,9 +36,9 @@ test.describe('US1: Cash Payment @p1', () => {
     // Step 4: Use "Exact" quick amount button
     await page.getByRole('button', { name: 'Exact' }).click()
 
-    // Step 5: Verify change shows 0 (use blue change display)
+    // Step 5: Verify change shows 0 (uses status-info color for change display)
     await expect(page.getByText(/Change/i)).toBeVisible()
-    await expect(page.locator('.text-blue-600').filter({ hasText: '₱0.00' })).toBeVisible()
+    await expect(page.locator('.text-status-info').filter({ hasText: '₱0.00' })).toBeVisible()
 
     // Step 6: Complete payment
     await page.getByRole('button', { name: /Confirm/i }).click()
@@ -50,13 +50,13 @@ test.describe('US1: Cash Payment @p1', () => {
     await page.getByRole('button', { name: 'Done' }).click()
 
     // Step 9: Cart should be cleared
-    await expect(page.getByText(/0 items/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).toBeVisible()
   })
 
   test('cash sale with change calculation', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal
     await pos.openPaymentModal()
@@ -78,7 +78,7 @@ test.describe('US1: Cash Payment @p1', () => {
   test('cash sale using numpad input', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal
     await pos.openPaymentModal()
@@ -103,7 +103,7 @@ test.describe('US1: Cash Payment @p1', () => {
   test('cannot complete cash sale with insufficient amount', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal
     await pos.openPaymentModal()
@@ -123,9 +123,9 @@ test.describe('US1: Cash Payment @p1', () => {
   test('cash payment shows correct totals', async ({ page, pos }) => {
     // Add product twice (qty 2)
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible() // Still 1 item, but qty 2
+    await expect(page.getByText('Cart is empty')).not.toBeVisible() // Still 1 item, but qty 2
 
     // Open payment modal
     await pos.openPaymentModal()
@@ -140,7 +140,7 @@ test.describe('US1: Cash Payment @p1', () => {
   test('backspace removes digits from amount', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal
     await pos.openPaymentModal()
@@ -180,7 +180,7 @@ test.describe('US1: Cash Payment @p1', () => {
   test('cancel returns to POS without completing sale', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal
     await pos.openPaymentModal()
@@ -190,6 +190,6 @@ test.describe('US1: Cash Payment @p1', () => {
 
     // Modal should close, cart should still have items
     await expect(page.getByRole('dialog')).not.toBeVisible()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
   })
 })

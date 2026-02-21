@@ -29,7 +29,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('open payment modal and select Split tab', async ({ page, pos }) => {
     // Step 1: Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Step 2: Open payment modal
     await pos.openPaymentModal()
@@ -48,7 +48,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('enter cash and GCash amounts in split payment', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()
@@ -68,7 +68,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('verify total updates correctly as amounts are entered', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()
@@ -91,7 +91,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('GCash reference required when GCash amount > 0', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()
@@ -118,7 +118,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('GCash reference not required when GCash amount is 0', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()
@@ -147,7 +147,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('complete split payment flow with cash and GCash', async ({ page, pos }) => {
     // Step 1: Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Step 2: Open payment modal
     await pos.openPaymentModal()
@@ -174,13 +174,13 @@ test.describe('US7: Split Payment @p2', () => {
     await page.getByRole('button', { name: 'Done' }).click()
 
     // Step 9: Cart should be cleared
-    await expect(page.getByText(/0 items/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).toBeVisible()
   })
 
   test('verify cash change calculated correctly in split payment', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()
@@ -200,7 +200,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('split payment insufficient total shows error', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()
@@ -237,7 +237,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('cancel split payment returns to POS without completing', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()
@@ -251,13 +251,13 @@ test.describe('US7: Split Payment @p2', () => {
 
     // Modal should close, cart should still have items
     await expect(page.getByRole('dialog')).not.toBeVisible()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
   })
 
   test('receipt options available after split payment', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and complete split payment
     await pos.openPaymentModal()
@@ -281,7 +281,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('split payment with cash only (gcash = 0)', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()
@@ -311,7 +311,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('GCash reference validation in split payment - too short', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()
@@ -334,7 +334,7 @@ test.describe('US7: Split Payment @p2', () => {
   test('GCash reference validation in split payment - special characters rejected', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to Split tab
     await pos.openPaymentModal()

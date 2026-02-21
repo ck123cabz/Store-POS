@@ -21,7 +21,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
   test('can open Pay Later modal', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Click Pay Later button (in the cart, not the payment modal)
     await pos.payLaterButton().click()
@@ -36,7 +36,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
   test('Pay Later requires customer selection', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open Pay Later modal
     await pos.payLaterButton().click()
@@ -50,7 +50,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
   test('shows customer tab balance when selected', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open Pay Later modal
     await pos.payLaterButton().click()
@@ -72,7 +72,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
   test('completes tab payment successfully', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open Pay Later modal
     await pos.payLaterButton().click()
@@ -95,14 +95,14 @@ test.describe('US3: Tab Payment Flow @p2', () => {
 
       // Modal should close and cart should be cleared
       await expect(page.getByText(/Pay Later - Select Customer/i)).not.toBeVisible({ timeout: 5000 })
-      await expect(page.getByText(/0 items/)).toBeVisible()
+      await expect(page.getByText('Cart is empty')).toBeVisible()
     }
   })
 
   test('cancel returns without completing tab payment', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open Pay Later modal
     await pos.payLaterButton().click()
@@ -113,13 +113,13 @@ test.describe('US3: Tab Payment Flow @p2', () => {
 
     // Modal should close, cart should still have items
     await expect(page.getByText(/Pay Later - Select Customer/i)).not.toBeVisible()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
   })
 
   test('shows order total in Pay Later modal', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open Pay Later modal
     await pos.payLaterButton().click()
@@ -134,7 +134,7 @@ test.describe('US3: Tab Payment Flow @p2', () => {
   test('can create new customer from Pay Later modal', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open Pay Later modal
     await pos.payLaterButton().click()

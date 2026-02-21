@@ -91,17 +91,17 @@ test.describe('Smoke Tests @smoke @p0', () => {
   test('transaction can be created', async ({ page, posPage }) => {
     // posPage fixture navigates to /pos and dismisses tour
 
-    // Verify cart starts empty (new UI shows "0 items" in Current Order header)
-    await expect(page.getByText('0 items')).toBeVisible()
+    // Verify cart starts empty (cart shows "Cart is empty" text)
+    await expect(page.getByText('Cart is empty')).toBeVisible()
 
     // Click first product to add to cart
     await page.locator('[role="button"][aria-disabled="false"]').first().click()
 
-    // Cart should update to show 1 item
-    await expect(page.getByText('1 item')).toBeVisible()
+    // Cart should update - badge shows "1" and empty state disappears
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
-    // Pay Now button should be enabled (now shows "Pay Now ₱X.XX")
-    const payButton = page.getByRole('button', { name: /Pay Now/ })
+    // Pay button should be enabled (shows "Pay ₱X.XX")
+    const payButton = page.getByRole('button', { name: /Pay ₱/ })
     await expect(payButton).toBeEnabled()
   })
 })

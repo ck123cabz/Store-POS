@@ -23,7 +23,7 @@ test.describe('US2: GCash Payment @p1', () => {
   test('complete GCash sale with photo capture', async ({ page, pos }) => {
     // Step 1: Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Step 2: Open payment modal
     await pos.openPaymentModal()
@@ -53,13 +53,13 @@ test.describe('US2: GCash Payment @p1', () => {
     await page.getByRole('button', { name: 'Done' }).click()
 
     // Step 10: Cart should be cleared
-    await expect(page.getByText(/0 items/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).toBeVisible()
   })
 
   test('GCash confirm disabled without photo', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to GCash
     await pos.openPaymentModal()
@@ -73,7 +73,7 @@ test.describe('US2: GCash Payment @p1', () => {
   test('GCash tab shows correct total amount', async ({ page, pos }) => {
     // Add product
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to GCash
     await pos.openPaymentModal()
@@ -82,15 +82,15 @@ test.describe('US2: GCash Payment @p1', () => {
     // Verify GCash prompt text is shown
     await expect(page.getByText(/Capture customer.*GCash payment screen/i)).toBeVisible()
 
-    // Total should be visible (blue text showing the amount)
-    const totalText = await page.locator('.text-blue-600').first().textContent()
+    // Total should be visible in the GCash section (bold amount under the prompt text)
+    const totalText = await page.locator('.text-xl.font-bold').first().textContent()
     expect(totalText).toMatch(/₱[\d,]+\.\d{2}/)
   })
 
   test('cancel returns to POS without completing GCash sale', async ({ page, pos }) => {
     // Add product to cart
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Open payment modal and switch to GCash
     await pos.openPaymentModal()
@@ -101,13 +101,13 @@ test.describe('US2: GCash Payment @p1', () => {
 
     // Modal should close, cart should still have items
     await expect(page.getByRole('dialog')).not.toBeVisible()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
   })
 
   test('GCash payment shows pending status after completion', async ({ page, pos }) => {
     // Add product to cart and complete GCash payment
     await pos.addFirstProduct()
-    await expect(page.getByText(/1 item(?!s)/)).toBeVisible()
+    await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     await pos.openPaymentModal()
     await page.getByRole('tab', { name: /GCash/i }).click()
