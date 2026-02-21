@@ -1,102 +1,94 @@
-import { test, expect } from "@playwright/test"
+import { test, expect } from "./fixtures/base"
 
 test.describe("Transaction Quick Filters", () => {
   test.beforeEach(async ({ page }) => {
-    // Login first
-    await page.goto("/login")
-    await page.fill('#username', "admin")
-    await page.fill('#password', "admin")
-    await page.click('button[type="submit"]')
-    await page.waitForURL("**/")
-
-    // Navigate to transactions page
     await page.goto("/transactions")
     await page.waitForLoadState("networkidle")
   })
 
   test("T067: Quick filter toggle behavior", async ({ page }) => {
-    // Find the quick filter buttons
-    const todayButton = page.locator('button:has-text("Today")')
-
-    // Initially, no filter should be active (outline variant)
+    // FilterPills renders buttons with aria-pressed
+    const todayButton = page.getByRole("button", { name: "Today" })
     await expect(todayButton).toBeVisible()
 
-    // Click to activate the filter
-    await todayButton.click()
-    await page.waitForTimeout(500) // Wait for debounce
+    // Initially no filter is active
+    await expect(todayButton).toHaveAttribute("aria-pressed", "false")
 
-    // Button should now have active styling
+    // Click to activate
+    await todayButton.click()
+    await expect(todayButton).toHaveAttribute("aria-pressed", "true")
+
     // Click again to toggle off
     await todayButton.click()
-    await page.waitForTimeout(500)
-
-    // Filter should be deactivated
+    await expect(todayButton).toHaveAttribute("aria-pressed", "false")
   })
 
   test("T068: All date ranges filter correctly", async ({ page }) => {
-    const dateRanges = ["Today", "Yesterday", "This Week", "Last Week", "This Month"]
+    const dateRanges = ["Today", "Yesterday", "This Week", "This Month", "All"]
 
     for (const range of dateRanges) {
-      const filterButton = page.locator(`button:has-text("${range}")`)
+      const filterButton = page.getByRole("button", { name: range, exact: true })
+      await expect(filterButton).toBeVisible()
 
       // Click the filter
       await filterButton.click()
-      await page.waitForTimeout(400) // Debounce + API call
+      await expect(filterButton).toHaveAttribute("aria-pressed", "true")
 
-      // Verify the button shows active state
-      await expect(filterButton).toBeVisible()
-
-      // Click again to clear (toggle off)
+      // Click again to clear
       await filterButton.click()
-      await page.waitForTimeout(400)
+      await expect(filterButton).toHaveAttribute("aria-pressed", "false")
     }
   })
 
   test("Filter shows loading state during request", async ({ page }) => {
-    const todayButton = page.locator('button:has-text("Today")')
-
-    // Click to activate
+    const todayButton = page.getByRole("button", { name: "Today" })
     await todayButton.click()
 
-    // Should show skeleton or loading indicator briefly
-    // The implementation uses optimistic UI so this is fast
-    await page.waitForTimeout(500)
+    // DataTable shows loading state (skeleton rows) while fetching
+    // The fetch is fast so we just verify the filter activated and data loads
+    await expect(todayButton).toHaveAttribute("aria-pressed", "true")
+    await page.waitForLoadState("networkidle")
   })
 
   test("Clicking different filter replaces active filter", async ({ page }) => {
-    const todayButton = page.locator('button:has-text("Today")')
-    const yesterdayButton = page.locator('button:has-text("Yesterday")')
+    const todayButton = page.getByRole("button", { name: "Today" })
+    const yesterdayButton = page.getByRole("button", { name: "Yesterday" })
 
-    // Activate Today filter
+    // Activate Today
     await todayButton.click()
-    await page.waitForTimeout(400)
+    await expect(todayButton).toHaveAttribute("aria-pressed", "true")
 
-    // Now click Yesterday - should replace, not add
+    // Click Yesterday — should replace Today
     await yesterdayButton.click()
-    await page.waitForTimeout(400)
-
-    // Only Yesterday should be active now
+    await expect(yesterdayButton).toHaveAttribute("aria-pressed", "true")
+    await expect(todayButton).toHaveAttribute("aria-pressed", "false")
   })
 
   test("Empty results shows helpful message", async ({ page }) => {
-    // Apply a filter that might return no results
-    const lastWeekButton = page.locator('button:has-text("Last Week")')
-    await lastWeekButton.click()
-    await page.waitForTimeout(500)
+    // Apply Yesterday filter — may return no results in test DB
+    const yesterdayButton = page.getByRole("button", { name: "Yesterday" })
+    await yesterdayButton.click()
+    await page.waitForLoadState("networkidle")
 
-    // If there are no transactions, should show empty state
-    // This depends on the data in the test database
+    // Either shows data rows or the empty state — verify page doesn't error
+    const table = page.locator("table")
+    await expect(table).toBeVisible()
   })
 
   test("Filter buttons have visible focus indicators for keyboard navigation", async ({ page }) => {
-    const todayButton = page.locator('button:has-text("Today")')
+    // FilterPills buttons have focus-visible:ring-2 styles
+    const todayButton = page.getByRole("button", { name: "Today" })
 
-    // Tab to the button
-    await page.keyboard.press("Tab")
-    await page.keyboard.press("Tab")
-    await page.keyboard.press("Tab") // Navigate through page elements
+    // Focus the button via keyboard
+    await todayButton.focus()
 
-    // Check focus is visible (ring-2 focus style)
-    // The button should have focus-visible styles
+    // Verify the button is focused
+    await expect(todayButton).toBeFocused()
+  })
+
+  test("Filter pills group has accessible label", async ({ page }) => {
+    // The FilterPills wrapper has role="group" and aria-label
+    const filterGroup = page.getByRole("group", { name: "Quick date filters" })
+    await expect(filterGroup).toBeVisible()
   })
 })
