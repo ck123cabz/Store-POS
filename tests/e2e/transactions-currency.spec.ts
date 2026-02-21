@@ -1,61 +1,66 @@
-import { test, expect } from "@playwright/test"
-import { prisma } from "../../src/lib/prisma"
+/**
+ * E2E Tests: Transaction Currency Display
+ *
+ * Verifies that the correct currency symbol (₱) is displayed
+ * across the transactions page and related UI elements.
+ * Uses browser-based interactions instead of direct Prisma calls.
+ */
 
-test.describe("Transaction Currency Display", () => {
-  test.beforeEach(async ({ page }) => {
-    // Login as admin
-    await page.goto("/login")
-    await page.fill('input[name="username"]', "admin")
-    await page.fill('input[name="password"]', "admin")
-    await page.click('button[type="submit"]')
-    await page.waitForURL("**/pos")
-  })
+import { test, expect } from './fixtures/base'
 
-  test("displays currency symbol from settings in transaction list", async ({ page }) => {
-    // First verify settings has peso symbol
-    const settings = await prisma.settings.findFirst()
-    expect(settings?.currencySymbol).toBe("₱")
+test.describe('Transaction Currency Display', () => {
+  test('displays currency symbol from settings in transaction list', async ({ page }) => {
+    // Verify settings via API call in the browser context
+    const settingsResponse = await page.request.get('/api/settings')
+    const settings = await settingsResponse.json()
+    expect(settings?.currencySymbol).toBe('₱')
 
     // Navigate to transactions page
-    await page.goto("/transactions")
-    await page.waitForLoadState("networkidle")
+    await page.goto('/transactions')
+    await page.waitForLoadState('networkidle')
 
     // Check today's summary card shows peso symbol
     const todayCard = page.locator('[data-testid="today-revenue"]').first()
-    if (await todayCard.isVisible()) {
+    if (await todayCard.isVisible({ timeout: 3000 }).catch(() => false)) {
       const revenueText = await todayCard.textContent()
-      expect(revenueText).toContain("₱")
-      expect(revenueText).not.toContain("$")
+      expect(revenueText).toContain('₱')
+      expect(revenueText).not.toContain('$')
     }
   })
 
-  test("displays currency symbol in transaction detail dialog", async ({ page }) => {
-    // Create a test transaction first
-    const transaction = await prisma.transaction.create({
-      data: {
-        orderNumber: Date.now(),
-        subtotal: 100,
-        total: 100,
-        status: 1,
-        userId: 1,
-        paymentType: "Cash",
-        items: {
-          create: {
-            productId: 1,
-            productName: "Test Item",
-            price: 100,
-            quantity: 1,
-          },
-        },
-      },
+  test('displays currency symbol in transaction detail dialog', async ({ page }) => {
+    // First create a transaction via the POS UI
+    await page.goto('/pos')
+    await page.evaluate(() => {
+      localStorage.setItem('store-pos-onboarding-complete', 'true')
     })
+    const skipTour = page.getByRole('button', { name: 'Skip Tour' })
+    if (await skipTour.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await skipTour.click()
+      await page.waitForTimeout(500)
+    }
+    await expect(page.getByRole('button', { name: 'All' })).toBeVisible()
 
-    await page.goto("/transactions")
-    await page.waitForLoadState("networkidle")
+    // Add product and complete cash payment
+    await page.locator('[data-testid="product-card"][aria-disabled="false"]').first().click()
+    await page.getByRole('button', { name: /Pay ₱/ }).click()
+    await page.getByRole('button', { name: 'Exact' }).click()
+    await page.getByRole('button', { name: /Confirm/i }).click()
+    await expect(page.getByText(/Payment Successful/i).first()).toBeVisible({ timeout: 10000 })
 
-    // Find and click the view button for the transaction
-    const viewButton = page.locator(`[data-testid="view-transaction-${transaction.id}"]`).first()
-    if (await viewButton.isVisible()) {
+    // Close success modal
+    const doneButton = page.getByRole('button', { name: 'Done' })
+    if (await doneButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await doneButton.click()
+    }
+
+    // Navigate to transactions page
+    await page.goto('/transactions')
+    await page.waitForLoadState('networkidle')
+
+    // Find and click the view button for a transaction
+    const viewButton = page.locator('[data-testid^="view-transaction-"]').first()
+    if (await viewButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await viewButton.click()
 
       // Check dialog shows peso symbol
@@ -63,30 +68,23 @@ test.describe("Transaction Currency Display", () => {
       await expect(dialog).toBeVisible()
 
       const dialogText = await dialog.textContent()
-      expect(dialogText).toContain("₱")
-      expect(dialogText).not.toContain("$100") // Should not have dollar amounts
+      expect(dialogText).toContain('₱')
+      expect(dialogText).not.toContain('$100') // Should not have dollar amounts
     }
-
-    // Cleanup
-    await prisma.transactionItem.deleteMany({ where: { transactionId: transaction.id } })
-    await prisma.transaction.delete({ where: { id: transaction.id } })
   })
 
-  test("uses currency symbol in summary cards", async ({ page }) => {
-    await page.goto("/transactions")
-    await page.waitForLoadState("networkidle")
+  test('uses currency symbol in summary cards', async ({ page }) => {
+    await page.goto('/transactions')
+    await page.waitForLoadState('networkidle')
 
     // The summary cards should display peso symbol
     // Check for any visible currency amounts on the page
     const pageContent = await page.content()
 
     // If there are any monetary values visible, they should use peso
-    // This is a broad check - the page should not contain hardcoded "$X.XX" patterns
-    // unless they're meant to be dollar amounts
-    const hasPesoSymbols = pageContent.includes("₱")
+    const hasPesoSymbols = pageContent.includes('₱')
 
     // At minimum, the settings-based currency should be used somewhere
-    // This test will fail if the page still uses hardcoded "$"
     if (hasPesoSymbols) {
       expect(hasPesoSymbols).toBe(true)
     }
