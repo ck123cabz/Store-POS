@@ -26,7 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { formatCurrency } from "@/lib/ingredient-utils"
+import { formatCurrency, getAvailableUnits } from "@/lib/ingredient-utils"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import Image from "next/image"
@@ -282,19 +282,19 @@ export function ProductPanel({
     ])
   }
 
+  // Resolve multiplier for a unit, checking custom aliases + standard siblings + presets
+  const resolveMultiplier = (item: RecipeIngredient, unit: string): number => {
+    if (unit === item.baseUnit) return 1
+    const allUnits = getAvailableUnits(item.baseUnit, item.unitAliases)
+    return allUnits.find((u) => u.name === unit)?.multiplier ?? 1
+  }
+
   const handleUnitChange = (ingredientId: number, newUnit: string) => {
     setRecipeIngredients((prev) =>
       prev.map((item) => {
         if (item.ingredientId !== ingredientId) return item
 
-        // Get multiplier for new unit
-        let multiplier = 1
-        if (newUnit !== item.baseUnit) {
-          const alias = item.unitAliases.find((a) => a.name === newUnit)
-          multiplier = alias?.baseUnitMultiplier || 1
-        }
-
-        // Recalculate baseQuantity
+        const multiplier = resolveMultiplier(item, newUnit)
         const baseQuantity = item.quantity * multiplier
 
         return {
@@ -312,13 +312,7 @@ export function ProductPanel({
       prev.map((item) => {
         if (item.ingredientId !== ingredientId) return item
 
-        // Get multiplier for current unit
-        let multiplier = 1
-        if (item.unit !== item.baseUnit) {
-          const alias = item.unitAliases.find((a) => a.name === item.unit)
-          multiplier = alias?.baseUnitMultiplier || 1
-        }
-
+        const multiplier = resolveMultiplier(item, item.unit)
         const baseQuantity = quantity * multiplier
 
         return {
@@ -566,14 +560,11 @@ export function ProductPanel({
               ) : (
                 <div className="space-y-2">
                   {recipeIngredients.map((item) => {
-                    // Build available units list
-                    const availableUnits = [
-                      { name: item.baseUnit, multiplier: 1 },
-                      ...item.unitAliases.map((a) => ({
-                        name: a.name,
-                        multiplier: a.baseUnitMultiplier,
-                      })),
-                    ]
+                    // Build available units: base + custom aliases + standard siblings + presets
+                    const availableUnits = getAvailableUnits(
+                      item.baseUnit,
+                      item.unitAliases
+                    )
                     const showUnitDropdown = availableUnits.length > 1
                     const showConversion = item.unit !== item.baseUnit
 
@@ -605,7 +596,7 @@ export function ProductPanel({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="w-16 h-8 text-right font-mono tabular-nums"
+                            className="w-20 h-8 text-right font-mono tabular-nums"
                           />
 
                           {showUnitDropdown ? (
@@ -615,13 +606,20 @@ export function ProductPanel({
                                 handleUnitChange(item.ingredientId, v)
                               }
                             >
-                              <SelectTrigger className="w-20 h-8" aria-label={`Unit for ${item.ingredientName}`}>
+                              <SelectTrigger className="w-24 h-8" aria-label={`Unit for ${item.ingredientName}`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
                                 {availableUnits.map((u) => (
                                   <SelectItem key={u.name} value={u.name}>
-                                    {u.name}
+                                    <span className="flex items-center gap-1.5">
+                                      <span>{u.name}</span>
+                                      {u.description && !u.isBase && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {u.description}
+                                        </span>
+                                      )}
+                                    </span>
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -665,7 +663,7 @@ export function ProductPanel({
                         )}
 
                         {/* Line cost */}
-                        <div className="w-16 text-right text-sm font-mono tabular-nums">
+                        <div className="w-20 text-right text-sm font-mono tabular-nums shrink-0">
                           {formatCurrency(item.lineCost)}
                         </div>
 

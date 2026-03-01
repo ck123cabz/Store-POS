@@ -126,14 +126,17 @@ export async function POST(
             })
           }
 
-          // Restore recipe ingredient stock
+          // Restore recipe ingredient stock (convert base units → packages)
           if (product.recipeItems.length > 0) {
             for (const recipeItem of product.recipeItems) {
-              const totalUsage = Number(recipeItem.quantity) * item.quantity
+              const baseUnitsPerProduct = Number(recipeItem.baseQuantity) || Number(recipeItem.quantity)
+              const totalBaseUnits = baseUnitsPerProduct * item.quantity
+              const packageSize = Number(recipeItem.ingredient.packageSize) || 1
+              const packagesToRestore = totalBaseUnits / packageSize
               await tx.ingredient.update({
                 where: { id: recipeItem.ingredientId },
                 data: {
-                  quantity: { increment: totalUsage },
+                  quantity: { increment: packagesToRestore },
                   lastUpdated: new Date(),
                 },
               })

@@ -199,17 +199,17 @@ export function Cart({
                     </div>
                   </div>
 
-                  {/* Quantity controls - 44px minimum touch targets for mobile */}
+                  {/* Quantity controls */}
                   <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8 min-h-[44px] min-w-[44px] rounded-full"
+                        className="h-7 w-7 rounded-full"
                         onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
                         aria-label="Decrease quantity"
                       >
-                        <Minus className="h-3.5 w-3.5" />
+                        <Minus className="h-3 w-3" />
                       </Button>
                       <Input
                         type="number"
@@ -217,27 +217,27 @@ export function Cart({
                         onChange={(e) =>
                           onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
                         }
-                        className="w-12 h-8 text-center text-sm font-medium tabular-nums"
+                        className="w-12 h-7 text-center text-sm font-medium tabular-nums px-1"
                       />
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8 min-h-[44px] min-w-[44px] rounded-full"
+                        className="h-7 w-7 rounded-full"
                         onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                         aria-label="Increase quantity"
                       >
-                        <Plus className="h-3.5 w-3.5" />
+                        <Plus className="h-3 w-3" />
                       </Button>
                     </div>
 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => onRemoveItem(item.id)}
                       aria-label="Remove item"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -265,7 +265,7 @@ export function Cart({
               type="number"
               value={cart.discount || ""}
               onChange={(e) => onSetDiscount(parseFloat(e.target.value) || 0)}
-              className="w-20 h-7 text-sm font-mono ml-auto"
+              className="w-24 h-7 text-sm font-mono ml-auto"
               placeholder="0.00"
             />
           </div>

@@ -228,25 +228,61 @@ export function calculateRecipeIngredientCost(
 }
 
 /**
- * Get all available units for an ingredient
- * Includes base unit and all configured aliases
+ * Standard unit conversions keyed by base unit.
+ * These are fixed mathematical relationships that never change.
+ * Multiplier = how many base units equal 1 of this unit.
  *
- * @param baseUnit - The ingredient's base unit
- * @param unitAliases - Configured unit aliases
- * @returns Array of available units for dropdown
+ * Custom per-ingredient aliases (from the database) still take priority
+ * if they define the same unit name with a different multiplier.
+ */
+const STANDARD_CONVERSIONS: Record<
+  string,
+  Array<{ name: string; multiplier: number; description: string }>
+> = {
+  g: [
+    { name: "kg",   multiplier: 1000,     description: "1 kg = 1,000 g" },
+    { name: "oz",   multiplier: 28.3495,  description: "1 oz = 28.35 g" },
+    { name: "lb",   multiplier: 453.592,  description: "1 lb = 453.59 g" },
+  ],
+  kg: [
+    { name: "g",    multiplier: 0.001,    description: "1 g = 0.001 kg" },
+    { name: "oz",   multiplier: 0.02835,  description: "1 oz = 0.02835 kg" },
+    { name: "lb",   multiplier: 0.45359,  description: "1 lb = 0.4536 kg" },
+  ],
+  mL: [
+    { name: "L",    multiplier: 1000,     description: "1 L = 1,000 mL" },
+    { name: "cup",  multiplier: 240,      description: "1 cup = 240 mL" },
+    { name: "tbsp", multiplier: 15,       description: "1 tbsp = 15 mL" },
+    { name: "tsp",  multiplier: 5,        description: "1 tsp = 5 mL" },
+    { name: "fl oz", multiplier: 29.5735, description: "1 fl oz = 29.57 mL" },
+  ],
+  L: [
+    { name: "mL",   multiplier: 0.001,    description: "1 mL = 0.001 L" },
+    { name: "cup",  multiplier: 0.24,     description: "1 cup = 0.24 L" },
+    { name: "gal",  multiplier: 3.78541,  description: "1 gal = 3.785 L" },
+  ],
+  pcs: [
+    { name: "dozen", multiplier: 12,      description: "1 dozen = 12 pcs" },
+  ],
+  each: [
+    { name: "dozen", multiplier: 12,      description: "1 dozen = 12 each" },
+  ],
+};
+
+/**
+ * Get all available units for an ingredient.
+ * Includes: base unit → custom aliases → standard conversions.
+ * Custom aliases take priority over standard conversions for the same name.
  *
- * @example
- * getAvailableUnits("g", [{ name: "cup", baseUnitMultiplier: 200, description: "1 cup = 200g" }])
- * // Returns:
- * // [
- * //   { name: "g", multiplier: 1, description: "Base unit", isBase: true },
- * //   { name: "cup", multiplier: 200, description: "1 cup = 200g", isBase: false }
- * // ]
+ * @param baseUnit - The ingredient's base unit (e.g., "g", "mL", "pcs")
+ * @param unitAliases - Custom per-ingredient aliases from the database
+ * @returns Array of available units for dropdown selection
  */
 export function getAvailableUnits(
   baseUnit: string,
   unitAliases: Array<{ name: string; baseUnitMultiplier: number; description: string | null }>
 ): Array<{ name: string; multiplier: number; description: string | null; isBase: boolean }> {
+  const seen = new Set<string>([baseUnit]);
   const units: Array<{ name: string; multiplier: number; description: string | null; isBase: boolean }> = [
     {
       name: baseUnit,
@@ -256,13 +292,33 @@ export function getAvailableUnits(
     },
   ];
 
+  // Custom aliases first (take priority over standard conversions)
   for (const alias of unitAliases) {
-    units.push({
-      name: alias.name,
-      multiplier: alias.baseUnitMultiplier,
-      description: alias.description,
-      isBase: false,
-    });
+    if (!seen.has(alias.name)) {
+      seen.add(alias.name);
+      units.push({
+        name: alias.name,
+        multiplier: alias.baseUnitMultiplier,
+        description: alias.description,
+        isBase: false,
+      });
+    }
+  }
+
+  // Standard conversions (skipped if custom alias already defined that name)
+  const conversions = STANDARD_CONVERSIONS[baseUnit];
+  if (conversions) {
+    for (const conv of conversions) {
+      if (!seen.has(conv.name)) {
+        seen.add(conv.name);
+        units.push({
+          name: conv.name,
+          multiplier: conv.multiplier,
+          description: conv.description,
+          isBase: false,
+        });
+      }
+    }
   }
 
   return units;

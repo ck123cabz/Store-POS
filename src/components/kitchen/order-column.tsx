@@ -10,6 +10,7 @@ interface OrderColumnProps {
   status: "new" | "cooking" | "ready"
   orders: KitchenOrder[]
   onUpdateStatus: (orderId: number, status: string) => void
+  onCancelOrder: (orderId: number) => void
   onToggleRush: (orderId: number, isRush: boolean) => void
   className?: string
 }
@@ -39,6 +40,7 @@ export function OrderColumn({
   status,
   orders,
   onUpdateStatus,
+  onCancelOrder,
   onToggleRush,
   className,
 }: OrderColumnProps) {
@@ -69,6 +71,7 @@ export function OrderColumn({
               key={order.id}
               order={order}
               onAction={() => onUpdateStatus(order.id, config.nextStatus)}
+              onCancel={() => onCancelOrder(order.id)}
               onToggleRush={() => onToggleRush(order.id, !order.isRush)}
               actionLabel={config.actionLabel}
             />

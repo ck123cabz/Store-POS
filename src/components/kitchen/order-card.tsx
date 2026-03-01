@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { StatusDot } from "@/components/ui/status-dot"
-import { Zap, ChevronDown } from "lucide-react"
+import { Zap, ChevronDown, X } from "lucide-react"
 import type { KitchenOrder } from "@/hooks/use-kitchen-orders"
 
 interface OrderCardProps {
   order: KitchenOrder
   onAction: () => void
+  onCancel: () => void
   onToggleRush: () => void
   actionLabel: string
 }
@@ -35,10 +36,12 @@ function getTimeAlertLevel(seconds: number): "normal" | "warning" | "danger" {
 export function OrderCard({
   order,
   onAction,
+  onCancel,
   onToggleRush,
   actionLabel,
 }: OrderCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
   const alertLevel = getTimeAlertLevel(order.secondsInStatus)
   const hasMoreItems = order.items.length > COLLAPSED_ITEM_LIMIT
   const visibleItems = expanded
@@ -129,9 +132,9 @@ export function OrderCard({
         </div>
       </button>
 
-      {/* Expanded section: rush toggle */}
+      {/* Expanded section: rush toggle + cancel */}
       {expanded && (
-        <div className="px-4 pb-3 border-t border-border/50 pt-3">
+        <div className="px-4 pb-3 border-t border-border/50 pt-3 space-y-2">
           <Button
             variant={order.isRush ? "secondary" : "outline"}
             size="sm"
@@ -148,6 +151,46 @@ export function OrderCard({
             <Zap className="h-3.5 w-3.5" />
             {order.isRush ? "Remove Rush" : "Mark as Rush"}
           </Button>
+          {confirmingCancel ? (
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                className="flex-1 gap-1.5"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onCancel()
+                  setConfirmingCancel(false)
+                }}
+              >
+                Confirm Cancel
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setConfirmingCancel(false)
+                }}
+              >
+                Keep Order
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/50"
+              onClick={(e) => {
+                e.stopPropagation()
+                setConfirmingCancel(true)
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+              Cancel Order
+            </Button>
+          )}
         </div>
       )}
 

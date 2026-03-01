@@ -10,8 +10,11 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { Loader2, Save, Upload, RotateCcw } from "lucide-react"
+import { Loader2, Save, Upload, RotateCcw, Check } from "lucide-react"
 import { useOnboarding } from "@/hooks/use-onboarding"
+import { useColorTheme } from "@/components/providers/color-theme-provider"
+import { useTheme } from "next-themes"
+import { COLOR_THEMES } from "@/lib/themes"
 
 interface SettingsFormData {
   appMode: string
@@ -43,6 +46,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const { reset: resetTour } = useOnboarding()
+  const { colorTheme, setColorTheme } = useColorTheme()
+  const { resolvedTheme } = useTheme()
   const [currentLogo, setCurrentLogo] = useState<string>("")
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>("")
@@ -376,6 +381,46 @@ export default function SettingsPage() {
                     Recommended: Square image, max 5MB. Supports JPEG, PNG, GIF, WebP.
                   </p>
                 </div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Label>Color Theme</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {COLOR_THEMES.map((theme) => {
+                  const active = colorTheme === theme.id
+                  const colors = resolvedTheme === "dark" ? theme.preview.dark : theme.preview.light
+                  return (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      onClick={() => setColorTheme(theme.id)}
+                      className={`group relative rounded-lg border-2 p-3 text-left transition-colors ${
+                        active
+                          ? "border-primary ring-2 ring-primary/20"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                    >
+                      {active && (
+                        <div className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary">
+                          <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                        </div>
+                      )}
+                      <div className="mb-2 flex gap-1">
+                        {colors.map((color, i) => (
+                          <div
+                            key={i}
+                            className="h-6 flex-1 rounded-sm first:rounded-l-md last:rounded-r-md"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm font-medium leading-tight">{theme.name}</p>
+                      <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                        {theme.description}
+                      </p>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </CardContent>

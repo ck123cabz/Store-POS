@@ -5,12 +5,12 @@ import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet"
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 
 interface DetailPanelProps {
   open?: boolean
@@ -20,20 +20,20 @@ interface DetailPanelProps {
 
 function DetailPanel({ open, onOpenChange, children }: DetailPanelProps) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
         data-slot="detail-panel"
-        side="right"
         showCloseButton={false}
         className={cn(
-          "w-full sm:max-w-[420px]",
+          "w-full sm:max-w-3xl lg:max-w-4xl",
+          "max-h-[90vh]",
           "gap-0 p-0",
-          "flex flex-col"
+          "flex flex-col overflow-hidden"
         )}
       >
         {children}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -54,19 +54,21 @@ function DetailPanelHeader({
     <div
       data-slot="detail-panel-header"
       className={cn(
-        "flex items-center gap-2 border-b px-4 py-3",
+        "flex items-center gap-2 border-b px-5 py-3.5",
         className
       )}
       {...props}
     >
       <div className="flex-1 min-w-0">
-        <SheetTitle className="text-base font-semibold truncate">
+        <DialogTitle className="text-base font-semibold truncate">
           {title}
-        </SheetTitle>
-        {description && (
-          <SheetDescription className="text-sm text-muted-foreground truncate">
+        </DialogTitle>
+        {description ? (
+          <DialogDescription className="text-sm text-muted-foreground truncate">
             {description}
-          </SheetDescription>
+          </DialogDescription>
+        ) : (
+          <DialogDescription className="sr-only">{title}</DialogDescription>
         )}
       </div>
       {actions && (
@@ -74,10 +76,10 @@ function DetailPanelHeader({
           {actions}
         </div>
       )}
-      <SheetClose className="ring-offset-background focus:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none shrink-0 ml-1">
+      <DialogClose className="ring-offset-background focus:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none shrink-0 ml-1">
         <XIcon className="size-4" />
         <span className="sr-only">Close</span>
-      </SheetClose>
+      </DialogClose>
     </div>
   )
 }
@@ -89,7 +91,7 @@ function DetailPanelContent({
   return (
     <div
       data-slot="detail-panel-content"
-      className={cn("flex-1 overflow-y-auto p-4", className)}
+      className={cn("flex-1 min-h-0 overflow-y-auto p-5", className)}
       {...props}
     />
   )
@@ -103,7 +105,7 @@ function DetailPanelFooter({
     <div
       data-slot="detail-panel-footer"
       className={cn(
-        "border-t bg-background p-4 sticky bottom-0",
+        "border-t bg-background p-4 shrink-0 rounded-b-lg",
         className
       )}
       {...props}

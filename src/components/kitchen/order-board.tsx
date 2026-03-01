@@ -40,6 +40,15 @@ export function OrderBoard() {
   const { ordersByStatus, isLoading, error, updateStatus, toggleRush } =
     useKitchenOrders({ soundEnabled })
 
+  const handleCancelOrder = async (orderId: number) => {
+    const success = await updateStatus(orderId, "cancelled")
+    if (success) {
+      toast.success("Order cancelled")
+    } else {
+      toast.error("Failed to cancel order")
+    }
+  }
+
   // Offline/online detection with toast notifications
   useEffect(() => {
     // Check initial state on mount
@@ -241,6 +250,7 @@ export function OrderBoard() {
               status={activeColumn}
               orders={ordersByStatus[activeColumn]}
               onUpdateStatus={updateStatus}
+              onCancelOrder={handleCancelOrder}
               onToggleRush={toggleRush}
             />
           </div>
@@ -251,18 +261,21 @@ export function OrderBoard() {
               status="new"
               orders={ordersByStatus.new}
               onUpdateStatus={updateStatus}
+              onCancelOrder={handleCancelOrder}
               onToggleRush={toggleRush}
             />
             <OrderColumn
               status="cooking"
               orders={ordersByStatus.cooking}
               onUpdateStatus={updateStatus}
+              onCancelOrder={handleCancelOrder}
               onToggleRush={toggleRush}
             />
             <OrderColumn
               status="ready"
               orders={ordersByStatus.ready}
               onUpdateStatus={updateStatus}
+              onCancelOrder={handleCancelOrder}
               onToggleRush={toggleRush}
             />
           </div>
@@ -271,7 +284,7 @@ export function OrderBoard() {
 
       {/* Completed Orders Dialog */}
       <Dialog open={completedModalOpen} onOpenChange={setCompletedModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent className="sm:max-w-2xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />

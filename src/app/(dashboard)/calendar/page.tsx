@@ -490,7 +490,7 @@ export default function CalendarPage() {
 
       {/* Day Detail Dialog */}
       <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle>
               {selectedDay && format(new Date(selectedDay.date), "EEEE, MMMM d, yyyy")}

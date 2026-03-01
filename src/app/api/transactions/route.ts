@@ -450,13 +450,17 @@ export async function POST(request: Request) {
           }
 
           // Phase 5: Decrement recipe ingredients (for products with recipes)
+          // baseQuantity is in the ingredient's base unit (e.g., g, mL, pcs)
+          // ingredient.quantity is in packages — convert via packageSize
           if (product.recipeItems.length > 0) {
             for (const recipeItem of product.recipeItems) {
               const ingredient = recipeItem.ingredient
-              const usagePerUnit = Number(recipeItem.quantity)
-              const totalUsage = usagePerUnit * item.quantity
+              const baseUnitsPerProduct = Number(recipeItem.baseQuantity) || Number(recipeItem.quantity)
+              const totalBaseUnits = baseUnitsPerProduct * item.quantity
+              const packageSize = Number(ingredient.packageSize) || 1
+              const packagesUsed = totalBaseUnits / packageSize
               const oldQty = Number(ingredient.quantity)
-              const newQty = Math.max(0, oldQty - totalUsage)
+              const newQty = Math.max(0, oldQty - packagesUsed)
 
               await tx.ingredient.update({
                 where: { id: ingredient.id },
@@ -477,7 +481,7 @@ export async function POST(request: Request) {
                   newValue: newQty.toString(),
                   source: "sale",
                   reason: "sale",
-                  reasonNote: `Recipe: ${item.quantity}x ${product.name} used ${totalUsage} ${ingredient.unit} (Order #${orderNumber})`,
+                  reasonNote: `Recipe: ${item.quantity}x ${product.name} used ${totalBaseUnits} ${ingredient.baseUnit || ingredient.unit} (Order #${orderNumber})`,
                   userId: parseInt(session.user.id),
                   userName: session.user.name || "Unknown",
                 },

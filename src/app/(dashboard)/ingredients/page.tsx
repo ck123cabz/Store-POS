@@ -40,7 +40,7 @@ import {
 import { Plus, Pencil, Trash2, Package, ClipboardList, Info, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { formatDualUnitDisplay, formatCurrency } from "@/lib/ingredient-utils"
+import { formatDualUnitDisplay, formatCurrency, getAvailableUnits } from "@/lib/ingredient-utils"
 import { PURCHASE_UNITS, BASE_UNITS } from "@/types/ingredient"
 import { RestockDialog } from "@/components/inventory/restock-dialog"
 
@@ -145,6 +145,7 @@ export default function IngredientsPage() {
     isDefault: boolean
   }>>([])
   const [newAliasName, setNewAliasName] = useState("")
+  const [customUnitName, setCustomUnitName] = useState("")
   const [newAliasMultiplier, setNewAliasMultiplier] = useState("")
   const [addingAlias, setAddingAlias] = useState(false)
 
@@ -212,6 +213,7 @@ export default function IngredientsPage() {
     setYieldFactor("")
     setUnitAliases([])
     setNewAliasName("")
+    setCustomUnitName("")
     setNewAliasMultiplier("")
   }
 
@@ -291,7 +293,11 @@ export default function IngredientsPage() {
   }
 
   async function handleAddAlias() {
-    if (!editIngredient || !newAliasName.trim() || !newAliasMultiplier) return
+    const aliasName = newAliasName === "__custom__"
+      ? customUnitName.trim().toLowerCase()
+      : newAliasName.trim().toLowerCase()
+
+    if (!editIngredient || !aliasName || !newAliasMultiplier) return
 
     setAddingAlias(true)
     try {
@@ -299,9 +305,9 @@ export default function IngredientsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newAliasName.trim().toLowerCase(),
+          name: aliasName,
           baseUnitMultiplier: parseFloat(newAliasMultiplier),
-          description: `1 ${newAliasName.trim()} = ${newAliasMultiplier} ${baseUnit}`,
+          description: `1 ${aliasName} = ${newAliasMultiplier} ${baseUnit}`,
         }),
       })
 
@@ -313,6 +319,7 @@ export default function IngredientsPage() {
       const alias = await res.json()
       setUnitAliases(prev => [...prev, alias])
       setNewAliasName("")
+      setCustomUnitName("")
       setNewAliasMultiplier("")
       toast.success(`Added "${alias.name}" unit`)
     } catch (error) {
@@ -336,11 +343,6 @@ export default function IngredientsPage() {
     } catch {
       toast.error("Failed to remove unit")
     }
-  }
-
-  function handlePresetClick(name: string, multiplier: number) {
-    setNewAliasName(name)
-    setNewAliasMultiplier(multiplier.toString())
   }
 
   const columns: DataTableColumn<Ingredient>[] = [
@@ -495,7 +497,7 @@ export default function IngredientsPage() {
 
       {/* Add/Edit Dialog - New Dual-Unit Form */}
       <Dialog open={formOpen} onOpenChange={closeForm}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {editIngredient ? "Edit Ingredient" : "Add Ingredient"}
@@ -700,30 +702,55 @@ export default function IngredientsPage() {
               )}
             </div>
 
-            {/* Recipe Units Section - Only show when editing existing ingredient */}
-            {editIngredient && (
-              <div className="space-y-3 p-4 bg-accent rounded-lg border border-border">
-                <div className="flex items-center justify-between">
-                  <Label className="font-medium">Recipe Units</Label>
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="inline-flex">
-                          <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-xs">
-                        <p>
-                          Add units like &quot;cup&quot; or &quot;serving&quot; for easier recipe entry.
-                          These appear in the unit dropdown when adding this ingredient to recipes.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+            {/* Recipe Units Section */}
+            <div className="space-y-3 p-4 bg-accent rounded-lg border border-border">
+              <div className="flex items-center justify-between">
+                <Label className="font-medium">Recipe Units</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="inline-flex">
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <p>
+                        Standard conversions are always available. You can also
+                        add custom units for this ingredient.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
 
-                {/* Current Aliases */}
-                {unitAliases.length > 0 && (
+              {/* Standard conversions (read-only) */}
+              {(() => {
+                const allUnits = getAvailableUnits(baseUnit, unitAliases)
+                const standardUnits = allUnits.filter(
+                  (u) => !u.isBase && !unitAliases.some((a) => a.name === u.name)
+                )
+                if (standardUnits.length === 0) return null
+                return (
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">Standard conversions</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {standardUnits.map((u) => (
+                        <Badge key={u.name} variant="secondary" className="font-normal text-xs">
+                          {u.name}
+                          <span className="text-muted-foreground ml-1">
+                            {u.description}
+                          </span>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Custom aliases (editable) */}
+              {editIngredient && unitAliases.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">Custom units</span>
                   <div className="space-y-2">
                     {unitAliases.map((alias) => (
                       <div
@@ -749,60 +776,97 @@ export default function IngredientsPage() {
                       </div>
                     ))}
                   </div>
-                )}
-
-                {/* Presets */}
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-sm text-muted-foreground">Quick add:</span>
-                  {[
-                    { name: "cup", multiplier: baseUnit === "mL" ? 240 : 200 },
-                    { name: "tbsp", multiplier: baseUnit === "mL" ? 15 : 15 },
-                    { name: "tsp", multiplier: baseUnit === "mL" ? 5 : 5 },
-                    { name: "serving", multiplier: 100 },
-                  ].map((preset) => (
-                    <Button
-                      key={preset.name}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-7"
-                      onClick={() => handlePresetClick(preset.name, preset.multiplier)}
-                    >
-                      + {preset.name}
-                    </Button>
-                  ))}
                 </div>
+              )}
 
-                {/* Add Custom */}
-                <div className="flex gap-2 pt-2 border-t">
-                  <Input
-                    placeholder="Unit name"
-                    value={newAliasName}
-                    onChange={(e) => setNewAliasName(e.target.value)}
-                    className="flex-1"
-                  />
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm text-muted-foreground">=</span>
-                    <Input
-                      type="number"
-                      placeholder="Amount"
-                      value={newAliasMultiplier}
-                      onChange={(e) => setNewAliasMultiplier(e.target.value)}
-                      className="w-20"
-                    />
-                    <span className="text-sm text-muted-foreground">{baseUnit}</span>
+              {/* Add Custom Unit */}
+              {editIngredient && (() => {
+                const existingNames = new Set([
+                  baseUnit,
+                  ...unitAliases.map((a) => a.name),
+                  ...getAvailableUnits(baseUnit, unitAliases)
+                    .filter((u) => !u.isBase)
+                    .map((u) => u.name),
+                ])
+                const presetUnits = [
+                  { name: "serving", label: "serving" },
+                  { name: "slice", label: "slice" },
+                  { name: "scoop", label: "scoop" },
+                  { name: "pinch", label: "pinch" },
+                  { name: "dash", label: "dash" },
+                  { name: "bunch", label: "bunch" },
+                  { name: "clove", label: "clove" },
+                  { name: "head", label: "head" },
+                  { name: "stick", label: "stick" },
+                  { name: "portion", label: "portion" },
+                  { name: "cup", label: "cup" },
+                  { name: "tbsp", label: "tbsp" },
+                  { name: "tsp", label: "tsp" },
+                  { name: "oz", label: "oz" },
+                  { name: "lb", label: "lb" },
+                  { name: "kg", label: "kg" },
+                  { name: "g", label: "g" },
+                  { name: "L", label: "L" },
+                  { name: "mL", label: "mL" },
+                  { name: "fl oz", label: "fl oz" },
+                  { name: "dozen", label: "dozen" },
+                ].filter((p) => !existingNames.has(p.name))
+                const isCustom = newAliasName === "__custom__"
+
+                return (
+                  <div className="space-y-2 pt-2 border-t">
+                    <span className="text-xs text-muted-foreground">Add unit</span>
+                    <div className="flex gap-2">
+                      <Select
+                        value={isCustom ? "__custom__" : newAliasName}
+                        onValueChange={(v) => {
+                          setNewAliasName(v)
+                          setNewAliasMultiplier("")
+                        }}
+                      >
+                        <SelectTrigger className="flex-1" aria-label="Select unit to add">
+                          <SelectValue placeholder="Select unit..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {presetUnits.map((p) => (
+                            <SelectItem key={p.name} value={p.name}>
+                              {p.label}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__custom__">Other (custom)...</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm text-muted-foreground">=</span>
+                        <Input
+                          type="number"
+                          placeholder="Amount"
+                          value={newAliasMultiplier}
+                          onChange={(e) => setNewAliasMultiplier(e.target.value)}
+                          className="w-24"
+                        />
+                        <span className="text-sm text-muted-foreground">{baseUnit}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleAddAlias}
+                        disabled={addingAlias || (!isCustom && !newAliasName) || (isCustom && !customUnitName) || !newAliasMultiplier}
+                        size="sm"
+                      >
+                        {addingAlias ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                      </Button>
+                    </div>
+                    {isCustom && (
+                      <Input
+                        placeholder="Custom unit name"
+                        value={customUnitName}
+                        onChange={(e) => setCustomUnitName(e.target.value)}
+                      />
+                    )}
                   </div>
-                  <Button
-                    type="button"
-                    onClick={handleAddAlias}
-                    disabled={addingAlias || !newAliasName || !newAliasMultiplier}
-                    size="sm"
-                  >
-                    {addingAlias ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
-                  </Button>
-                </div>
-              </div>
-            )}
+                )
+              })()}
+            </div>
 
             {/* Stock Section */}
             <div className="grid grid-cols-2 gap-4">

@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/providers/theme-provider"
+import { ColorThemeProvider } from "@/components/providers/color-theme-provider"
 
 const inter = Inter({
   variable: "--font-inter",
@@ -33,12 +34,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Prevent FOUC: apply saved color theme before paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("color-theme");if(t&&t!=="default")document.documentElement.setAttribute("data-color-theme",t)}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body
         className={`${inter.variable} ${jetbrains.variable} font-sans antialiased`}
       >
         <ThemeProvider>
-          {children}
-          <Toaster />
+          <ColorThemeProvider>
+            {children}
+            <Toaster />
+          </ColorThemeProvider>
         </ThemeProvider>
       </body>
     </html>

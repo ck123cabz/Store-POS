@@ -276,7 +276,7 @@ export default function UsersPage() {
       />
 
       <Dialog open={formOpen} onOpenChange={closeForm}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editUser ? "Edit User" : "Add User"}</DialogTitle>
           </DialogHeader>

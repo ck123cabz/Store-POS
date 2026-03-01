@@ -341,7 +341,7 @@ export default function WastePage() {
 
       {/* Log Waste Dialog */}
       <Dialog open={formOpen} onOpenChange={closeForm}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Log Waste</DialogTitle>
           </DialogHeader>
