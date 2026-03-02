@@ -27,6 +27,7 @@ import {
   ShoppingBag,
   Clock,
   RefreshCw,
+  Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
@@ -399,6 +400,44 @@ export default function POSPage() {
     toast.success("Order loaded")
   }
 
+  const handleDeleteHoldOrder = async (orderId: number, e: React.MouseEvent) => {
+    e.stopPropagation() // Don't trigger card click (load order)
+    try {
+      const response = await fetch(`/api/transactions/${orderId}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to delete")
+      }
+      fetchHoldOrders()
+      toast.success("Hold order removed")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to remove hold order")
+    }
+  }
+
+  const handleClearAllHoldOrders = async () => {
+    if (holdOrders.length === 0) return
+    try {
+      const results = await Promise.all(
+        holdOrders.map((order) =>
+          fetch(`/api/transactions/${order.id}`, { method: "DELETE" })
+        )
+      )
+      const failed = results.filter((r) => !r.ok).length
+      fetchHoldOrders()
+      if (failed > 0) {
+        toast.error(`Failed to remove ${failed} order(s)`)
+      } else {
+        toast.success("All hold orders cleared")
+        setHoldOrdersModalOpen(false)
+      }
+    } catch {
+      toast.error("Failed to clear hold orders")
+    }
+  }
+
   const handleQuickSetPrice = async (productId: number, price: number) => {
     try {
       const response = await fetch(`/api/products/${productId}`, {
@@ -649,13 +688,26 @@ export default function POSPage() {
 
       {/* Hold Orders Sheet */}
       <Sheet open={holdOrdersModalOpen} onOpenChange={setHoldOrdersModalOpen}>
-        <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+        <SheetContent side="right" className="w-full sm:w-[640px] sm:max-w-[640px]">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <PauseCircle className="h-5 w-5" />
-              Hold Orders
-              <Badge variant="secondary">{holdOrders.length}</Badge>
-            </SheetTitle>
+            <div className="flex items-center justify-between">
+              <SheetTitle className="flex items-center gap-2">
+                <PauseCircle className="h-5 w-5" />
+                Hold Orders
+                <Badge variant="secondary">{holdOrders.length}</Badge>
+              </SheetTitle>
+              {holdOrders.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  onClick={handleClearAllHoldOrders}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  Clear All
+                </Button>
+              )}
+            </div>
           </SheetHeader>
           <ScrollArea className="h-[calc(100vh-8rem)] mt-4">
             {holdOrders.length === 0 ? (
@@ -666,47 +718,58 @@ export default function POSPage() {
                 className="py-12"
               />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1">
                 {holdOrders.map((order) => (
                   <Card
                     key={order.id}
                     className="p-4 cursor-pointer hover:border-primary/50 transition-all"
                     onClick={() => handleLoadOrder(order)}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-semibold">#{order.refNumber || order.id}</p>
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">#{order.refNumber || order.id}</p>
                         {order.createdAt && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Clock className="h-3 w-3 flex-shrink-0" />
                             {formatDistanceToNow(new Date(order.createdAt), {
                               addSuffix: true,
                             })}
                           </p>
                         )}
                       </div>
-                      <Badge variant="outline" className="text-xs">
-                        {order.items.length} items
+                      <Badge variant="outline" className="text-xs flex-shrink-0">
+                        {order.items.length} {order.items.length === 1 ? "item" : "items"}
                       </Badge>
                     </div>
                     <div className="space-y-1">
-                      {order.items.slice(0, 2).map((item, idx) => (
+                      {order.items.slice(0, 3).map((item, idx) => (
                         <p key={idx} className="text-sm text-muted-foreground truncate">
                           {item.quantity}x {item.productName}
                         </p>
                       ))}
-                      {order.items.length > 2 && (
+                      {order.items.length > 3 && (
                         <p className="text-xs text-muted-foreground">
-                          +{order.items.length - 2} more
+                          +{order.items.length - 3} more
                         </p>
                       )}
                     </div>
-                    <div className="mt-3 pt-2 border-t flex items-center justify-between">
+                    <div className="mt-3 pt-3 border-t flex items-center justify-between">
                       <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-bold text-primary">
-                        {settings.currencySymbol}
-                        {Number(order.total).toFixed(2)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-primary font-mono tabular-nums">
+                          {settings.currencySymbol}
+                          {Number(order.total).toFixed(2)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => handleDeleteHoldOrder(order.id, e)}
+                          aria-label={`Remove hold order ${order.refNumber || order.id}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -721,7 +784,7 @@ export default function POSPage() {
         open={customerOrdersModalOpen}
         onOpenChange={setCustomerOrdersModalOpen}
       >
-        <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+        <SheetContent side="right" className="w-full sm:w-[640px] sm:max-w-[640px]">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -738,33 +801,33 @@ export default function POSPage() {
                 className="py-12"
               />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1">
                 {customerOrders.map((order) => (
                   <Card
                     key={order.id}
                     className="p-4 cursor-pointer hover:border-primary/50 transition-all"
                     onClick={() => handleLoadOrder(order)}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-semibold">{order.customer?.name}</p>
-                        <p className="text-xs text-muted-foreground">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{order.customer?.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           #{order.refNumber || order.id}
                         </p>
                       </div>
-                      <Badge variant="outline" className="text-xs">
-                        {order.items.length} items
+                      <Badge variant="outline" className="text-xs flex-shrink-0">
+                        {order.items.length} {order.items.length === 1 ? "item" : "items"}
                       </Badge>
                     </div>
                     <div className="space-y-1">
-                      {order.items.slice(0, 2).map((item, idx) => (
+                      {order.items.slice(0, 3).map((item, idx) => (
                         <p key={idx} className="text-sm text-muted-foreground truncate">
                           {item.quantity}x {item.productName}
                         </p>
                       ))}
-                      {order.items.length > 2 && (
+                      {order.items.length > 3 && (
                         <p className="text-xs text-muted-foreground">
-                          +{order.items.length - 2} more
+                          +{order.items.length - 3} more
                         </p>
                       )}
                     </div>
