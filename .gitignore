@@ -55,3 +55,11 @@ next-env.d.ts
 .serena/
 .playwright-mcp/
 .claude/
+
+# screenshots from verification/debugging
+*.png
+!src/**/*.png
+!public/**/*.png
+
+# session transcript files
+20*.txt
