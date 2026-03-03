@@ -82,7 +82,8 @@ export async function POST(request: NextRequest) {
       receiptFooter: settings.receiptFooter,
       logo: settings.logo,
     })
-  } catch {
+  } catch (error) {
+    console.error("Settings save error:", error)
     return NextResponse.json({ error: "Failed to save settings" }, { status: 500 })
   }
 }

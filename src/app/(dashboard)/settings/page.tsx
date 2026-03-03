@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Loader2, Save, Upload, RotateCcw, Check } from "lucide-react"
 import { useOnboarding } from "@/hooks/use-onboarding"
 import { useColorTheme } from "@/components/providers/color-theme-provider"
@@ -385,21 +386,24 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-3">
               <Label>Color Theme</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <RadioGroup
+                value={colorTheme}
+                onValueChange={setColorTheme}
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+              >
                 {COLOR_THEMES.map((theme) => {
                   const active = colorTheme === theme.id
                   const colors = resolvedTheme === "dark" ? theme.preview.dark : theme.preview.light
                   return (
-                    <button
+                    <label
                       key={theme.id}
-                      type="button"
-                      onClick={() => setColorTheme(theme.id)}
-                      className={`group relative rounded-lg border-2 p-3 text-left transition-colors ${
+                      className={`group relative cursor-pointer rounded-lg border-2 p-3 text-left transition-colors ${
                         active
                           ? "border-primary ring-2 ring-primary/20"
                           : "border-border hover:border-primary/40"
                       }`}
                     >
+                      <RadioGroupItem value={theme.id} className="sr-only" />
                       {active && (
                         <div className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary">
                           <Check className="h-2.5 w-2.5 text-primary-foreground" />
@@ -418,10 +422,10 @@ export default function SettingsPage() {
                       <p className="text-xs text-muted-foreground leading-tight mt-0.5">
                         {theme.description}
                       </p>
-                    </button>
+                    </label>
                   )
                 })}
-              </div>
+              </RadioGroup>
             </div>
           </CardContent>
         </Card>

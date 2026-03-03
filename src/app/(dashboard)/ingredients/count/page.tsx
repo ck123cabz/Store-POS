@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Save, Send, X, ChevronDown, ChevronUp, ClipboardList } from "lucide-react"
+import { Save, Send, X, ChevronDown, ChevronUp, ClipboardList, AlertTriangle } from "lucide-react"
+import { Stepper, StepperItem } from "@/components/ui/stepper"
+import { AlertBanner } from "@/components/ui/alert-banner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -336,12 +338,29 @@ export default function InventoryCountPage() {
         </div>
       </div>
 
-      {/* Progress bar */}
+      {/* Stepper + Progress */}
       <Card>
-        <CardContent className="pt-4">
+        <CardContent className="pt-4 space-y-3">
+          <Stepper activeStep={
+            submitting ? 3 :
+            countedItems === totalItems && totalItems > 0 ? 2 :
+            countedItems > 0 ? 1 : 0
+          }>
+            <StepperItem step={1} label="Prepare" description="Load ingredients" />
+            <StepperItem step={2} label="Count" description={`${countedItems}/${totalItems}`} />
+            <StepperItem step={3} label="Review" description="Check discrepancies" />
+            <StepperItem step={4} label="Submit" description="Save counts" />
+          </Stepper>
           <Progress value={progress} className="h-2" />
         </CardContent>
       </Card>
+
+      {/* Discrepancy warning banner */}
+      {discrepancyCount > 0 && countedItems === totalItems && (
+        <AlertBanner variant="warning" icon={<AlertTriangle className="size-4" />} dismissible>
+          <strong>{discrepancyCount}</strong> {discrepancyCount === 1 ? "item has" : "items have"} discrepancies between expected and actual counts. Review before submitting.
+        </AlertBanner>
+      )}
 
       {/* Items by category */}
       {items.length === 0 ? (

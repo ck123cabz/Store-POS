@@ -18,6 +18,7 @@ interface FilterPillsProps {
   ariaLabel?: string
 }
 
+/** @deprecated Use ToggleGroup from @/components/ui/toggle-group instead */
 function FilterPills({
   options,
   value,

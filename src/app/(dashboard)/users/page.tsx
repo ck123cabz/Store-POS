@@ -1,10 +1,20 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { userFormSchema, type UserFormValues } from "@/lib/validations/user"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form"
 import {
   Dialog,
   DialogContent,
@@ -23,6 +33,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { StatusDot } from "@/components/ui/status-dot"
+import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar"
 import { Plus, Pencil, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
 
@@ -39,19 +50,7 @@ interface User {
   status: string
 }
 
-interface UserFormData {
-  username: string
-  password: string
-  fullname: string
-  permProducts: boolean
-  permCategories: boolean
-  permTransactions: boolean
-  permUsers: boolean
-  permSettings: boolean
-  permVoid: boolean
-}
-
-const initialFormData: UserFormData = {
+const defaultFormValues: UserFormValues = {
   username: "",
   password: "",
   fullname: "",
@@ -60,6 +59,8 @@ const initialFormData: UserFormData = {
   permTransactions: false,
   permUsers: false,
   permSettings: false,
+  permReports: false,
+  permAuditLog: false,
   permVoid: false,
 }
 
@@ -82,10 +83,12 @@ export default function UsersPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
-  const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const [formData, setFormData] = useState<UserFormData>(initialFormData)
+  const form = useForm<UserFormValues>({
+    resolver: editUser ? undefined : zodResolver(userFormSchema),
+    defaultValues: defaultFormValues,
+  })
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -102,7 +105,7 @@ export default function UsersPage() {
 
   function openForm(user?: User) {
     setEditUser(user || null)
-    setFormData({
+    form.reset({
       username: user?.username || "",
       password: "",
       fullname: user?.fullname || "",
@@ -111,6 +114,8 @@ export default function UsersPage() {
       permTransactions: user?.permTransactions || false,
       permUsers: user?.permUsers || false,
       permSettings: user?.permSettings || false,
+      permReports: false,
+      permAuditLog: false,
       permVoid: user?.permVoid || false,
     })
     setFormOpen(true)
@@ -119,39 +124,29 @@ export default function UsersPage() {
   function closeForm() {
     setFormOpen(false)
     setEditUser(null)
-    setFormData(initialFormData)
+    form.reset(defaultFormValues)
   }
 
-  function handleInputChange(field: keyof UserFormData, value: string | boolean) {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!formData.fullname.trim()) return
-    if (!editUser && !formData.username.trim()) return
-    if (!editUser && !formData.password) return
-
-    setSubmitting(true)
+  async function onSubmit(values: UserFormValues) {
     try {
       const url = editUser ? `/api/users/${editUser.id}` : "/api/users"
       const method = editUser ? "PUT" : "POST"
 
       const body: Record<string, string | boolean> = {
-        fullname: formData.fullname,
-        permProducts: formData.permProducts,
-        permCategories: formData.permCategories,
-        permTransactions: formData.permTransactions,
-        permUsers: formData.permUsers,
-        permSettings: formData.permSettings,
-        permVoid: formData.permVoid,
+        fullname: values.fullname,
+        permProducts: values.permProducts,
+        permCategories: values.permCategories,
+        permTransactions: values.permTransactions,
+        permUsers: values.permUsers,
+        permSettings: values.permSettings,
+        permVoid: values.permVoid,
       }
 
       if (!editUser) {
-        body.username = formData.username
-        body.password = formData.password
-      } else if (formData.password) {
-        body.password = formData.password
+        body.username = values.username
+        body.password = values.password
+      } else if (values.password) {
+        body.password = values.password
       }
 
       const res = await fetch(url, {
@@ -170,8 +165,6 @@ export default function UsersPage() {
       fetchUsers()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save user")
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -198,12 +191,27 @@ export default function UsersPage() {
     {
       id: "fullname",
       header: "Name",
-      cell: (u) => (
-        <div>
-          <div className="font-medium">{u.fullname}</div>
-          <div className="text-xs text-muted-foreground">{u.username}</div>
-        </div>
-      ),
+      cell: (u) => {
+        const isOnline = u.status.startsWith("Logged In")
+        const initials = u.fullname
+          .split(" ")
+          .map((w) => w[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar size="sm">
+              <AvatarFallback>{initials}</AvatarFallback>
+              {isOnline && <AvatarBadge className="bg-status-ok" />}
+            </Avatar>
+            <div>
+              <div className="font-medium">{u.fullname}</div>
+              <div className="text-xs text-muted-foreground">{u.username}</div>
+            </div>
+          </div>
+        )
+      },
       priority: 0,
     },
     {
@@ -280,63 +288,84 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle>{editUser ? "Edit User" : "Add User"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!editUser && (
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  value={formData.username}
-                  onChange={(e) => handleInputChange("username", e.target.value)}
-                  required
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {!editUser && (
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="fullname">Full Name</Label>
-              <Input
-                id="fullname"
-                value={formData.fullname}
-                onChange={(e) => handleInputChange("fullname", e.target.value)}
-                required
+              )}
+              <FormField
+                control={form.control}
+                name="fullname"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                {editUser ? "New Password (leave blank to keep)" : "Password"}
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-                required={!editUser}
-                minLength={4}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {editUser ? "New Password (leave blank to keep)" : "Password"}
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="space-y-3">
-              <Label>Permissions</Label>
-              {permissions.map(({ key, label }) => (
-                <div key={key} className="flex items-center justify-between">
-                  <span className="text-sm">{label}</span>
-                  <Switch
-                    checked={formData[key]}
-                    onCheckedChange={(checked) => handleInputChange(key, checked)}
+              <div className="space-y-3">
+                <span className="text-sm font-medium">Permissions</span>
+                {permissions.map(({ key, label }) => (
+                  <FormField
+                    key={key}
+                    control={form.control}
+                    name={key}
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between space-y-0">
+                        <FormLabel className="font-normal">{label}</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
                   />
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
 
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={closeForm}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Saving..." : "Save"}
-              </Button>
-            </div>
-          </form>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={closeForm}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 

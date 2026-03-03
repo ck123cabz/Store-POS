@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { type PaymentType } from "@/lib/payment-validation"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { useNetworkStatus } from "@/hooks/use-network-status"
 import { useOfflineQueue } from "@/hooks/use-offline-queue"
 import { SplitPayment, type SplitPaymentData } from "./split-payment"
@@ -105,6 +106,8 @@ export function PaymentModal({
   taxAmount = 0,
   userId = 1,
 }: PaymentModalProps) {
+  const isMobile = useIsMobile()
+
   // Network and offline queue hooks
   const { isOffline } = useNetworkStatus()
   const { queue, isAvailable: isOfflineAvailable, pendingCount } = useOfflineQueue()
@@ -550,12 +553,12 @@ export function PaymentModal({
                   <Label className="text-sm text-muted-foreground">Amount Received</Label>
                   <Input
                     type="text"
-                    inputMode="decimal"
+                    inputMode={isMobile ? "none" : "decimal"}
+                    readOnly={isMobile}
                     placeholder="0.00"
                     value={paidAmount}
                     onChange={(e) => setPaidAmount(e.target.value)}
                     className="text-2xl font-bold h-14 min-h-11 text-center mt-1 font-mono tabular-nums"
-                    autoFocus
                   />
                 </div>
 

@@ -41,15 +41,14 @@ test.describe('US5: Mobile POS Interface @p1', () => {
         const productGrid = page.locator('.grid')
         await expect(productGrid.first()).toBeVisible()
 
-        // On mobile, we need to check the cart button to access cart
-        // On tablet/desktop (md: breakpoint = 768px+), cart is visible directly
+        // On mobile, the desktop cart sidebar is hidden; a floating cart bar appears after adding items
+        // On tablet/desktop (md: breakpoint = 768px+), cart sidebar is visible directly
         if (viewport.width < 768) {
-          // Mobile: check the cart toggle button exists
-          const cartButton = page.getByRole('button', { name: /Cart/i })
-          await expect(cartButton).toBeVisible()
+          // Mobile: desktop cart sidebar should NOT be visible
+          const cartHeading = page.locator('h2').filter({ hasText: 'Cart' })
+          await expect(cartHeading).not.toBeVisible()
         } else {
           // Tablet/Desktop: Cart sidebar should be visible (md: breakpoint >=768px)
-          // Check for cart heading which is always present in the sidebar
           const cartHeading = page.locator('h2').filter({ hasText: 'Cart' })
           await expect(cartHeading).toBeVisible()
         }
@@ -91,11 +90,11 @@ test.describe('US5: Mobile POS Interface @p1', () => {
     test('Pay button has minimum touch target size', async ({ page }) => {
       await setupMobilePOS(page)
 
-      // On mobile, need to click a product and open cart
+      // On mobile, need to click a product and open cart drawer
       await page.locator('[data-testid="product-card"][aria-disabled="false"]').first().click()
 
-      // Click cart button to show cart on mobile
-      await page.getByRole('button', { name: /Cart/i }).click()
+      // Open cart drawer via mobile cart bar
+      await page.getByRole('button', { name: /View Cart/i }).click()
       await page.waitForTimeout(300)
 
       const payButton = page.getByRole('button', { name: /Pay ₱/i })
@@ -112,10 +111,10 @@ test.describe('US5: Mobile POS Interface @p1', () => {
       // Add product to cart
       await page.locator('[data-testid="product-card"][aria-disabled="false"]').first().click()
 
-      // On mobile, click cart button to show cart
-      const cartButton = page.getByRole('button', { name: /Cart/i })
-      await expect(cartButton).toBeVisible()
-      await cartButton.click()
+      // On mobile, open cart drawer via mobile cart bar
+      const viewCartButton = page.getByRole('button', { name: /View Cart/i })
+      await expect(viewCartButton).toBeVisible()
+      await viewCartButton.click()
       await page.waitForTimeout(300)
 
       // Check quantity buttons (+ and -)
@@ -135,8 +134,8 @@ test.describe('US5: Mobile POS Interface @p1', () => {
       // Add product
       await page.locator('[data-testid="product-card"][aria-disabled="false"]').first().click()
 
-      // Open cart on mobile
-      await page.getByRole('button', { name: /Cart/i }).click()
+      // Open cart drawer via mobile cart bar
+      await page.getByRole('button', { name: /View Cart/i }).click()
       await page.waitForTimeout(300)
 
       // Open payment modal
@@ -178,11 +177,9 @@ test.describe('US5: Mobile POS Interface @p1', () => {
       // Tap product
       await page.locator('[data-testid="product-card"][aria-disabled="false"]').first().click()
 
-      // Cart button should show item count
-      const cartButton = page.getByRole('button', { name: /Cart/i })
-      await expect(cartButton).toBeVisible()
-      // The button should have badge showing "1"
-      await expect(cartButton.locator('[data-slot="badge"]')).toBeVisible()
+      // Mobile cart bar should appear showing item count
+      await expect(page.getByText(/1 item/i)).toBeVisible()
+      await expect(page.getByRole('button', { name: /View Cart/i })).toBeVisible()
     })
 
     test('can complete cash payment on mobile', async ({ page }) => {
@@ -191,8 +188,8 @@ test.describe('US5: Mobile POS Interface @p1', () => {
       // Add product
       await page.locator('[data-testid="product-card"][aria-disabled="false"]').first().click()
 
-      // Open cart on mobile
-      await page.getByRole('button', { name: /Cart/i }).click()
+      // Open cart drawer via mobile cart bar
+      await page.getByRole('button', { name: /View Cart/i }).click()
       await page.waitForTimeout(300)
 
       // Open payment modal
@@ -216,14 +213,14 @@ test.describe('US5: Mobile POS Interface @p1', () => {
       // Add product
       await page.locator('[data-testid="product-card"][aria-disabled="false"]').first().click()
 
-      // Open cart on mobile
-      await page.getByRole('button', { name: /Cart/i }).click()
+      // Open cart drawer via mobile cart bar
+      await page.getByRole('button', { name: /View Cart/i }).click()
       await page.waitForTimeout(300)
 
-      // Open payment modal
+      // Open payment modal (drawer closes, then payment modal opens)
       await page.getByRole('button', { name: /Pay ₱/i }).click()
 
-      // Modal should be visible
+      // Modal should be visible (may take a moment due to drawer-to-modal handoff)
       const modal = page.getByRole('dialog')
       await expect(modal).toBeVisible({ timeout: 10000 })
 
@@ -301,27 +298,24 @@ test.describe('US5: Mobile POS Interface @p1', () => {
       // Add product
       await page.locator('[data-testid="product-card"][aria-disabled="false"]').first().click()
 
-      // On mobile, Cart button shows the count
-      const cartButton = page.getByRole('button', { name: /Cart/i })
-      await expect(cartButton).toBeVisible()
-      await expect(cartButton.locator('[data-slot="badge"]')).toBeVisible()
+      // Mobile cart bar should show item count
+      await expect(page.getByText(/1 item/i)).toBeVisible()
 
-      // Simulate orientation change to landscape (still mobile-ish, so cart button visible)
+      // Simulate orientation change to landscape (still mobile-ish, so cart bar visible)
       await page.setViewportSize({ width: 667, height: 375 })
 
       // Wait for layout to settle
       await page.waitForTimeout(500)
 
-      // Cart button should still show 1 item
-      await expect(cartButton).toBeVisible()
-      await expect(cartButton.locator('[data-slot="badge"]')).toBeVisible()
+      // Cart bar should still show 1 item
+      await expect(page.getByText(/1 item/i)).toBeVisible()
 
       // Change back to portrait
       await page.setViewportSize({ width: 375, height: 667 })
       await page.waitForTimeout(500)
 
-      // Cart should still persist
-      await expect(cartButton.locator('[data-slot="badge"]')).toBeVisible()
+      // Cart bar should still persist
+      await expect(page.getByText(/1 item/i)).toBeVisible()
     })
   })
 

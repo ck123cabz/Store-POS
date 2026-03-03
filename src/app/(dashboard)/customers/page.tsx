@@ -32,6 +32,7 @@ import { useSettings } from "@/hooks/use-settings"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
 import { StatusDot } from "@/components/ui/status-dot"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 interface Customer {
   id: number
@@ -180,7 +181,22 @@ export default function CustomersPage() {
     {
       id: "name",
       header: "Name",
-      cell: (c) => <span className="font-medium">{c.name}</span>,
+      cell: (c) => {
+        const initials = c.name
+          .split(" ")
+          .map((w) => w[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar size="sm">
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <span className="font-medium">{c.name}</span>
+          </div>
+        )
+      },
       priority: 0,
       sortable: true,
     },

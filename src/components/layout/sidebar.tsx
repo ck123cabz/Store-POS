@@ -1,10 +1,13 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
+import { useSettings } from "@/hooks/use-settings"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatBadgeCount, shouldShowBadge } from "@/lib/format-utils"
@@ -108,6 +111,7 @@ export function AppSidebar() {
   const { setOpenMobile } = useSidebar()
   const { getBadgeCount } = useSidebarBadges()
   const { theme, setTheme } = useTheme()
+  const { settings } = useSettings()
 
   function isActive(href: string) {
     if (href === pathname) return true
@@ -119,12 +123,28 @@ export function AppSidebar() {
     <SidebarRoot>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="size-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-            <ShoppingCart className="size-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-semibold text-sm tracking-tight">Store POS</span>
-            <span className="text-xs text-muted-foreground">Point of Sale</span>
+          {settings?.logo ? (
+            <div className="size-9 rounded-lg overflow-hidden shrink-0 bg-muted">
+              <Image
+                src={`/uploads/${settings.logo}`}
+                alt=""
+                width={36}
+                height={36}
+                className="size-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="size-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+              <ShoppingCart className="size-5" />
+            </div>
+          )}
+          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+            <span className="font-semibold text-sm tracking-tight">
+              {settings?.storeName || "Store POS"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {settings?.appMode || "Point of Sale"}
+            </span>
           </div>
         </div>
       </SidebarHeader>
@@ -187,7 +207,27 @@ export function AppSidebar() {
           )
         })}
       </SidebarContent>
-      <SidebarFooter className="p-3">
+      <SidebarFooter className="p-3 space-y-2">
+        {session?.user && (
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <Avatar size="sm">
+              <AvatarFallback>
+                {(session.user.name || session.user.username || "U")
+                  .split(" ")
+                  .map((w: string) => w[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
+              <span className="text-sm font-medium truncate">{session.user.name || session.user.username}</span>
+              <span className="text-xs text-muted-foreground truncate">
+                {session.user.permUsers ? "Admin" : "Staff"}
+              </span>
+            </div>
+          </div>
+        )}
         <Button
           variant="ghost"
           size="sm"

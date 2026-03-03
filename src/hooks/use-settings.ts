@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from "react"
 
 interface Settings {
+  appMode: string
   currencySymbol: string
   storeName: string
   taxPercentage: number
   chargeTax: boolean
+  logo: string
 }
 
 interface UseSettingsReturn {
@@ -40,20 +42,24 @@ export function useSettings(): UseSettingsReturn {
 
       const data = await response.json()
       setSettings({
+        appMode: data.appMode || "Point of Sale",
         currencySymbol: data.currencySymbol || DEFAULT_CURRENCY_SYMBOL,
         storeName: data.storeName || "",
         taxPercentage: parseFloat(data.taxPercentage) || 0,
         chargeTax: data.chargeTax ?? false,
+        logo: data.logo || "",
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error")
       // Keep existing settings on error, or use defaults
       if (!settings) {
         setSettings({
+          appMode: "Point of Sale",
           currencySymbol: DEFAULT_CURRENCY_SYMBOL,
           storeName: "",
           taxPercentage: 0,
           chargeTax: false,
+          logo: "",
         })
       }
     } finally {

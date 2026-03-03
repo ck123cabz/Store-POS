@@ -14,9 +14,23 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
-import { FilterPills } from "@/components/ui/filter-pills"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Timeline, TimelineItem, TimelineTimestamp, TimelineContent } from "@/components/ui/timeline"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { DateRangePicker, type DateRangePreset } from "@/components/ui/date-range-picker"
 import { cn } from "@/lib/utils"
-import { RefreshCw, History, FileText, ChevronLeft, ChevronRight } from "lucide-react"
+import { getDateRange, DATE_RANGE_OPTIONS } from "@/lib/date-ranges"
+import { generatePageNumbers } from "@/lib/pagination-utils"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from "@/components/ui/pagination"
+import { RefreshCw, History, FileText, ChevronLeft, ChevronRight, TableIcon, ListIcon } from "lucide-react"
 
 interface AuditLog {
   id: number
@@ -67,7 +81,22 @@ const columns: DataTableColumn<AuditLog>[] = [
   {
     id: "user",
     header: "User",
-    cell: (log) => log.userName,
+    cell: (log) => {
+      const initials = log.userName
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+      return (
+        <div className="flex items-center gap-2">
+          <Avatar size="sm">
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <span>{log.userName}</span>
+        </div>
+      )
+    },
     priority: 1,
   },
   {
@@ -118,10 +147,98 @@ const columns: DataTableColumn<AuditLog>[] = [
   },
 ]
 
+function getTimelineStatus(source: string): "ok" | "warning" | "critical" | "info" | "neutral" {
+  switch (source) {
+    case "sale": return "ok"
+    case "restock": return "warning"
+    case "manual_edit": return "info"
+    case "inventory_count": return "neutral"
+    default: return "neutral"
+  }
+}
+
+function AuditTimeline({ logs, loading }: { logs: AuditLog[]; loading: boolean }) {
+  if (loading) {
+    return <div className="text-sm text-muted-foreground py-8 text-center">Loading...</div>
+  }
+
+  if (logs.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground py-8 text-center">
+        No entries to display.
+      </div>
+    )
+  }
+
+  // Group by day
+  const grouped: Record<string, AuditLog[]> = {}
+  for (const log of logs) {
+    const day = format(new Date(log.createdAt), "MMM d, yyyy")
+    if (!grouped[day]) grouped[day] = []
+    grouped[day].push(log)
+  }
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(grouped).map(([day, dayLogs]) => (
+        <div key={day}>
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">{day}</h3>
+          <Timeline>
+            {dayLogs.map((log) => {
+              const delta = parseFloat(log.change || "0")
+              const color = delta > 0 ? "text-status-ok" : delta < 0 ? "text-status-critical" : ""
+              const initials = log.userName
+                .split(" ")
+                .map((w) => w[0])
+                .join("")
+                .toUpperCase()
+                .slice(0, 2)
+
+              return (
+                <TimelineItem key={log.id} status={getTimelineStatus(log.source)}>
+                  <div className="flex items-start justify-between gap-2">
+                    <TimelineContent>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Avatar size="sm">
+                          <AvatarFallback>{initials}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium text-sm">{log.userName}</span>
+                        <Badge variant="outline" className={cn("text-[10px]", sourceLabels[log.source]?.color)}>
+                          {sourceLabels[log.source]?.label || log.source}
+                        </Badge>
+                      </div>
+                      <p className="text-sm">
+                        <span className="font-medium">{log.ingredientName}</span>
+                        {" "}
+                        <span className={cn("font-mono tabular-nums", color)}>
+                          {delta > 0 ? "+" : ""}{delta} {log.unit}
+                        </span>
+                        {log.reason && (
+                          <span className="text-muted-foreground"> — {log.reason}{log.reasonNote ? `: ${log.reasonNote}` : ""}</span>
+                        )}
+                      </p>
+                    </TimelineContent>
+                    <TimelineTimestamp>
+                      {format(new Date(log.createdAt), "h:mm a")}
+                    </TimelineTimestamp>
+                  </div>
+                </TimelineItem>
+              )
+            })}
+          </Timeline>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function AuditLogPage() {
   const [data, setData] = useState<AuditData | null>(null)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
+
+  // View mode
+  const [viewMode, setViewMode] = useState<"table" | "timeline">("table")
 
   // Filters
   const [source, setSource] = useState("")
@@ -163,6 +280,14 @@ export default function AuditLogPage() {
     setPage(1)
   }
 
+  const datePresets: DateRangePreset[] = DATE_RANGE_OPTIONS.map((label) => ({
+    label,
+    getValue: () => {
+      const range = getDateRange(label)
+      return { from: range.start, to: range.end }
+    },
+  }))
+
   const hasFilters = (source && source !== "all") || (userId && userId !== "all") || dateFrom || dateTo
 
   return (
@@ -181,21 +306,42 @@ export default function AuditLogPage() {
         </Button>
       </div>
 
-      {/* Source FilterPills */}
-      <FilterPills
-        options={
-          data?.filters.sources.map((s) => ({
-            label: sourceLabels[s]?.label || s,
-            value: s,
-          })) || []
-        }
-        value={source || null}
-        onChange={(val) => {
-          setSource(val || "")
-          setPage(1)
-        }}
-        ariaLabel="Filter by source"
-      />
+      {/* Source filter + View toggle */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={source}
+          onValueChange={(v) => {
+            setSource(v || "")
+            setPage(1)
+          }}
+          aria-label="Filter by source"
+        >
+          {(data?.filters.sources || []).map((s) => (
+            <ToggleGroupItem key={s} value={s}>
+              {sourceLabels[s]?.label || s}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={viewMode}
+          onValueChange={(v) => { if (v) setViewMode(v as "table" | "timeline") }}
+          aria-label="View mode"
+        >
+          <ToggleGroupItem value="table" aria-label="Table view">
+            <TableIcon className="size-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="timeline" aria-label="Timeline view">
+            <ListIcon className="size-4" />
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
 
       {/* Date and User filters */}
       <div className="flex flex-wrap items-end gap-4">
@@ -217,22 +363,16 @@ export default function AuditLogPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="audit-date-from">From Date</Label>
-          <Input
-            id="audit-date-from"
-            type="date"
-            value={dateFrom}
-            onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="audit-date-to">To Date</Label>
-          <Input
-            id="audit-date-to"
-            type="date"
-            value={dateTo}
-            onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
+          <Label>Date Range</Label>
+          <DateRangePicker
+            from={dateFrom ? new Date(dateFrom + "T00:00:00") : undefined}
+            to={dateTo ? new Date(dateTo + "T00:00:00") : undefined}
+            onChange={({ from, to }) => {
+              setDateFrom(from ? format(from, "yyyy-MM-dd") : "")
+              setDateTo(to ? format(to, "yyyy-MM-dd") : "")
+              setPage(1)
+            }}
+            presets={datePresets}
           />
         </div>
 
@@ -250,54 +390,70 @@ export default function AuditLogPage() {
         </p>
       )}
 
-      {/* DataTable */}
-      <DataTable<AuditLog>
-        columns={columns}
-        data={data?.logs || []}
-        rowKey={(log) => log.id}
-        loading={loading}
-        emptyIcon={<FileText className="h-10 w-10" />}
-        emptyTitle={hasFilters ? "No entries match your filters" : "No activity recorded yet"}
-        emptyDescription={
-          hasFilters
-            ? undefined
-            : "Inventory changes will be logged here automatically."
-        }
-        emptyAction={
-          hasFilters ? (
-            <Button size="sm" variant="outline" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          ) : undefined
-        }
-        pageSize={9999}
-      />
+      {/* Data view */}
+      {viewMode === "table" ? (
+        <DataTable<AuditLog>
+          columns={columns}
+          data={data?.logs || []}
+          rowKey={(log) => log.id}
+          loading={loading}
+          emptyIcon={<FileText className="h-10 w-10" />}
+          emptyTitle={hasFilters ? "No entries match your filters" : "No activity recorded yet"}
+          emptyDescription={
+            hasFilters
+              ? undefined
+              : "Inventory changes will be logged here automatically."
+          }
+          emptyAction={
+            hasFilters ? (
+              <Button size="sm" variant="outline" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+          pageSize={9999}
+        />
+      ) : (
+        <AuditTimeline logs={data?.logs || []} loading={loading} />
+      )}
 
       {/* Server-side pagination */}
       {data && data.totalPages > 1 && !loading && (
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm">
-            Page {page} of {data.totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
-            disabled={page === data.totalPages}
-            aria-label="Next page"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                aria-disabled={page === 1}
+                className={page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+            {generatePageNumbers(page, data.totalPages).map((item, i) =>
+              item === "..." ? (
+                <PaginationItem key={`ellipsis-${i}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              ) : (
+                <PaginationItem key={item}>
+                  <PaginationLink
+                    isActive={item === page}
+                    onClick={() => setPage(item)}
+                    className="cursor-pointer"
+                  >
+                    {item}
+                  </PaginationLink>
+                </PaginationItem>
+              )
+            )}
+            <PaginationItem>
+              <PaginationNext
+                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+                aria-disabled={page === data.totalPages}
+                className={page === data.totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       )}
     </div>
   )

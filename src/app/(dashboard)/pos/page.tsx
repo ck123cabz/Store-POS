@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react"
 import { ProductGrid } from "@/components/pos/product-grid"
 import { Cart } from "@/components/pos/cart"
+import { CartDrawer } from "@/components/pos/cart-drawer"
+import { MobileCartBar } from "@/components/pos/mobile-cart-bar"
 import { PaymentModal } from "@/components/pos/payment-modal"
 import { HoldModal } from "@/components/pos/hold-modal"
 import { PayLaterModal, PayLaterResult } from "@/components/pos/pay-later-modal"
@@ -22,12 +24,23 @@ import {
 import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+} from "@/components/ui/command"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
   PauseCircle,
   Users,
   ShoppingBag,
   Clock,
   RefreshCw,
   Trash2,
+  Search,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
@@ -128,8 +141,11 @@ export default function POSPage() {
   const [customerOrdersModalOpen, setCustomerOrdersModalOpen] = useState(false)
   const [_currentOrderId, setCurrentOrderId] = useState<number | null>(null)
 
-  // Mobile view state - toggle between products and cart
-  const [showMobileCart, setShowMobileCart] = useState(false)
+  // Command palette state
+  const [commandOpen, setCommandOpen] = useState(false)
+
+  // Mobile cart drawer state
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
 
   const taxAmount = settings.chargeTax
     ? discountedSubtotal * (settings.taxPercentage / 100)
@@ -202,6 +218,18 @@ export default function POSPage() {
     return () => clearInterval(interval)
   }, [fetchData, fetchHoldOrders])
 
+  // ⌘K / Ctrl+K keyboard shortcut for command palette
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        setCommandOpen((prev) => !prev)
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
   const handleAddToCart = (product: Product) => {
     // Use ingredient-derived availability (004-ingredient-unit-system)
     if (product.availability.status === "out") {
@@ -237,7 +265,12 @@ export default function POSPage() {
       toast.error("Add items before holding")
       return
     }
-    setHoldModalOpen(true)
+    if (cartDrawerOpen) {
+      setCartDrawerOpen(false)
+      setTimeout(() => setHoldModalOpen(true), 200)
+    } else {
+      setHoldModalOpen(true)
+    }
   }
 
   const handleHoldConfirm = async (data: {
@@ -279,7 +312,13 @@ export default function POSPage() {
       toast.error("Add items before paying")
       return
     }
-    setPaymentModalOpen(true)
+    // Close drawer first to prevent overlay stacking, then open payment modal
+    if (cartDrawerOpen) {
+      setCartDrawerOpen(false)
+      setTimeout(() => setPaymentModalOpen(true), 200)
+    } else {
+      setPaymentModalOpen(true)
+    }
   }
 
   const handlePayLater = () => {
@@ -287,7 +326,12 @@ export default function POSPage() {
       toast.error("Add items before paying")
       return
     }
-    setPayLaterModalOpen(true)
+    if (cartDrawerOpen) {
+      setCartDrawerOpen(false)
+      setTimeout(() => setPayLaterModalOpen(true), 200)
+    } else {
+      setPayLaterModalOpen(true)
+    }
   }
 
   const handlePaymentConfirm = async (data: {
@@ -529,11 +573,8 @@ export default function POSPage() {
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[calc(100vh-7rem)] gap-0">
-      {/* Product Grid Section - hidden on mobile when cart is shown */}
-      <div className={cn(
-        "flex-1 flex flex-col min-w-0",
-        showMobileCart && "hidden md:flex"
-      )}>
+      {/* Product Grid Section */}
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur sticky top-0 z-10">
           <div className="flex items-center gap-2">
@@ -585,32 +626,30 @@ export default function POSPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Command palette trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden sm:flex h-9 gap-2 text-muted-foreground"
+              onClick={() => setCommandOpen(true)}
+            >
+              <Search className="h-4 w-4" />
+              <span>Search</span>
+              <kbd className="pointer-events-none ml-1 inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </Button>
+
             {/* Alert Bell */}
             <POSAlertBell
               currencySymbol={settings.currencySymbol}
               onSetPrice={handleQuickSetPrice}
             />
-
-            {/* Mobile Cart Toggle - only show on small screens */}
-            <Button
-              variant="default"
-              size="sm"
-              className="md:hidden h-11 min-h-11 gap-2 px-4"
-              onClick={() => setShowMobileCart(true)}
-            >
-              <ShoppingBag className="h-5 w-5" />
-              <span>Cart</span>
-              {cartItemCount > 0 && (
-                <Badge variant="secondary" className="bg-primary-foreground text-primary ml-1 px-1.5 py-0 text-xs">
-                  {cartItemCount}
-                </Badge>
-              )}
-            </Button>
           </div>
         </div>
 
-        {/* Products */}
-        <ScrollArea className="flex-1 px-4 py-4">
+        {/* Products — extra bottom padding on mobile for floating cart bar */}
+        <ScrollArea className={cn("flex-1 px-4 py-4", cartItemCount > 0 && "pb-20 md:pb-4")}>
           <ProductGrid
             products={products}
             categories={categories}
@@ -620,15 +659,8 @@ export default function POSPage() {
         </ScrollArea>
       </div>
 
-      {/* Cart Section - full width on mobile, fixed width on desktop */}
-      <div className={cn(
-        "flex-shrink-0 border-l bg-background",
-        // Desktop: fixed width sidebar
-        "md:w-[380px] lg:w-[420px]",
-        // Mobile: full width, shown/hidden based on state
-        "w-full absolute inset-0 md:relative md:inset-auto z-20",
-        !showMobileCart && "hidden md:block"
-      )}>
+      {/* Desktop Cart Sidebar — hidden on mobile */}
+      <div className="hidden md:block flex-shrink-0 border-l bg-background md:w-[380px] lg:w-[420px]">
         <Cart
           cart={cart}
           subtotal={subtotal}
@@ -645,10 +677,37 @@ export default function POSPage() {
           onHold={handleHold}
           onPayNow={handlePayNow}
           onPayLater={handlePayLater}
-          onMobileBack={() => setShowMobileCart(false)}
-          isMobile={showMobileCart}
         />
       </div>
+
+      {/* Mobile Cart Bar — floating bottom bar */}
+      <MobileCartBar
+        itemCount={cartItemCount}
+        total={total}
+        currencySymbol={settings.currencySymbol}
+        onViewCart={() => setCartDrawerOpen(true)}
+      />
+
+      {/* Mobile Cart Drawer — bottom sheet */}
+      <CartDrawer
+        open={cartDrawerOpen}
+        onOpenChange={setCartDrawerOpen}
+        cart={cart}
+        subtotal={subtotal}
+        discountedSubtotal={discountedSubtotal}
+        taxPercentage={settings.taxPercentage}
+        chargeTax={settings.chargeTax}
+        currencySymbol={settings.currencySymbol}
+        customers={customers}
+        onUpdateQuantity={updateQuantity}
+        onRemoveItem={removeFromCart}
+        onSetDiscount={setDiscount}
+        onSetCustomer={setCustomer}
+        onCancel={() => { setCartDrawerOpen(false); handleCancel() }}
+        onHold={handleHold}
+        onPayNow={handlePayNow}
+        onPayLater={handlePayLater}
+      />
 
       {/* Modals */}
       <PaymentModal
@@ -845,6 +904,87 @@ export default function POSPage() {
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      {/* Command Palette */}
+      <CommandDialog open={commandOpen} onOpenChange={setCommandOpen} title="Search">
+        <CommandInput placeholder="Search products, customers, or actions..." />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandGroup heading="Products">
+            {products
+              .filter((p) => p.availability.status !== "out")
+              .slice(0, 8)
+              .map((product) => (
+                <CommandItem
+                  key={`product-${product.id}`}
+                  value={product.name}
+                  onSelect={() => {
+                    handleAddToCart(product)
+                    setCommandOpen(false)
+                  }}
+                >
+                  <span className="flex-1">{product.name}</span>
+                  <span className="text-xs text-muted-foreground font-mono tabular-nums">
+                    {settings.currencySymbol}{product.price.toFixed(2)}
+                  </span>
+                  {product.trackStock && (
+                    <Badge variant="outline" className="ml-2 text-[10px]">
+                      {product.quantity}
+                    </Badge>
+                  )}
+                </CommandItem>
+              ))}
+          </CommandGroup>
+          <CommandSeparator />
+          <CommandGroup heading="Customers">
+            {customers.slice(0, 5).map((customer) => {
+              const initials = customer.name
+                .split(" ")
+                .map((w) => w[0])
+                .join("")
+                .toUpperCase()
+                .slice(0, 2)
+              return (
+                <CommandItem
+                  key={`customer-${customer.id}`}
+                  value={customer.name}
+                  onSelect={() => {
+                    setCustomer(customer.id, customer.name)
+                    setCommandOpen(false)
+                    toast.success(`Customer set to ${customer.name}`)
+                  }}
+                >
+                  <Avatar size="sm">
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                  <span>{customer.name}</span>
+                </CommandItem>
+              )
+            })}
+          </CommandGroup>
+          <CommandSeparator />
+          <CommandGroup heading="Quick Actions">
+            <CommandItem
+              onSelect={() => {
+                setHoldModalOpen(true)
+                setCommandOpen(false)
+              }}
+            >
+              <PauseCircle className="size-4" />
+              <span>Hold Order</span>
+            </CommandItem>
+            <CommandItem
+              onSelect={() => {
+                setHoldOrdersModalOpen(true)
+                setCommandOpen(false)
+              }}
+            >
+              <Clock className="size-4" />
+              <span>View Hold Orders</span>
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
     </div>
   )
 }

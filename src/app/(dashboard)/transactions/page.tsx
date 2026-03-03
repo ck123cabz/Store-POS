@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { format } from "date-fns"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { getDateRange, type DateRangeType } from "@/lib/date-ranges"
+import { getDateRange, DATE_RANGE_OPTIONS, type DateRangeType } from "@/lib/date-ranges"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Card, CardContent } from "@/components/ui/card"
-import { Search, Ban, AlertTriangle, AlertCircle, ChevronsUpDown, ReceiptText } from "lucide-react"
+import { Search, Ban, AlertTriangle, AlertCircle, ChevronsUpDown, ReceiptText, CheckCircle2, XCircle, Loader2 } from "lucide-react"
 import { formatCurrency } from "@/lib/format-currency"
 import { useSettings } from "@/hooks/use-settings"
 import { useSession } from "next-auth/react"
@@ -32,12 +32,15 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 // Epic 4 shared components
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
-import { FilterPills } from "@/components/ui/filter-pills"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { DateRangePicker, type DateRangePreset } from "@/components/ui/date-range-picker"
 import { StatusDot } from "@/components/ui/status-dot"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 interface TransactionItem {
   id: number
@@ -97,7 +100,7 @@ interface TodayData {
   }>
 }
 
-// Quick filter options matching FilterPills format
+// Quick filter options for ToggleGroup
 const quickFilterOptions: { label: string; value: string }[] = [
   { label: "Today", value: "Today" },
   { label: "Yesterday", value: "Yesterday" },
@@ -125,6 +128,9 @@ export default function TransactionsPage() {
   const [customVoidReason, setCustomVoidReason] = useState("")
   const [voidError, setVoidError] = useState<string | null>(null)
   const [voidLoading, setVoidLoading] = useState(false)
+
+  // GCash confirm/cancel state
+  const [gcashActionLoading, setGcashActionLoading] = useState<"confirm" | "cancel" | null>(null)
 
   // Filters
   const [status, setStatus] = useState<string>("")
@@ -186,6 +192,48 @@ export default function TransactionsPage() {
     fetchUsers()
     fetchTodayData()
   }, [fetchTransactions, fetchUsers, fetchTodayData])
+
+  // GCash confirm/cancel handlers
+  const handleGcashConfirm = async (txId: number) => {
+    setGcashActionLoading("confirm")
+    try {
+      const res = await fetch(`/api/transactions/${txId}/confirm`, { method: "POST" })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to confirm")
+      }
+      const updated = await res.json()
+      toast.success("GCash payment confirmed")
+      setViewTransaction((prev) => prev ? { ...prev, paymentStatus: updated.paymentStatus } : prev)
+      fetchTransactions()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to confirm payment")
+    } finally {
+      setGcashActionLoading(null)
+    }
+  }
+
+  const handleGcashCancel = async (txId: number) => {
+    setGcashActionLoading("cancel")
+    try {
+      const res = await fetch(`/api/transactions/${txId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "GCash payment not received" }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to cancel")
+      }
+      toast.success("GCash payment cancelled — stock restored")
+      setViewTransaction(null)
+      fetchTransactions()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to cancel payment")
+    } finally {
+      setGcashActionLoading(null)
+    }
+  }
 
   // Helper to format currency with settings symbol
   const fmtCurrency = (value: string | number | null | undefined) =>
@@ -296,7 +344,16 @@ export default function TransactionsPage() {
     setActiveQuickFilter(null)
   }
 
-  // Quick filter handler — simplified for FilterPills (single-click, no debounce needed)
+  // DateRangePicker presets derived from lib/date-ranges
+  const datePresets: DateRangePreset[] = DATE_RANGE_OPTIONS.map((label) => ({
+    label,
+    getValue: () => {
+      const range = getDateRange(label)
+      return { from: range.start, to: range.end }
+    },
+  }))
+
+  // Quick filter handler
   function handleQuickFilterChange(value: string | null) {
     if (!value) {
       // Toggled off
@@ -414,6 +471,8 @@ export default function TransactionsPage() {
       header: "Status",
       cell: (tx) => {
         if (tx.isVoided) return <StatusDot variant="critical" label="Voided" />
+        if (tx.paymentStatus === "cancelled") return <StatusDot variant="critical" label="Cancelled" />
+        if (tx.paymentStatus === "pending") return <StatusDot variant="warning" label="GCash Pending" />
         if (tx.status === 1) return <StatusDot variant="ok" label="Completed" />
         if (tx.refNumber) return <StatusDot variant="info" label="On Hold" />
         return <StatusDot variant="warning" label="Pending" />
@@ -451,12 +510,18 @@ export default function TransactionsPage() {
       )}
 
       {/* Quick Filters */}
-      <FilterPills
-        options={quickFilterOptions}
-        value={activeQuickFilter}
-        onChange={handleQuickFilterChange}
-        ariaLabel="Quick date filters"
-      />
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
+        value={activeQuickFilter || ""}
+        onValueChange={(v) => handleQuickFilterChange(v || null)}
+        aria-label="Quick date filters"
+      >
+        {quickFilterOptions.map((o) => (
+          <ToggleGroupItem key={o.value} value={o.value}>{o.label}</ToggleGroupItem>
+        ))}
+      </ToggleGroup>
 
       {/* Advanced Filters */}
       <Collapsible>
@@ -501,23 +566,17 @@ export default function TransactionsPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="filter-date-from">From Date</Label>
-                  <Input
-                    id="filter-date-from"
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-date-to">To Date</Label>
-                  <Input
-                    id="filter-date-to"
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
+                <div className="space-y-2 col-span-2">
+                  <Label>Date Range</Label>
+                  <DateRangePicker
+                    from={dateFrom ? new Date(dateFrom + "T00:00:00") : undefined}
+                    to={dateTo ? new Date(dateTo + "T00:00:00") : undefined}
+                    onChange={({ from, to }) => {
+                      setDateFrom(from ? format(from, "yyyy-MM-dd") : "")
+                      setDateTo(to ? format(to, "yyyy-MM-dd") : "")
+                      setActiveQuickFilter(null)
+                    }}
+                    presets={datePresets}
                   />
                 </div>
 
@@ -603,7 +662,21 @@ export default function TransactionsPage() {
                 <div className="text-muted-foreground">Customer:</div>
                 <div>{viewTransaction.customer?.name || "Walk-in"}</div>
                 <div className="text-muted-foreground">Cashier:</div>
-                <div>{viewTransaction.user?.fullname || "Unknown"}</div>
+                <div className="flex items-center gap-2">
+                  {viewTransaction.user?.fullname && (
+                    <Avatar size="sm">
+                      <AvatarFallback>
+                        {viewTransaction.user.fullname
+                          .split(" ")
+                          .map((w) => w[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <span>{viewTransaction.user?.fullname || "Unknown"}</span>
+                </div>
                 <div className="text-muted-foreground">Till:</div>
                 <div>{viewTransaction.tillNumber}</div>
                 <div className="text-muted-foreground">Payment:</div>
@@ -614,12 +687,37 @@ export default function TransactionsPage() {
                       Pending
                     </Badge>
                   )}
+                  {viewTransaction.paymentStatus === "confirmed" && (
+                    <Badge variant="outline" className="text-status-ok border-status-ok/30 text-xs">
+                      Confirmed
+                    </Badge>
+                  )}
+                  {viewTransaction.paymentStatus === "cancelled" && (
+                    <Badge variant="outline" className="text-status-critical border-status-critical/30 text-xs">
+                      Cancelled
+                    </Badge>
+                  )}
                 </div>
-                {/* GCash reference */}
-                {viewTransaction.paymentType === "GCash" && viewTransaction.paymentInfo && (
+                {/* GCash proof photo */}
+                {viewTransaction.paymentType === "GCash" && viewTransaction.gcashPhotoPath && (
                   <>
-                    <div className="text-muted-foreground">GCash Ref:</div>
-                    <div className="font-mono text-xs">{viewTransaction.paymentInfo}</div>
+                    <div className="text-muted-foreground">Proof:</div>
+                    <div>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={viewTransaction.gcashPhotoPath}
+                        alt="GCash payment proof"
+                        className="rounded border max-h-32 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => window.open(viewTransaction.gcashPhotoPath!, "_blank")}
+                      />
+                    </div>
+                  </>
+                )}
+                {/* GCash reference (for legacy/non-photo entries) */}
+                {viewTransaction.paymentType === "GCash" && viewTransaction.paymentInfo && !viewTransaction.paymentInfo.startsWith("photo:") && (
+                  <>
+                    <div className="text-muted-foreground">Ref:</div>
+                    <div className="font-mono text-xs truncate max-w-48">{viewTransaction.paymentInfo}</div>
                   </>
                 )}
                 {/* Split payment breakdown */}
@@ -699,6 +797,39 @@ export default function TransactionsPage() {
                   </div>
                 )}
               </div>
+
+              {/* GCash confirm/cancel actions */}
+              {viewTransaction.paymentType === "GCash" && viewTransaction.paymentStatus === "pending" && !viewTransaction.isVoided && (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    disabled={gcashActionLoading !== null}
+                    onClick={() => handleGcashConfirm(viewTransaction.id)}
+                  >
+                    {gcashActionLoading === "confirm" ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                    )}
+                    Confirm Payment
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-status-critical hover:text-status-critical"
+                    disabled={gcashActionLoading !== null}
+                    onClick={() => handleGcashCancel(viewTransaction.id)}
+                  >
+                    {gcashActionLoading === "cancel" ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Cancel Payment
+                  </Button>
+                </div>
+              )}
 
               {/* Void info section */}
               {viewTransaction.isVoided && (

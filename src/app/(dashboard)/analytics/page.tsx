@@ -14,7 +14,7 @@ import {
 } from "recharts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FilterPills } from "@/components/ui/filter-pills"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
 import type { TrendDirection } from "@/components/ui/summary-card"
@@ -260,13 +260,19 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* FilterPills */}
-      <FilterPills
-        options={PERIOD_OPTIONS}
+      {/* Period ToggleGroup */}
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
         value={period}
-        onChange={handlePeriodChange}
-        ariaLabel="Time period filter"
-      />
+        onValueChange={(v) => { if (v) handlePeriodChange(v) }}
+        aria-label="Time period filter"
+      >
+        {PERIOD_OPTIONS.map((o) => (
+          <ToggleGroupItem key={o.value} value={o.value}>{o.label}</ToggleGroupItem>
+        ))}
+      </ToggleGroup>
 
       {/* Summary Cards */}
       <SummaryCardGrid>

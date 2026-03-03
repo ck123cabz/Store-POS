@@ -41,14 +41,19 @@ export function GCashCamera({
   const [hasCamera, setHasCamera] = useState<boolean | null>(null)
   const [isStartingCamera, setIsStartingCamera] = useState(false)
 
-  // Stop camera stream
-  const stopStream = useCallback(() => {
+  // Release the camera hardware without changing mode
+  const releaseCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
-    setMode("idle")
   }, [])
+
+  // Stop camera stream and return to idle
+  const stopStream = useCallback(() => {
+    releaseCamera()
+    setMode("idle")
+  }, [releaseCamera])
 
   // Check if camera is available
   useEffect(() => {
@@ -67,19 +72,15 @@ export function GCashCamera({
   // Cleanup stream on unmount or when inactive
   useEffect(() => {
     if (!isActive) {
-      // Schedule stopStream to avoid synchronous setState in effect
       queueMicrotask(() => {
-        stopStream()
+        releaseCamera()
+        setMode("idle")
       })
     }
     return () => {
-      // Cleanup on unmount - synchronous is fine in cleanup
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop())
-        streamRef.current = null
-      }
+      releaseCamera()
     }
-  }, [isActive, stopStream])
+  }, [isActive, releaseCamera])
 
   const startCamera = async () => {
     setError(null)
@@ -123,6 +124,9 @@ export function GCashCamera({
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
+    // Guard: video must have actual dimensions (stream connected and playing)
+    if (video.videoWidth === 0 || video.videoHeight === 0) return
+
     // Set canvas size to match video
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
@@ -133,7 +137,7 @@ export function GCashCamera({
     // Get image data as base64
     const imageData = canvas.toDataURL("image/jpeg", 0.8)
     setPhotoData(imageData)
-    stopStream()
+    releaseCamera()
     setMode("preview")
   }
 
@@ -210,7 +214,7 @@ export function GCashCamera({
       )}
 
       {/* Camera/Preview area */}
-      <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+      <div className="relative aspect-video max-h-[40vh] bg-muted rounded-lg overflow-hidden">
         {mode === "idle" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
             <ImageIcon className="h-12 w-12 text-muted-foreground" />
@@ -220,15 +224,17 @@ export function GCashCamera({
           </div>
         )}
 
-        {mode === "streaming" && (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
+        {/* Video element is always rendered so the ref is available when startCamera assigns the stream */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover",
+            mode !== "streaming" && "hidden"
+          )}
+        />
 
         {mode === "preview" && photoData && (
           // eslint-disable-next-line @next/next/no-img-element
