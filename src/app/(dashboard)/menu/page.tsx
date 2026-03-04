@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -35,6 +36,7 @@ interface Product {
     missingIngredients: IngredientShortage[]
     lowIngredients: IngredientShortage[]
   }
+  status?: string
 }
 
 interface StockHealth {
@@ -188,6 +190,46 @@ export default function MenuPage() {
     void fetchData()
   }
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (!selectedProduct) return
+    try {
+      const res = await fetch(`/api/products/${selectedProduct.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        toast.error(data.error || "Failed to update status")
+        return
+      }
+      toast.success(`${selectedProduct.name} is now ${newStatus.toLowerCase()}`)
+      setSelectedProduct(null)
+      void fetchData()
+    } catch {
+      toast.error("Failed to update product status")
+    }
+  }
+
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct) return
+    try {
+      const res = await fetch(`/api/products/${selectedProduct.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        toast.error(data.error || "Failed to delete product")
+        return
+      }
+      toast.success(`${selectedProduct.name} deleted`)
+      setSelectedProduct(null)
+      void fetchData()
+    } catch {
+      toast.error("Failed to delete product")
+    }
+  }
+
   return (
     <div className="flex-1 overflow-auto p-4 md:p-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -287,6 +329,8 @@ export default function MenuPage() {
             editMode={editMode}
             categories={categories.map(c => ({ id: c.id, name: c.name }))}
             targetMargin={settings.targetTrueMarginPercent}
+            onStatusChange={handleStatusChange}
+            onDelete={handleDeleteProduct}
           />
         )}
       </DetailPanel>

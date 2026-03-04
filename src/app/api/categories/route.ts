@@ -64,6 +64,7 @@ export async function GET() {
                     name: true,
                     quantity: true,
                     packageSize: true,
+                    baseUnit: true,
                   },
                 },
               },
@@ -74,6 +75,7 @@ export async function GET() {
                 name: true,
                 quantity: true,
                 packageSize: true,
+                baseUnit: true,
               },
             },
           },
@@ -99,12 +101,13 @@ export async function GET() {
           id: product.id,
           name: product.name,
           recipeItems: product.recipeItems.map((ri) => ({
-            quantity: Number(ri.quantity),
+            quantity: Number(ri.baseQuantity),
             ingredient: {
               id: ri.ingredient.id,
               name: ri.ingredient.name,
               quantity: Number(ri.ingredient.quantity),
               packageSize: Number(ri.ingredient.packageSize),
+              baseUnit: ri.ingredient.baseUnit,
             },
           })),
           linkedIngredient: product.linkedIngredient
@@ -113,6 +116,7 @@ export async function GET() {
                 name: product.linkedIngredient.name,
                 quantity: Number(product.linkedIngredient.quantity),
                 packageSize: Number(product.linkedIngredient.packageSize),
+                baseUnit: product.linkedIngredient.baseUnit,
               }
             : null,
         }

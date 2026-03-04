@@ -509,9 +509,11 @@ export async function POST(request: Request) {
               const baseUnitsPerProduct = Number(recipeItem.baseQuantity) || Number(recipeItem.quantity)
               const totalBaseUnits = baseUnitsPerProduct * item.quantity
               const packageSize = Number(ingredient.packageSize) || 1
-              const packagesUsed = totalBaseUnits / packageSize
+              // Work in base units to minimize precision loss from package division
               const oldQty = Number(ingredient.quantity)
-              const newQty = Math.max(0, oldQty - packagesUsed)
+              const oldBase = oldQty * packageSize
+              const newBase = Math.max(0, oldBase - totalBaseUnits)
+              const newQty = newBase / packageSize
 
               await tx.ingredient.update({
                 where: { id: ingredient.id },
@@ -594,7 +596,7 @@ export async function POST(request: Request) {
       }
 
       return { ...newTransaction, kitchenOrderId }
-    })
+    }, { timeout: 15000 })
 
     return NextResponse.json({
       ...transaction,

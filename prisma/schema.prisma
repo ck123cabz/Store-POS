@@ -67,6 +67,17 @@ model Category {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// PRODUCT STATUS ENUM - Lifecycle states for menu items
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  UNAVAILABLE
+  DISCONTINUED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PRODUCT - Enhanced for Lever 1 (Unit Economics) & Lever 4 (Menu Focus)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -80,6 +91,11 @@ model Product {
   image      String   @default("")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Product Lifecycle
+  status          ProductStatus @default(ACTIVE) @map("status")
+  statusChangedAt DateTime?     @map("status_changed_at")
+  statusChangedBy String?       @map("status_changed_by")
 
   // LEVER 1: Unit Economics - True Cost Calculation
   prepTime           Int?     @map("prep_time") // minutes of staff time
@@ -315,7 +331,7 @@ model Ingredient {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Stock tracking (quantity is in PACKAGES, not base units)
-  quantity        Decimal   @default(0) @db.Decimal(10, 2) // number of packages in stock
+  quantity        Decimal   @default(0) @db.Decimal(10, 4) // number of packages in stock (4dp to avoid base-unit rounding drift)
   lastRestockDate DateTime? @map("last_restock_date")
 
   // Soft delete

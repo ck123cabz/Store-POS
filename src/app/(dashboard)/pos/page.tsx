@@ -157,7 +157,7 @@ export default function POSPage() {
     try {
       const [productsRes, categoriesRes, customersRes, settingsRes] =
         await Promise.all([
-          fetch("/api/products"),
+          fetch("/api/products?status=ACTIVE,UNAVAILABLE"),
           fetch("/api/categories"),
           fetch("/api/customers"),
           fetch("/api/settings"),

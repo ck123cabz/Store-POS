@@ -18,6 +18,7 @@ interface ProductCardProps {
     price: number
     image: string
     needsPricing?: boolean
+    status?: string
     availability: Availability
   }
   currencySymbol: string
@@ -67,11 +68,14 @@ function StatusDot({
 
 export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCardProps) {
   const { availability } = product
-  const isDisabled = availability.status === "out"
+  const isUnavailable = product.status === "UNAVAILABLE"
+  const isOutOfStock = availability.status === "out"
+  const isDisabled = isOutOfStock || isUnavailable
 
   // Build stock status text for aria-label
-  const stockStatusLabel =
-    availability.status === "available"
+  const stockStatusLabel = isUnavailable
+    ? "Unavailable"
+    : availability.status === "available"
       ? "In Stock"
       : availability.status === "out"
         ? "Out of Stock"
@@ -117,10 +121,19 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
         )}
 
         {/* Out-of-stock overlay */}
-        {isDisabled && (
+        {isOutOfStock && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/70">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Out of Stock
+            </span>
+          </div>
+        )}
+
+        {/* Unavailable overlay */}
+        {isUnavailable && !isOutOfStock && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+            <span className="text-xs font-semibold uppercase tracking-wider text-status-warning">
+              Unavailable
             </span>
           </div>
         )}

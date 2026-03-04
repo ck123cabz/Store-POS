@@ -174,7 +174,7 @@ export async function POST(
       }
 
       return updated
-    })
+    }, { timeout: 15000 })
 
     return NextResponse.json({
       ...updatedTransaction,

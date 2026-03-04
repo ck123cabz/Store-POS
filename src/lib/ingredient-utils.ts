@@ -126,9 +126,22 @@ export function calculateCostPerBaseUnit(
  */
 export function calculateTotalBaseUnits(
   quantity: number,
-  packageSize: number
+  packageSize: number,
+  baseUnit?: string
 ): number {
-  return quantity * packageSize;
+  const total = quantity * packageSize;
+  // For discrete units (pcs, each), round to nearest integer to avoid
+  // display artifacts from package-based storage precision (e.g., 28.0005 → 28)
+  if (baseUnit && isDiscreteUnit(baseUnit)) {
+    return Math.round(total);
+  }
+  return total;
+}
+
+/** Returns true for countable/discrete units where fractional amounts don't make sense */
+export function isDiscreteUnit(unit: string): boolean {
+  const discrete = ["pcs", "pc", "piece", "pieces", "each", "ea", "bottle", "bottles", "can", "cans"];
+  return discrete.includes(unit.toLowerCase());
 }
 
 /**

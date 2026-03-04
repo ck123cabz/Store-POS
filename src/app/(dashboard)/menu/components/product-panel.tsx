@@ -70,6 +70,7 @@ interface Product {
     missingIngredients: IngredientShortage[]
     lowIngredients: IngredientShortage[]
   }
+  status?: string
 }
 
 interface Category {
@@ -116,6 +117,8 @@ interface ProductPanelProps {
   categories?: Category[]
   targetMargin?: number
   hourlyLaborRate?: number
+  onStatusChange?: (newStatus: string) => void
+  onDelete?: () => void
 }
 
 /** Returns the semantic margin color class based on margin percentage thresholds */
@@ -123,6 +126,90 @@ function marginColorClass(marginPercent: number): string {
   if (marginPercent >= 65) return "text-status-ok"
   if (marginPercent >= 50) return "text-status-warning"
   return "text-status-critical"
+}
+
+function StatusActions({
+  status,
+  productName,
+  onStatusChange,
+  onDelete,
+}: {
+  status: string
+  productName: string
+  onStatusChange?: (newStatus: string) => void
+  onDelete?: () => void
+}) {
+  const [confirmAction, setConfirmAction] = useState<string | null>(null)
+
+  const actions: { label: string; targetStatus?: string; variant: "default" | "outline" | "destructive"; isDelete?: boolean }[] = []
+
+  switch (status) {
+    case "DRAFT":
+      actions.push({ label: "Go Live", targetStatus: "ACTIVE", variant: "default" })
+      actions.push({ label: "Delete", isDelete: true, variant: "destructive" })
+      break
+    case "ACTIVE":
+      actions.push({ label: "Mark Unavailable", targetStatus: "UNAVAILABLE", variant: "outline" })
+      actions.push({ label: "Discontinue", targetStatus: "DISCONTINUED", variant: "destructive" })
+      break
+    case "UNAVAILABLE":
+      actions.push({ label: "Reactivate", targetStatus: "ACTIVE", variant: "default" })
+      actions.push({ label: "Discontinue", targetStatus: "DISCONTINUED", variant: "destructive" })
+      break
+    case "DISCONTINUED":
+      actions.push({ label: "Reactivate", targetStatus: "ACTIVE", variant: "default" })
+      break
+  }
+
+  if (actions.length === 0) return null
+
+  const handleAction = (action: typeof actions[0]) => {
+    const actionKey = action.isDelete ? "delete" : action.targetStatus!
+    if (actionKey === "DISCONTINUED" || action.isDelete) {
+      if (confirmAction === actionKey) {
+        if (action.isDelete) onDelete?.()
+        else onStatusChange?.(action.targetStatus!)
+        setConfirmAction(null)
+      } else {
+        setConfirmAction(actionKey)
+      }
+    } else {
+      onStatusChange?.(action.targetStatus!)
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {confirmAction && (
+        <p className="text-sm text-muted-foreground text-center">
+          {confirmAction === "delete"
+            ? `Permanently delete "${productName}"? This cannot be undone.`
+            : `Remove "${productName}" from the POS? You can reactivate it later.`}
+        </p>
+      )}
+      <div className="flex items-center gap-2 justify-end">
+        {confirmAction && (
+          <Button variant="ghost" size="sm" onClick={() => setConfirmAction(null)}>
+            Cancel
+          </Button>
+        )}
+        {actions.map((action) => {
+          const actionKey = action.isDelete ? "delete" : action.targetStatus!
+          const isConfirming = confirmAction === actionKey
+          return (
+            <Button
+              key={action.label}
+              variant={isConfirming ? "destructive" : action.variant}
+              size="sm"
+              onClick={() => handleAction(action)}
+            >
+              {isConfirming ? "Confirm" : action.label}
+            </Button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export function ProductPanel({
@@ -135,6 +222,8 @@ export function ProductPanel({
   categories = [],
   targetMargin = 65,
   hourlyLaborRate = 100,
+  onStatusChange,
+  onDelete,
 }: ProductPanelProps) {
   // Calculate labor cost
   const laborCost = product.prepTime
@@ -491,7 +580,7 @@ export function ProductPanel({
                 <div className="flex items-center gap-4">
                   {imagePreview || product.image ? (
                     <Image
-                      src={imagePreview || product.image}
+                      src={imagePreview || `/uploads/${product.image}`}
                       alt={product.name}
                       width={64}
                       height={64}
@@ -870,7 +959,7 @@ export function ProductPanel({
         {product.image ? (
           <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
             <Image
-              src={product.image}
+              src={`/uploads/${product.image}`}
               alt={product.name}
               fill
               className="object-cover"
@@ -1079,7 +1168,15 @@ export function ProductPanel({
         )}
       </DetailPanelContent>
 
-      {/* No footer in view mode (delete moved to edit mode context) */}
+      {/* Status Actions Footer */}
+      <DetailPanelFooter>
+        <StatusActions
+          status={product.status ?? "ACTIVE"}
+          productName={product.name}
+          onStatusChange={onStatusChange}
+          onDelete={onDelete}
+        />
+      </DetailPanelFooter>
     </>
   )
 }

@@ -42,6 +42,7 @@ interface Product {
     missingIngredients: IngredientShortage[]
     lowIngredients: IngredientShortage[]
   }
+  status?: string
 }
 
 interface Category {
@@ -92,6 +93,7 @@ export function ProductsTab({
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [productStatusFilter, setProductStatusFilter] = useState<string>("ACTIVE")
 
   // Apply external category filter when set
   const effectiveCategoryFilter = externalCategoryFilter !== null && externalCategoryFilter !== undefined
@@ -107,12 +109,13 @@ export function ProductsTab({
     }
   }
 
-  const hasFilters = search !== "" || effectiveCategoryFilter !== "all" || statusFilter !== "all"
+  const hasFilters = search !== "" || effectiveCategoryFilter !== "all" || statusFilter !== "all" || productStatusFilter !== "ACTIVE"
 
   const clearFilters = () => {
     setSearch("")
     setCategoryFilter("all")
     setStatusFilter("all")
+    setProductStatusFilter("ACTIVE")
     if (onClearExternalFilter && externalCategoryFilter !== null && externalCategoryFilter !== undefined) {
       onClearExternalFilter()
     }
@@ -135,9 +138,15 @@ export function ProductsTab({
         return false
       }
 
+      // Product lifecycle status filter
+      if (productStatusFilter !== "all") {
+        const pStatus = p.status ?? "ACTIVE"
+        if (pStatus !== productStatusFilter) return false
+      }
+
       return true
     })
-  }, [products, search, effectiveCategoryFilter, statusFilter])
+  }, [products, search, effectiveCategoryFilter, statusFilter, productStatusFilter])
 
   const columns: DataTableColumn<Product>[] = [
     {
@@ -146,7 +155,7 @@ export function ProductsTab({
       cell: (product) =>
         product.image ? (
           <Image
-            src={product.image}
+            src={`/uploads/${product.image}`}
             alt={product.name}
             width={40}
             height={40}
@@ -227,6 +236,23 @@ export function ProductsTab({
       },
       priority: 0,
     },
+    {
+      id: "lifecycle",
+      header: "Status",
+      cell: (product) => {
+        const status = product.status ?? "ACTIVE"
+        if (status === "ACTIVE") return null
+        const badgeConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+          DRAFT: { label: "Draft", variant: "secondary" },
+          UNAVAILABLE: { label: "Unavailable", variant: "outline" },
+          DISCONTINUED: { label: "Discontinued", variant: "destructive" },
+        }
+        const config = badgeConfig[status]
+        if (!config) return null
+        return <Badge variant={config.variant}>{config.label}</Badge>
+      },
+      priority: 1,
+    },
   ]
 
   return (
@@ -268,6 +294,19 @@ export function ProductsTab({
             <SelectItem value="low">Low Stock</SelectItem>
             <SelectItem value="critical">Critical</SelectItem>
             <SelectItem value="out">Out of Stock</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={productStatusFilter} onValueChange={setProductStatusFilter}>
+          <SelectTrigger className="w-44" aria-label="Filter by product status">
+            <SelectValue placeholder="Product Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Lifecycle</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="DRAFT">Draft</SelectItem>
+            <SelectItem value="UNAVAILABLE">Unavailable</SelectItem>
+            <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
           </SelectContent>
         </Select>
       </div>

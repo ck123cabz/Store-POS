@@ -102,7 +102,39 @@ export async function DELETE(
     }
 
     const { id } = await params
-    await prisma.product.delete({ where: { id: parseInt(id) } })
+    const productId = parseInt(id)
+
+    // Check if product has any transaction history
+    const transactionCount = await prisma.transactionItem.count({
+      where: { productId },
+    })
+
+    if (transactionCount > 0) {
+      return NextResponse.json(
+        {
+          error: "Product has transaction history and cannot be deleted. Use status change to discontinue instead.",
+          transactionCount,
+        },
+        { status: 409 }
+      )
+    }
+
+    // Also check kitchen order items
+    const kitchenOrderCount = await prisma.kitchenOrderItem.count({
+      where: { productId },
+    })
+
+    if (kitchenOrderCount > 0) {
+      return NextResponse.json(
+        {
+          error: "Product has kitchen order history and cannot be deleted. Use status change to discontinue instead.",
+        },
+        { status: 409 }
+      )
+    }
+
+    // Safe to hard delete — no transaction/kitchen history
+    await prisma.product.delete({ where: { id: productId } })
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: "Failed to delete product" }, { status: 500 })

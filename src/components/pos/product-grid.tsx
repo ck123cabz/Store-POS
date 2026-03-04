@@ -27,6 +27,7 @@ interface Product {
   categoryId: number
   linkedIngredientId?: number | null
   needsPricing?: boolean
+  status?: string
   availability: Availability
   linkedIngredient?: {
     id: number
@@ -157,7 +158,7 @@ export function ProductGrid({
             placeholder="Search products or scan barcode..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-10 h-10 text-sm"
+            className="pl-10 pr-10 h-10 text-sm focus-visible:ring-1"
           />
           {searchQuery && (
             <button

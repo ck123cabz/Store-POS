@@ -74,6 +74,7 @@ export interface AvailabilityIngredient {
   name: string;
   quantity: number; // packages in stock
   packageSize: number; // base units per package
+  baseUnit?: string; // base unit name (pcs, kg, etc.) — used for discrete rounding
 }
 
 /**
@@ -139,7 +140,8 @@ export function calculatePossibleUnitsFromIngredient(
 
   const totalBaseUnits = calculateTotalBaseUnits(
     ingredient.quantity,
-    ingredient.packageSize
+    ingredient.packageSize,
+    ingredient.baseUnit
   );
 
   return Math.floor(totalBaseUnits / recipeQuantity);

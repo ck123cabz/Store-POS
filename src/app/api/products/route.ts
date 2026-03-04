@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { type ProductStatus } from "@prisma/client"
 import {
   calculateProductAvailability,
   calculateEnhancedRecipeAvailability,
@@ -16,8 +17,12 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const includeCosting = searchParams.get("includeCosting") === "true"
+    const statusParam = searchParams.get("status") // comma-separated: "ACTIVE,UNAVAILABLE"
 
     const products = await prisma.product.findMany({
+      where: statusParam
+        ? { status: { in: statusParam.split(",") as ProductStatus[] } }
+        : undefined,
       include: {
         category: true,
         linkedIngredient: {
@@ -73,12 +78,13 @@ export async function GET(request: NextRequest) {
       if (p.recipeItems && p.recipeItems.length > 0) {
         availability = calculateEnhancedRecipeAvailability(
           (p.recipeItems ?? []).map((ri) => ({
-            quantity: Number(ri.quantity),
+            quantity: Number(ri.baseQuantity),
             ingredient: {
               id: ri.ingredient.id,
               name: ri.ingredient.name,
               quantity: Number(ri.ingredient.quantity),
               packageSize: Number(ri.ingredient.packageSize),
+              baseUnit: ri.ingredient.baseUnit,
             },
           }))
         );
@@ -92,6 +98,7 @@ export async function GET(request: NextRequest) {
             name: p.linkedIngredient.name,
             quantity: Number(p.linkedIngredient.quantity),
             packageSize: Number(p.linkedIngredient.packageSize ?? 1),
+            baseUnit: p.linkedIngredient.baseUnit ?? undefined,
           },
         });
         availability = {
@@ -140,6 +147,7 @@ export async function GET(request: NextRequest) {
         image: p.image,
         linkedIngredientId: p.linkedIngredientId,
         needsPricing: p.needsPricing,
+        status: p.status,
         linkedIngredient: p.linkedIngredient
           ? {
               id: p.linkedIngredient.id,
@@ -217,6 +225,7 @@ export async function POST(request: NextRequest) {
         linkedIngredientId: product.linkedIngredientId,
         needsPricing: product.needsPricing,
         requiresKitchen: product.requiresKitchen,
+        status: product.status,
       },
       { status: 201 }
     )
