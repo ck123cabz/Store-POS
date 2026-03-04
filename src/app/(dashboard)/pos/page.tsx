@@ -521,7 +521,7 @@ export default function POSPage() {
           </div>
           {/* Product cards skeleton */}
           <div className="flex-1 px-4 py-2">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
               {Array.from({ length: 12 }).map((_, i) => (
                 <div key={i} className="rounded-lg border p-3 space-y-3">
                   <Skeleton className="h-28 w-full rounded-md" />
