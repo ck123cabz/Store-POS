@@ -106,30 +106,28 @@ export function Cart({
 
         {/* Customer selector */}
         <div className="mt-2.5">
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <Combobox<number>
-              options={customerOptions}
-              value={cart.customerId || 0}
-              onChange={handleCustomerChange}
-              placeholder="Walk in customer"
-              searchPlaceholder="Search customers..."
-              emptyMessage="No customers found."
-              className="h-8 text-sm"
-              renderOption={(option) => (
-                <div className="flex items-center gap-2">
-                  {option.value !== 0 && (
-                    <Avatar size="sm">
-                      <AvatarFallback>
-                        {option.label.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <span>{option.label}</span>
-                </div>
-              )}
-            />
-          </div>
+          <Combobox<number>
+            options={customerOptions}
+            value={cart.customerId || 0}
+            onChange={handleCustomerChange}
+            placeholder="Walk in customer"
+            searchPlaceholder="Search customers..."
+            emptyMessage="No customers found."
+            icon={<User className="h-4 w-4 text-muted-foreground" />}
+            className="h-8 text-sm"
+            renderOption={(option) => (
+              <div className="flex items-center gap-2">
+                {option.value !== 0 && (
+                  <Avatar size="sm">
+                    <AvatarFallback>
+                      {option.label.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <span>{option.label}</span>
+              </div>
+            )}
+          />
         </div>
       </div>
 

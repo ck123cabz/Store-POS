@@ -33,6 +33,7 @@ interface ComboboxProps<T = string> {
   searchPlaceholder?: string
   emptyMessage?: string
   renderOption?: (option: ComboboxOption<T>) => React.ReactNode
+  icon?: React.ReactNode
   className?: string
   disabled?: boolean
 }
@@ -45,6 +46,7 @@ function Combobox<T extends string | number = string>({
   searchPlaceholder = "Search...",
   emptyMessage = "No results found.",
   renderOption,
+  icon,
   className,
   disabled,
 }: ComboboxProps<T>) {
@@ -66,6 +68,7 @@ function Combobox<T extends string | number = string>({
             className
           )}
         >
+          {icon && <span className="shrink-0">{icon}</span>}
           <span className="truncate">
             {selectedOption ? selectedOption.label : placeholder}
           </span>

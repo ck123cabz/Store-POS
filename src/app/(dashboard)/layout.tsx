@@ -18,7 +18,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       <SidebarProvider>
         <a
           href="#main-content"

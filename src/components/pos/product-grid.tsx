@@ -261,7 +261,7 @@ export function ProductGrid({
           className="py-16"
         />
       ) : (
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))]">
           {filteredProducts.map((product) => (
             <ProductCard
               key={product.id}

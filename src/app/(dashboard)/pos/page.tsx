@@ -501,7 +501,7 @@ export default function POSPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[calc(100vh-7rem)] gap-0">
+      <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] gap-0">
         {/* Product grid skeleton */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header bar skeleton */}
@@ -572,7 +572,7 @@ export default function POSPage() {
   const cartItemCount = cart.items.length
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[calc(100vh-7rem)] gap-0">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] gap-0">
       {/* Product Grid Section */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header bar */}

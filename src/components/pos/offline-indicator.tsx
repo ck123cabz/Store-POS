@@ -53,12 +53,14 @@ export function OfflineIndicator({
     ? Math.round((progressCurrent / progressTotal) * 100)
     : 0
 
-  if (!mounted) {
-    return null
-  }
-
   // Don't show if online and no pending (unless alwaysShow)
-  if (!alwaysShow && isOnline && !hasPending && !isSyncing) {
+  const shouldHide = !alwaysShow && isOnline && !hasPending && !isSyncing
+
+  if (!mounted || shouldHide) {
+    // Render invisible placeholder to keep React tree stable and prevent hydration mismatch
+    if (compact) {
+      return <div className={cn("h-9 w-9 shrink-0", className)} aria-hidden />
+    }
     return null
   }
 

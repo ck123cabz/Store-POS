@@ -53,12 +53,12 @@ function StatusDot({
   const { dot, label } = config[status]
 
   return (
-    <span className="flex items-center gap-1.5">
+    <span className="flex items-center gap-1.5 min-w-0">
       <span
         className={cn("inline-block size-2 shrink-0 rounded-full", dot)}
         aria-hidden="true"
       />
-      <span className="text-xs leading-none text-muted-foreground">
+      <span className="text-xs leading-none text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
         {label}
       </span>
     </span>
@@ -133,7 +133,7 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
         </p>
 
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold font-mono tabular-nums">
+          <span className="text-sm font-semibold font-mono tabular-nums shrink-0">
             {currencySymbol}{product.price.toFixed(2)}
           </span>
 
