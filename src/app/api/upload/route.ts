@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
 
 // Allowed image MIME types
 const ALLOWED_MIME_TYPES = [
@@ -9,14 +7,6 @@ const ALLOWED_MIME_TYPES = [
   "image/gif",
   "image/webp",
 ]
-
-// Map MIME types to safe extensions
-const MIME_TO_EXT: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/gif": ".gif",
-  "image/webp": ".webp",
-}
 
 // Max file size: 5MB
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -46,23 +36,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Convert to base64 data URL for database storage
     const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    const base64 = Buffer.from(bytes).toString("base64")
+    const dataUrl = `data:${file.type};base64,${base64}`
 
-    // Generate timestamp-based filename with sanitized extension
-    // Use extension from MIME type mapping instead of user-provided extension
-    const ext = MIME_TO_EXT[file.type]
-    const filename = `${Date.now()}${ext}`
-
-    // Ensure uploads directory exists
-    const uploadDir = path.join(process.cwd(), "public", "uploads")
-    await mkdir(uploadDir, { recursive: true })
-
-    // Write file
-    const filepath = path.join(uploadDir, filename)
-    await writeFile(filepath, buffer)
-
-    return NextResponse.json({ filename })
+    return NextResponse.json({ filename: dataUrl })
   } catch {
     return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })
   }

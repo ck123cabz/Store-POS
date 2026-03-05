@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import { getImageSrc, isDataUrl } from "@/lib/image-utils"
 import {
   Table,
   TableBody,
@@ -88,11 +89,12 @@ export function ProductTable({ products, onEdit, onRefresh }: ProductTableProps)
                 <TableCell className="hidden sm:table-cell">
                   {product.image ? (
                     <Image
-                      src={`/uploads/${product.image}`}
+                      src={getImageSrc(product.image)}
                       alt={product.name}
                       width={40}
                       height={40}
                       className="rounded object-cover"
+                      unoptimized={isDataUrl(product.image)}
                     />
                   ) : (
                     <div className="w-10 h-10 bg-muted rounded" />

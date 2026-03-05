@@ -3,6 +3,7 @@
 import Image from "next/image"
 import { Package } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getImageSrc, isDataUrl } from "@/lib/image-utils"
 
 interface Availability {
   status: "available" | "low" | "critical" | "out"
@@ -109,10 +110,11 @@ export function ProductCard({ product, currencySymbol, onAddToCart }: ProductCar
       <div className="relative aspect-[4/3] w-full bg-muted">
         {product.image ? (
           <Image
-            src={`/uploads/${product.image}`}
+            src={getImageSrc(product.image)}
             alt={product.name}
             fill
             className="object-cover"
+            unoptimized={isDataUrl(product.image)}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">

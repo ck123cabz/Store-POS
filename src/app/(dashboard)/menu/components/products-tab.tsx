@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import Image from "next/image"
+import { getImageSrc, isDataUrl } from "@/lib/image-utils"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -155,11 +156,12 @@ export function ProductsTab({
       cell: (product) =>
         product.image ? (
           <Image
-            src={`/uploads/${product.image}`}
+            src={getImageSrc(product.image)}
             alt={product.name}
             width={40}
             height={40}
             className="rounded object-cover size-10"
+            unoptimized={isDataUrl(product.image)}
           />
         ) : (
           <div className="size-10 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs">

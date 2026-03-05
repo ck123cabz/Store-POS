@@ -30,6 +30,7 @@ import { formatCurrency, getAvailableUnits } from "@/lib/ingredient-utils"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import Image from "next/image"
+import { getImageSrc, isDataUrl } from "@/lib/image-utils"
 
 interface IngredientShortage {
   id: number
@@ -580,11 +581,12 @@ export function ProductPanel({
                 <div className="flex items-center gap-4">
                   {imagePreview || product.image ? (
                     <Image
-                      src={imagePreview || `/uploads/${product.image}`}
+                      src={imagePreview || getImageSrc(product.image)}
                       alt={product.name}
                       width={64}
                       height={64}
                       className="rounded-md object-cover"
+                      unoptimized={isDataUrl(imagePreview || product.image)}
                     />
                   ) : (
                     <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">
@@ -959,10 +961,11 @@ export function ProductPanel({
         {product.image ? (
           <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
             <Image
-              src={`/uploads/${product.image}`}
+              src={getImageSrc(product.image)}
               alt={product.name}
               fill
               className="object-cover"
+              unoptimized={isDataUrl(product.image)}
             />
           </div>
         ) : (

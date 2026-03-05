@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
+import { getImageSrc, isDataUrl } from "@/lib/image-utils"
 import { useSettings } from "@/hooks/use-settings"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -126,11 +127,12 @@ export function AppSidebar() {
           {settings?.logo ? (
             <div className="size-9 rounded-lg overflow-hidden shrink-0 bg-muted">
               <Image
-                src={`/uploads/${settings.logo}`}
+                src={getImageSrc(settings.logo)}
                 alt=""
                 width={36}
                 height={36}
                 className="size-full object-cover"
+                unoptimized={isDataUrl(settings.logo)}
               />
             </div>
           ) : (

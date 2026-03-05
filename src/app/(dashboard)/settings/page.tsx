@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
+import { getImageSrc, isDataUrl } from "@/lib/image-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -359,10 +360,11 @@ export default function SettingsPage() {
                   {(logoPreview || currentLogo) ? (
                     <div className="relative w-24 h-24 border rounded-lg overflow-hidden bg-muted">
                       <Image
-                        src={logoPreview || `/uploads/${currentLogo}`}
+                        src={logoPreview || getImageSrc(currentLogo)}
                         alt="Store Logo"
                         fill
                         className="object-contain"
+                        unoptimized={isDataUrl(logoPreview || currentLogo)}
                       />
                     </div>
                   ) : (

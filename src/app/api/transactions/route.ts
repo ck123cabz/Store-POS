@@ -4,9 +4,6 @@ import { auth } from "@/lib/auth"
 import { Prisma } from "@prisma/client"
 import { validateCashPayment } from "@/lib/payment-validation"
 import { validateTabPayment } from "@/lib/credit-limit-validation"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
-import crypto from "crypto"
 
 interface TransactionItem {
   id: number
@@ -55,37 +52,23 @@ function getDayType(date: Date): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// GCASH PHOTO STORAGE - Save base64 photo to file instead of storing in DB
+// GCASH PHOTO STORAGE - Validate and return base64 data URL for DB storage
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const GCASH_UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "gcash-proofs")
-
 /**
- * Save base64 GCash photo data to a file and return the public path.
- * Returns null if the data is not a valid base64 image.
+ * Validate a base64 GCash photo data URL.
+ * Returns the data URL as-is if valid, null otherwise.
  */
-async function saveGCashPhoto(base64Data: string): Promise<string | null> {
+function validateGCashPhoto(base64Data: string): string | null {
   const match = base64Data.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/)
   if (!match) return null
-
-  const mimeType = match[1]
-  let ext = mimeType.split("/")[1]
-  if (ext === "jpeg") ext = "jpg"
 
   const buffer = Buffer.from(match[2], "base64")
 
   // Skip files over 5MB
   if (buffer.length > 5 * 1024 * 1024) return null
 
-  await mkdir(GCASH_UPLOAD_DIR, { recursive: true })
-
-  const timestamp = Date.now()
-  const random = crypto.randomBytes(8).toString("hex")
-  const filename = `gcash-${timestamp}-${random}.${ext}`
-  const filePath = path.join(GCASH_UPLOAD_DIR, filename)
-
-  await writeFile(filePath, buffer, { mode: 0o644 })
-  return `/uploads/gcash-proofs/${filename}`
+  return base64Data
 }
 
 // Check if category is beverage (categoryId 2 in our seed data)
@@ -221,12 +204,12 @@ export async function POST(request: Request) {
           )
         }
 
-        // If paymentInfo is base64 photo data, save to file
+        // If paymentInfo is base64 photo data, validate and store as data URL
         if (info.startsWith("data:image")) {
-          const photoPath = await saveGCashPhoto(info)
-          if (photoPath) {
-            body.gcashPhotoPath = photoPath
-            body.paymentInfo = `photo:${path.basename(photoPath)}`
+          const validatedPhoto = validateGCashPhoto(info)
+          if (validatedPhoto) {
+            body.gcashPhotoPath = validatedPhoto
+            body.paymentInfo = "photo:gcash-proof"
           } else {
             return NextResponse.json(
               { error: "Invalid GCash payment photo" },
