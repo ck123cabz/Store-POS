@@ -18,7 +18,7 @@
 import { test, expect } from './fixtures/base'
 
 test.describe('US1: Cash Payment @p1', () => {
-  test.beforeEach(async ({ posPage }) => {
+  test.beforeEach(async ({ posPage: _posPage }) => {
     // posPage fixture handles navigation and setup
   })
 

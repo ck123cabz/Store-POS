@@ -62,7 +62,7 @@ export const useFileUpload = (
 ): [FileUploadState, FileUploadActions] => {
 	const {
 		maxFiles = Infinity,
-		maxSize = Infinity,
+		maxSize: _maxSize = Infinity,
 		accept = '*',
 		multiple = false,
 		initialFiles = [],
@@ -209,8 +209,6 @@ export const useFileUpload = (
 			state.files,
 			maxFiles,
 			multiple,
-			maxSize,
-			// validateFile,
 			createPreview,
 			generateUniqueId,
 			clearFiles,

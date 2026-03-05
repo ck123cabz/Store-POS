@@ -63,7 +63,7 @@ test.describe('Smoke Tests @smoke @p0', () => {
     await expect(page.getByText(/Administrator/i)).toBeVisible()
   })
 
-  test('POS page displays products', async ({ page, posPage }) => {
+  test('POS page displays products', async ({ page, posPage: _posPage }) => {
     // posPage fixture navigates to /pos and dismisses tour
 
     // Category filter should be visible
@@ -88,7 +88,7 @@ test.describe('Smoke Tests @smoke @p0', () => {
     await expect(page).toHaveURL('/ingredients')
   })
 
-  test('transaction can be created', async ({ page, posPage }) => {
+  test('transaction can be created', async ({ page, posPage: _posPage }) => {
     // posPage fixture navigates to /pos and dismisses tour
 
     // Verify cart starts empty (cart shows "Cart is empty" text)

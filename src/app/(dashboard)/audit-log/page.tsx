@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -30,7 +29,7 @@ import {
   PaginationNext,
   PaginationEllipsis,
 } from "@/components/ui/pagination"
-import { RefreshCw, History, FileText, ChevronLeft, ChevronRight, TableIcon, ListIcon } from "lucide-react"
+import { RefreshCw, History, FileText, TableIcon, ListIcon } from "lucide-react"
 
 interface AuditLog {
   id: number

@@ -21,7 +21,7 @@ async function waitForTableLoaded(page: import('@playwright/test').Page) {
 // ─── GROUP 1: Page Load & Layout ─────────────────────────
 
 test.describe('Menu Page Layout @p1', () => {
-  test('menu page loads with products tab active', async ({ page, menuPage }) => {
+  test('menu page loads with products tab active', async ({ page, menuPage: _menuPage}) => {
     // Products tab should be active
     const productsTab = page.getByRole('tab', { name: 'Products' })
     await expect(productsTab).toHaveAttribute('data-state', 'active')
@@ -43,7 +43,7 @@ test.describe('Menu Page Layout @p1', () => {
     ).toBeVisible()
   })
 
-  test('can switch between Products and Categories tabs', async ({ page, menuPage }) => {
+  test('can switch between Products and Categories tabs', async ({ page, menuPage: _menuPage}) => {
     // Click Categories tab
     await page.getByRole('tab', { name: 'Categories' }).click()
 
@@ -67,7 +67,7 @@ test.describe('Menu Page Layout @p1', () => {
 // ─── GROUP 2: Product Search & Filtering ─────────────────
 
 test.describe('Product Filtering @p1', () => {
-  test('search filters products by name', async ({ page, menuPage }) => {
+  test('search filters products by name', async ({ page, menuPage: _menuPage}) => {
     await waitForTableLoaded(page)
 
     const searchInput = page.getByPlaceholder('Search products...')
@@ -88,7 +88,7 @@ test.describe('Product Filtering @p1', () => {
     await expect(page.getByText('Gatorade')).toBeVisible()
   })
 
-  test('category dropdown filters products', async ({ page, menuPage }) => {
+  test('category dropdown filters products', async ({ page, menuPage: _menuPage}) => {
     await waitForTableLoaded(page)
 
     // Open category filter and pick "Beverages"
@@ -138,7 +138,7 @@ test.describe('Add Product @p1', () => {
     }
   })
 
-  test('can add a new product via dialog', async ({ page, menuPage }) => {
+  test('can add a new product via dialog', async ({ page, menuPage: _menuPage}) => {
     await waitForTableLoaded(page)
 
     // Click Add Product
@@ -170,7 +170,7 @@ test.describe('Add Product @p1', () => {
     await expect(page.getByText(TEST_PRODUCT_NAME)).toBeVisible({ timeout: 5000 })
   })
 
-  test('add product dialog can be cancelled', async ({ page, menuPage }) => {
+  test('add product dialog can be cancelled', async ({ page, menuPage: _menuPage}) => {
     await waitForTableLoaded(page)
 
     // Open dialog
@@ -189,7 +189,7 @@ test.describe('Add Product @p1', () => {
 // ─── GROUP 4: Product Detail Panel (Read) ────────────────
 
 test.describe('Product Detail Panel @p1', () => {
-  test('clicking a product opens the detail panel', async ({ page, menuPage }) => {
+  test('clicking a product opens the detail panel', async ({ page, menuPage: _menuPage}) => {
     await waitForTableLoaded(page)
 
     // Click on a seeded product row
@@ -205,7 +205,7 @@ test.describe('Product Detail Panel @p1', () => {
     await expect(page.getByLabel('Name').or(page.getByText('Pricing'))).toBeVisible()
   })
 
-  test('can close the detail panel', async ({ page, menuPage }) => {
+  test('can close the detail panel', async ({ page, menuPage: _menuPage}) => {
     await waitForTableLoaded(page)
 
     // Open panel
@@ -223,7 +223,7 @@ test.describe('Product Detail Panel @p1', () => {
 // ─── GROUP 5: Product Edit (CRUD - Update) ───────────────
 
 test.describe('Product Edit @p1', () => {
-  test('can enter edit mode and see edit controls', async ({ page, menuPage }) => {
+  test('can enter edit mode and see edit controls', async ({ page, menuPage: _menuPage}) => {
     await waitForTableLoaded(page)
 
     // Open product panel (opens in view mode first)
@@ -246,7 +246,7 @@ test.describe('Product Edit @p1', () => {
     await expect(page.getByLabel('Price')).toBeVisible()
   })
 
-  test('can cancel edit mode without saving', async ({ page, menuPage }) => {
+  test('can cancel edit mode without saving', async ({ page, menuPage: _menuPage}) => {
     await waitForTableLoaded(page)
 
     // Open product panel and enter edit mode
@@ -277,7 +277,7 @@ test.describe('Product Edit @p1', () => {
 // ─── GROUP 6: Categories Tab ─────────────────────────────
 
 test.describe('Categories Tab @p1', () => {
-  test('categories tab displays seeded categories', async ({ page, menuPage }) => {
+  test('categories tab displays seeded categories', async ({ page, menuPage: _menuPage}) => {
     // Switch to Categories tab
     await page.getByRole('tab', { name: 'Categories' }).click()
 
@@ -292,7 +292,7 @@ test.describe('Categories Tab @p1', () => {
     ).toBeVisible()
   })
 
-  test('can expand a category to see its products', async ({ page, menuPage }) => {
+  test('can expand a category to see its products', async ({ page, menuPage: _menuPage}) => {
     // Switch to Categories tab
     await page.getByRole('tab', { name: 'Categories' }).click()
     await expect(page.getByRole('columnheader', { name: 'Category' })).toBeVisible()
@@ -311,7 +311,7 @@ test.describe('Categories Tab @p1', () => {
     await expect(page.getByRole('button', { name: /View in Products/ })).toBeVisible()
   })
 
-  test('View in Products switches to filtered Products tab', async ({ page, menuPage }) => {
+  test('View in Products switches to filtered Products tab', async ({ page, menuPage: _menuPage}) => {
     // Switch to Categories tab
     await page.getByRole('tab', { name: 'Categories' }).click()
     await expect(page.getByRole('columnheader', { name: 'Category' })).toBeVisible()

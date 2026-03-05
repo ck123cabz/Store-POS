@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useState } from "react"
 import { DEFAULT_COLOR_THEME } from "@/lib/themes"
 
 const STORAGE_KEY = "color-theme"
@@ -20,15 +20,11 @@ export function useColorTheme() {
 }
 
 export function ColorThemeProvider({ children }: { children: React.ReactNode }) {
-  const [colorTheme, setColorThemeState] = useState(DEFAULT_COLOR_THEME)
-
-  // Sync from localStorage on mount (inline script already set the attribute)
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && stored !== DEFAULT_COLOR_THEME) {
-      setColorThemeState(stored)
-    }
-  }, [])
+  // Lazy initializer reads localStorage once on mount (inline script already set the attribute)
+  const [colorTheme, setColorThemeState] = useState(() => {
+    if (typeof window === "undefined") return DEFAULT_COLOR_THEME
+    return localStorage.getItem(STORAGE_KEY) ?? DEFAULT_COLOR_THEME
+  })
 
   function setColorTheme(theme: string) {
     setColorThemeState(theme)

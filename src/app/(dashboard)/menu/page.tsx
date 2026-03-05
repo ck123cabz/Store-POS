@@ -59,6 +59,7 @@ interface Category {
   id: number
   name: string
   displayOrder: number
+  requiresKitchen: boolean
   productCount: number
   stockHealth: StockHealth
   products?: CategoryProduct[]
@@ -147,6 +148,27 @@ export default function MenuPage() {
 
   const handleDeleteCategory = (_category: Category) => {
     // Placeholder - will be implemented in Phase 5
+  }
+
+  const handleToggleKitchen = async (categoryId: number, requiresKitchen: boolean) => {
+    try {
+      const res = await fetch(`/api/categories/${categoryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requiresKitchen }),
+      })
+      if (!res.ok) {
+        toast.error("Failed to update kitchen setting")
+        return
+      }
+      // Optimistic update
+      setCategories((prev) =>
+        prev.map((c) => (c.id === categoryId ? { ...c, requiresKitchen } : c))
+      )
+      toast.success(requiresKitchen ? "Orders will be sent to kitchen" : "Kitchen orders disabled")
+    } catch {
+      toast.error("Failed to update kitchen setting")
+    }
   }
 
   const handleFilterByCategory = (categoryId: number) => {
@@ -309,6 +331,7 @@ export default function MenuPage() {
               onEdit={handleEditCategory}
               onDelete={handleDeleteCategory}
               onFilterByCategory={handleFilterByCategory}
+              onToggleKitchen={handleToggleKitchen}
             />
           )}
         </TabsContent>

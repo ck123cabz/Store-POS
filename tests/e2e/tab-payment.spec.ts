@@ -14,7 +14,7 @@
 import { test, expect } from './fixtures/base'
 
 test.describe('US3: Tab Payment Flow @p2', () => {
-  test.beforeEach(async ({ posPage }) => {
+  test.beforeEach(async ({ posPage: _posPage }) => {
     // posPage fixture handles navigation and setup
   })
 

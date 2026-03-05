@@ -215,7 +215,7 @@ function StatusActions({
 
 export function ProductPanel({
   product,
-  onClose,
+  onClose: _onClose,
   onEdit,
   onCancelEdit,
   onSaveSuccess,

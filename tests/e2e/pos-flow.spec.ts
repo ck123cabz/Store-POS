@@ -7,7 +7,7 @@
 import { test, expect } from './fixtures/base'
 
 test.describe('POS Sales Flow @p0', () => {
-  test.beforeEach(async ({ posPage }) => {
+  test.beforeEach(async ({ posPage: _posPage }) => {
     // posPage fixture handles navigation and setup
   })
 
@@ -61,7 +61,7 @@ test.describe('POS Sales Flow @p0', () => {
     await expect(page.getByText('Cart is empty')).not.toBeVisible()
 
     // Find discount input
-    const discountInput = page.locator('input').filter({ hasText: /discount/i })
+    const _discountInput = page.locator('input').filter({ hasText: /discount/i })
       .or(page.locator('[placeholder*="discount" i]'))
       .or(page.getByLabel(/discount/i))
 
@@ -113,9 +113,9 @@ test.describe('POS Sales Flow @p0', () => {
     await expect(page.getByText('Cart is empty')).toBeVisible()
   })
 
-  test('category filter works', async ({ page, posPage }) => {
+  test('category filter works', async ({ page, posPage: _posPage }) => {
     // Get initial product count
-    const initialProducts = await page.locator('[data-testid="product-card"]').count()
+    const _initialProducts = await page.locator('[data-testid="product-card"]').count()
 
     // Category buttons are: All, Beverages, Food
     // Click "Beverages" category to filter
@@ -155,7 +155,7 @@ test.describe('POS Error Handling @p0', () => {
     await expect(page.locator('text=/error.*occurred/i')).not.toBeVisible()
   })
 
-  test('out of stock product shows unavailable state', async ({ page, posPage }) => {
+  test('out of stock product shows unavailable state', async ({ page, posPage: _posPage }) => {
     // Find a product card with aria-disabled="true" (out of stock)
     const disabledProduct = page.locator('[data-testid="product-card"][aria-disabled="true"]')
     const count = await disabledProduct.count()

@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
-import { NextRequest } from "next/server"
 import { createMockSession, resetMocks } from "../utils/api-test-helpers"
 
 /**

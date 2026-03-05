@@ -16,7 +16,6 @@ import {
   serializeSplitPayment,
   generateIdempotencyKey,
   GCASH_REF_MIN_LENGTH,
-  CREDIT_WARNING_THRESHOLD,
   type SplitPaymentComponent,
   type TabStatus,
 } from '@/lib/payment-validation'

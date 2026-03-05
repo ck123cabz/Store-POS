@@ -8,13 +8,11 @@
  */
 
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { NextRequest, NextResponse } from 'next/server'
 import {
   createMockSession,
   createLimitedSession,
   createTestRequest,
   mockPrismaData,
-  type MockSession,
 } from '../utils/api-test-helpers'
 
 // Mock modules before importing route handlers

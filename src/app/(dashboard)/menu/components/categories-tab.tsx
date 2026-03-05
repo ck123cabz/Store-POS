@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { StatusDot } from "@/components/ui/status-dot"
 import { EmptyState } from "@/components/ui/empty-state"
 import { GripVertical, ChevronRight, ChevronDown, Pencil, Trash2, ExternalLink, FolderOpen } from "lucide-react"
@@ -43,6 +44,7 @@ interface Category {
   id: number
   name: string
   displayOrder: number
+  requiresKitchen: boolean
   productCount: number
   stockHealth: StockHealth
   products?: Product[]
@@ -54,6 +56,7 @@ interface CategoriesTabProps {
   onEdit: (category: Category) => void
   onDelete: (category: Category) => void
   onFilterByCategory: (categoryId: number) => void
+  onToggleKitchen: (categoryId: number, requiresKitchen: boolean) => void
 }
 
 function getStockHealthStatusDot(stockHealth: StockHealth): {
@@ -107,6 +110,7 @@ export function CategoriesTab({
   onEdit,
   onDelete,
   onFilterByCategory,
+  onToggleKitchen,
 }: CategoriesTabProps) {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
 
@@ -163,6 +167,7 @@ export function CategoriesTab({
             <TableHead className="w-10"></TableHead>
             <TableHead>Category</TableHead>
             <TableHead className="w-24 text-center">Products</TableHead>
+            <TableHead className="w-24 text-center">Kitchen</TableHead>
             <TableHead className="w-40">Stock Health</TableHead>
             <TableHead className="w-24 text-right">Actions</TableHead>
           </TableRow>
@@ -223,6 +228,14 @@ export function CategoriesTab({
                             </Badge>
                           </TableCell>
 
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={category.requiresKitchen}
+                              onCheckedChange={(checked) => onToggleKitchen(category.id, checked)}
+                              aria-label={`Send ${category.name} orders to kitchen`}
+                            />
+                          </TableCell>
+
                           <TableCell>
                             <StatusDot
                               variant={stockDisplay.variant}
@@ -257,7 +270,7 @@ export function CategoriesTab({
                         {/* Expanded products section */}
                         {isExpanded && category.products && category.products.length > 0 && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={6} className="p-0">
+                            <TableCell colSpan={7} className="p-0">
                               <div className="px-12 py-3 space-y-2">
                                 <div className="text-sm font-medium text-muted-foreground mb-2">
                                   Products in {category.name}

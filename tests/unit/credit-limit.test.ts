@@ -10,8 +10,6 @@ import {
   calculateCreditUsage,
   isCreditLimitExceeded,
   getCreditWarningLevel,
-  type TabPaymentValidation,
-  type CreditWarningLevel,
 } from "@/lib/credit-limit-validation"
 
 describe("Credit Limit Validation", () => {

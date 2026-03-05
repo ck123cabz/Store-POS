@@ -41,12 +41,12 @@ function createAxeBuilder(page: import('@playwright/test').Page) {
 }
 
 test.describe('Accessibility @a11y', () => {
-  test('POS page passes axe-core AA scan', async ({ page, posPage }) => {
+  test('POS page passes axe-core AA scan', async ({ page, posPage: _posPage }) => {
     const results = await createAxeBuilder(page).analyze()
     expect(results.violations).toEqual([])
   })
 
-  test('Menu page passes axe-core AA scan', async ({ page, menuPage }) => {
+  test('Menu page passes axe-core AA scan', async ({ page, menuPage: _menuPage }) => {
     const results = await createAxeBuilder(page).analyze()
     expect(results.violations).toEqual([])
   })

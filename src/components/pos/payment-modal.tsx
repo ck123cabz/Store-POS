@@ -99,7 +99,7 @@ export function PaymentModal({
   currencySymbol,
   customer,
   onConfirm,
-  canOverrideCreditLimit = false,
+  canOverrideCreditLimit: _canOverrideCreditLimit = false,
   cartItems = [],
   subtotal = 0,
   discount = 0,

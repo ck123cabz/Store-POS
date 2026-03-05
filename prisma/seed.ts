@@ -189,8 +189,8 @@ async function main() {
 
   const _foodCategory = await prisma.category.upsert({
     where: { id: 1 },
-    update: {},
-    create: { id: 1, name: 'Food' },
+    update: { requiresKitchen: true },
+    create: { id: 1, name: 'Food', requiresKitchen: true },
   })
 
   const _beverageCategory = await prisma.category.upsert({

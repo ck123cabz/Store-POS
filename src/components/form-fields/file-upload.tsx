@@ -13,6 +13,7 @@ const getFileIcon = (file: { file: File | { type: string; name: string } }) => {
 		// return preview
 		return (
 			<div className="aspect-square size-10 overflow-hidden rounded-md">
+				{/* eslint-disable-next-line @next/next/no-img-element -- Local blob preview, not a remote image */}
 				<img
 					src={URL.createObjectURL(file.file as Blob)}
 					className="object-fill"

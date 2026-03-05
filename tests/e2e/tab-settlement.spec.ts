@@ -8,7 +8,7 @@ import { test, expect } from "./fixtures/base"
 
 test.describe("US4: Tab Settlement Flow @p2", () => {
   test.describe("Customer Profile Tab Display", () => {
-    test("customer list shows tab balance column", async ({ customersPage, page }) => {
+    test("customer list shows tab balance column", async ({ customersPage: _customersPage, page }) => {
       // customersPage fixture navigates to /customers and waits for heading
 
       // Look for tab balance column in the table
@@ -17,7 +17,7 @@ test.describe("US4: Tab Settlement Flow @p2", () => {
       await expect(tabBalanceHeader).toBeVisible()
     })
 
-    test("can view customer with tab balance in list", async ({ customersPage, page }) => {
+    test("can view customer with tab balance in list", async ({ customersPage: _customersPage, page }) => {
       // customersPage fixture navigates to /customers and waits for heading
 
       // Wait for customer data to load
@@ -36,7 +36,7 @@ test.describe("US4: Tab Settlement Flow @p2", () => {
       }
     })
 
-    test("customer profile shows tab balance details", async ({ customersPage, page }) => {
+    test("customer profile shows tab balance details", async ({ customersPage: _customersPage, page }) => {
       // customersPage fixture navigates to /customers and waits for heading
 
       // Click on first customer to view profile (or edit button)

@@ -3,7 +3,6 @@ import {
   getDateRange,
   formatDateRangeLabel,
   isDateInRange,
-  type DateRangeType,
   type DateRange,
 } from "@/lib/date-ranges";
 
