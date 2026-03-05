@@ -31,6 +31,9 @@ export async function GET(
       quantity: product.quantity,
       trackStock: product.trackStock,
       image: product.image,
+      status: product.status,
+      statusChangedAt: product.statusChangedAt,
+      statusChangedBy: product.statusChangedBy,
     })
   } catch {
     return NextResponse.json({ error: "Failed to fetch product" }, { status: 500 })

@@ -690,38 +690,50 @@ describe("Unit Conversion", () => {
   });
 
   describe("getAvailableUnits", () => {
-    test("includes base unit first", () => {
+    test("includes base unit first, then custom aliases, then standard conversions", () => {
       const aliases = [
         { name: "cup", baseUnitMultiplier: 240, description: "1 cup = 240 mL" },
       ];
       const result = getAvailableUnits("mL", aliases);
 
-      expect(result).toHaveLength(2);
+      // mL (base) + cup (custom alias) + L, tbsp, tsp, fl oz (standard conversions, cup deduped)
+      expect(result.length).toBeGreaterThanOrEqual(2);
       expect(result[0].name).toBe("mL");
       expect(result[0].isBase).toBe(true);
       expect(result[0].multiplier).toBe(1);
+      // Custom alias appears before standard conversions
+      expect(result[1].name).toBe("cup");
+      expect(result[1].multiplier).toBe(240);
     });
 
-    test("includes all aliases", () => {
+    test("custom aliases take priority over standard conversions with same name", () => {
       const aliases = [
         { name: "cup", baseUnitMultiplier: 240, description: null },
         { name: "tbsp", baseUnitMultiplier: 15, description: null },
       ];
       const result = getAvailableUnits("mL", aliases);
 
-      expect(result).toHaveLength(3);
+      // Custom aliases come before standard conversions; duplicates are skipped
       expect(result[1].name).toBe("cup");
       expect(result[1].multiplier).toBe(240);
       expect(result[1].isBase).toBe(false);
       expect(result[2].name).toBe("tbsp");
       expect(result[2].multiplier).toBe(15);
+      // Standard conversions (L, tsp, fl oz) should also be present
+      const unitNames = result.map((u) => u.name);
+      expect(unitNames).toContain("L");
+      expect(unitNames).toContain("tsp");
     });
 
-    test("returns only base unit when no aliases", () => {
+    test("includes standard conversions when no custom aliases exist", () => {
       const result = getAvailableUnits("pcs", []);
-      expect(result).toHaveLength(1);
+      // pcs (base) + dozen (standard conversion)
+      expect(result.length).toBeGreaterThanOrEqual(1);
       expect(result[0].name).toBe("pcs");
       expect(result[0].isBase).toBe(true);
+      // "dozen" is a standard conversion for pcs
+      const unitNames = result.map((u) => u.name);
+      expect(unitNames).toContain("dozen");
     });
   });
 

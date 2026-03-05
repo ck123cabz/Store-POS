@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git Remotes
+
+- **`origin`** → `tngoman/Store-POS` (upstream, read-only — do NOT push here)
+- **`fork`** → `ck123cabz/Store-POS` (our fork, push here)
+
+**Always push to `fork`:** `git push fork <branch>`
+
 ## Project Overview
 
 Store-POS is a web-based Point of Sale application built with Next.js 16. It uses PostgreSQL with Prisma ORM for data persistence. The frontend is React 19 with Tailwind CSS and Radix UI components.

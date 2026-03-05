@@ -3,29 +3,29 @@ import { getVibeColorClasses, getVibeLabel, type VibeLevel } from "@/lib/vibe-co
 
 describe("getVibeColorClasses", () => {
   describe("standard vibe levels", () => {
-    it('returns green classes for "Crushed it"', () => {
+    it('returns status-ok classes for "Crushed it"', () => {
       const result = getVibeColorClasses("Crushed it");
-      expect(result.background).toBe("bg-green-100");
-      expect(result.border).toBe("border-green-400");
-      expect(result.ring).toContain("ring-green");
+      expect(result.background).toBe("bg-status-ok/15");
+      expect(result.border).toBe("border-status-ok/40");
+      expect(result.ring).toContain("ring-status-ok");
     });
 
-    it('returns light green classes for "Good"', () => {
+    it('returns lighter status-ok classes for "Good"', () => {
       const result = getVibeColorClasses("Good");
-      expect(result.background).toBe("bg-green-50");
-      expect(result.border).toBe("border-green-200");
+      expect(result.background).toBe("bg-status-ok/10");
+      expect(result.border).toBe("border-status-ok/30");
     });
 
-    it('returns amber classes for "Meh"', () => {
+    it('returns status-warning classes for "Meh"', () => {
       const result = getVibeColorClasses("Meh");
-      expect(result.background).toBe("bg-amber-50");
-      expect(result.border).toBe("border-amber-200");
+      expect(result.background).toBe("bg-status-warning/10");
+      expect(result.border).toBe("border-status-warning/30");
     });
 
-    it('returns orange classes for "Rough"', () => {
+    it('returns status-critical classes for "Rough"', () => {
       const result = getVibeColorClasses("Rough");
-      expect(result.background).toBe("bg-orange-100");
-      expect(result.border).toBe("border-orange-400");
+      expect(result.background).toBe("bg-status-critical/15");
+      expect(result.border).toBe("border-status-critical/40");
     });
   });
 
