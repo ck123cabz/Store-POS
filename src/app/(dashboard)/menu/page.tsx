@@ -1,14 +1,22 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { toast } from "sonner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus } from "lucide-react"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { LayoutGrid, List, Plus, ArrowUpDown } from "lucide-react"
+import { MenuSidebar } from "./components/menu-sidebar"
+import { ProductCards } from "./components/product-cards"
 import { ProductsTab } from "./components/products-tab"
 import { ProductPanel } from "./components/product-panel"
-import { CategoriesTab } from "./components/categories-tab"
 import { ProductForm } from "@/components/products/product-form"
 import { DetailPanel } from "@/components/ui/detail-panel"
 
@@ -71,15 +79,20 @@ interface Settings {
 }
 
 export default function MenuPage() {
-  const [activeTab, setActiveTab] = useState("products")
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [settings, setSettings] = useState<Settings>({ targetTrueMarginPercent: 65, currency: "PHP" })
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
-  const [categoryFilter, setCategoryFilter] = useState<number | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
+
+  // Sidebar + view state
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
+  const [search, setSearch] = useState("")
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [productStatusFilter, setProductStatusFilter] = useState<string>("ACTIVE")
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -94,7 +107,6 @@ export default function MenuPage() {
       const categoriesData = await categoriesRes.json()
       const settingsData = await settingsRes.json()
 
-      // Add recipe item count from API
       const productsWithCounts = productsData.map((p: Product & { recipeItems?: unknown[] }) => ({
         ...p,
         recipeItemCount: Array.isArray(p.recipeItems) ? p.recipeItems.length : 0,
@@ -117,81 +129,32 @@ export default function MenuPage() {
     void fetchData()
   }, [fetchData])
 
+  // Filtered products
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false
+      if (selectedCategoryId !== null && p.categoryId !== selectedCategoryId) return false
+      if (statusFilter !== "all" && p.availability.status !== statusFilter) return false
+      if (productStatusFilter !== "all") {
+        const pStatus = p.status ?? "ACTIVE"
+        if (pStatus !== productStatusFilter) return false
+      }
+      return true
+    })
+  }, [products, search, selectedCategoryId, statusFilter, productStatusFilter])
+
+  const hasFilters = search !== "" || selectedCategoryId !== null || statusFilter !== "all" || productStatusFilter !== "ACTIVE"
+
+  const clearFilters = () => {
+    setSearch("")
+    setSelectedCategoryId(null)
+    setStatusFilter("all")
+    setProductStatusFilter("ACTIVE")
+  }
+
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product)
-    setEditMode(false) // Reset edit mode when selecting a new product
-  }
-
-  const handleReorderCategories = async (orders: { id: number; displayOrder: number }[]) => {
-    try {
-      const res = await fetch("/api/categories/reorder", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orders }),
-      })
-
-      if (!res.ok) {
-        console.error("Failed to reorder categories")
-        return
-      }
-
-      // Refetch categories to get updated order
-      await fetchData()
-    } catch (error) {
-      console.error("Failed to reorder categories:", error)
-    }
-  }
-
-  const handleEditCategory = (_category: Category) => {
-    // Placeholder - will be implemented in Phase 5
-  }
-
-  const handleDeleteCategory = (_category: Category) => {
-    // Placeholder - will be implemented in Phase 5
-  }
-
-  const handleToggleKitchen = async (categoryId: number, requiresKitchen: boolean) => {
-    try {
-      const res = await fetch(`/api/categories/${categoryId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requiresKitchen }),
-      })
-      if (!res.ok) {
-        toast.error("Failed to update kitchen setting")
-        return
-      }
-      // Optimistic update
-      setCategories((prev) =>
-        prev.map((c) => (c.id === categoryId ? { ...c, requiresKitchen } : c))
-      )
-      toast.success(requiresKitchen ? "Orders will be sent to kitchen" : "Kitchen orders disabled")
-    } catch {
-      toast.error("Failed to update kitchen setting")
-    }
-  }
-
-  const handleFilterByCategory = (categoryId: number) => {
-    setCategoryFilter(categoryId)
-    setActiveTab("products")
-  }
-
-  const handleClearCategoryFilter = () => {
-    setCategoryFilter(null)
-  }
-
-  const handleCloseForm = () => {
-    setFormOpen(false)
-  }
-
-  const handleFormSuccess = () => {
-    handleCloseForm()
-    void fetchData()
-  }
-
-  const handleAddProduct = () => {
-    setSelectedProduct(null)
-    setFormOpen(true)
+    setEditMode(false)
   }
 
   const handleClosePanel = () => {
@@ -199,16 +162,13 @@ export default function MenuPage() {
     setEditMode(false)
   }
 
-  const handleEnterEditMode = () => {
-    setEditMode(true)
+  const handleAddProduct = () => {
+    setSelectedProduct(null)
+    setFormOpen(true)
   }
 
-  const handleCancelEdit = () => {
-    setEditMode(false)
-  }
-
-  const handleSaveSuccess = () => {
-    setEditMode(false)
+  const handleFormSuccess = () => {
+    setFormOpen(false)
     void fetchData()
   }
 
@@ -252,92 +212,141 @@ export default function MenuPage() {
     }
   }
 
+  const selectedCategoryName = selectedCategoryId !== null
+    ? categories.find(c => c.id === selectedCategoryId)?.name ?? "Products"
+    : "All Products"
+
   return (
-    <div className="flex-1 overflow-auto p-4 md:p-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Menu</h1>
-            <p className="text-muted-foreground mt-1">Manage products and categories</p>
+    <div className="flex h-full">
+      {/* Sidebar */}
+      {loading ? (
+        <aside className="flex flex-col w-64 shrink-0 border-r bg-muted/30 p-5 gap-5">
+          <div className="space-y-1">
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-3 w-36" />
+          </div>
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-3 w-24" />
+          <div className="space-y-1">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </div>
+        </aside>
+      ) : (
+        <MenuSidebar
+          categories={categories}
+          selectedCategoryId={selectedCategoryId}
+          onSelectCategory={setSelectedCategoryId}
+          totalProducts={products.filter(p => (p.status ?? "ACTIVE") === (productStatusFilter === "all" ? (p.status ?? "ACTIVE") : productStatusFilter)).length}
+          search={search}
+          onSearchChange={setSearch}
+        />
+      )}
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Header bar */}
+        <div className="flex items-center justify-between border-b px-6 h-14 shrink-0">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold tracking-tight">{selectedCategoryName}</h2>
+            <span className="text-[11px] font-mono tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              {filteredProducts.length}
+            </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <TabsList>
-              <TabsTrigger value="products">Products</TabsTrigger>
-              <TabsTrigger value="categories">Categories</TabsTrigger>
-            </TabsList>
+          <div className="flex items-center gap-2">
+            {/* View toggle */}
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(v) => { if (v) setViewMode(v as "cards" | "table") }}
+              size="sm"
+              className="bg-muted rounded-md p-0.5"
+            >
+              <ToggleGroupItem value="cards" aria-label="Card view" className="h-7 w-7 p-0 data-[state=on]:bg-background">
+                <LayoutGrid className="size-3.5" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="table" aria-label="Table view" className="h-7 w-7 p-0 data-[state=on]:bg-background">
+                <List className="size-3.5" />
+              </ToggleGroupItem>
+            </ToggleGroup>
 
-            <Button onClick={activeTab === "products" ? handleAddProduct : undefined}>
-              <Plus className="h-4 w-4 mr-2" />
-              {activeTab === "products" ? "Add Product" : "Add Category"}
+            {/* Stock status filter */}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-32 h-8 text-xs" aria-label="Filter by stock status">
+                <SelectValue placeholder="Stock" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stock</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="low">Low Stock</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+                <SelectItem value="out">Out of Stock</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Lifecycle filter */}
+            <Select value={productStatusFilter} onValueChange={setProductStatusFilter}>
+              <SelectTrigger className="w-32 h-8 text-xs" aria-label="Filter by lifecycle">
+                <SelectValue placeholder="Lifecycle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Lifecycle</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+                <SelectItem value="UNAVAILABLE">Unavailable</SelectItem>
+                <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Add Product */}
+            <Button size="sm" className="h-8" onClick={handleAddProduct}>
+              <Plus className="size-3.5 mr-1.5" />
+              Add Product
             </Button>
           </div>
         </div>
 
-        <TabsContent value="products" className="mt-4">
+        {/* Content area */}
+        <div className="flex-1 overflow-auto p-6">
           {loading ? (
-            <div className="space-y-4">
-              {/* Filter pills skeleton */}
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-8 w-20 rounded-full" />
-                ))}
-              </div>
-              {/* Product cards skeleton */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="rounded-lg border p-4 space-y-3">
-                    <Skeleton className="h-32 w-full rounded-md" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-lg border overflow-hidden">
+                  <Skeleton className="h-32 w-full" />
+                  <div className="p-3 space-y-2">
                     <Skeleton className="h-4 w-3/4" />
-                    <div className="flex justify-between items-center">
-                      <Skeleton className="h-5 w-16" />
-                      <Skeleton className="h-5 w-20" />
-                    </div>
+                    <Skeleton className="h-3 w-1/2" />
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
+          ) : viewMode === "cards" ? (
+            <ProductCards
+              products={filteredProducts}
+              selectedProductId={selectedProduct?.id ?? null}
+              onSelectProduct={handleSelectProduct}
+              onAddProduct={handleAddProduct}
+              targetMargin={settings.targetTrueMarginPercent}
+              hasFilters={hasFilters}
+              onClearFilters={clearFilters}
+            />
           ) : (
             <ProductsTab
-              products={products}
+              products={filteredProducts}
               categories={categories}
               selectedProductId={selectedProduct?.id ?? null}
               onSelectProduct={handleSelectProduct}
               onAddProduct={handleAddProduct}
               targetMargin={settings.targetTrueMarginPercent}
-              externalCategoryFilter={categoryFilter}
-              onClearExternalFilter={handleClearCategoryFilter}
+              hideFilters
             />
           )}
-        </TabsContent>
+        </div>
+      </main>
 
-        <TabsContent value="categories" className="mt-4">
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 rounded-lg border">
-                  <Skeleton className="h-5 w-5" />
-                  <Skeleton className="h-5 w-40" />
-                  <div className="flex-1" />
-                  <Skeleton className="h-5 w-16" />
-                  <Skeleton className="h-8 w-8" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <CategoriesTab
-              categories={categories}
-              onReorder={handleReorderCategories}
-              onEdit={handleEditCategory}
-              onDelete={handleDeleteCategory}
-              onFilterByCategory={handleFilterByCategory}
-              onToggleKitchen={handleToggleKitchen}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* Detail Panel overlay (Sheet from right) */}
+      {/* Detail Panel overlay */}
       <DetailPanel
         open={!!selectedProduct}
         onOpenChange={(open) => { if (!open) handleClosePanel() }}
@@ -346,9 +355,9 @@ export default function MenuPage() {
           <ProductPanel
             product={selectedProduct}
             onClose={handleClosePanel}
-            onEdit={handleEnterEditMode}
-            onCancelEdit={handleCancelEdit}
-            onSaveSuccess={handleSaveSuccess}
+            onEdit={() => setEditMode(true)}
+            onCancelEdit={() => setEditMode(false)}
+            onSaveSuccess={() => { setEditMode(false); void fetchData() }}
             editMode={editMode}
             categories={categories.map(c => ({ id: c.id, name: c.name }))}
             targetMargin={settings.targetTrueMarginPercent}
@@ -361,7 +370,7 @@ export default function MenuPage() {
       {/* Add New Product Dialog */}
       <ProductForm
         open={formOpen}
-        onClose={handleCloseForm}
+        onClose={() => setFormOpen(false)}
         onSuccess={handleFormSuccess}
         categories={categories.map(c => ({ id: c.id, name: c.name }))}
       />

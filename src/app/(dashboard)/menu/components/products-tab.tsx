@@ -60,6 +60,7 @@ interface ProductsTabProps {
   targetMargin?: number
   externalCategoryFilter?: number | null
   onClearExternalFilter?: () => void
+  hideFilters?: boolean
 }
 
 function getStockStatusDot(status: "available" | "low" | "critical" | "out") {
@@ -90,6 +91,7 @@ export function ProductsTab({
   targetMargin = 65,
   externalCategoryFilter,
   onClearExternalFilter,
+  hideFilters = false,
 }: ProductsTabProps) {
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
@@ -260,7 +262,7 @@ export function ProductsTab({
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
+      {!hideFilters && <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -311,7 +313,7 @@ export function ProductsTab({
             <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </div>}
 
       {/* DataTable */}
       <DataTable
