@@ -18,19 +18,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Combobox } from "@/components/ui/combobox"
 import { toast } from "sonner"
-import { Info } from "lucide-react"
-import Link from "next/link"
+import { Package } from "lucide-react"
 
 interface Category {
   id: number
   name: string
 }
 
+interface IngredientOption {
+  id: number
+  name: string
+  baseUnit: string
+}
+
 interface ProductFormData {
   name: string
   price: string
   categoryId: number | null
+  linkedIngredientId: number | null
 }
 
 interface ProductFormProps {
@@ -44,20 +51,40 @@ interface ProductFormProps {
     price: number
     image: string
     categoryId: number
+    linkedIngredientId?: number | null
   } | null
 }
 
 export function ProductForm({ open, onClose, onSuccess, categories, product }: ProductFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [ingredients, setIngredients] = useState<IngredientOption[]>([])
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<ProductFormData>({
     defaultValues: {
       name: "",
       price: "",
       categoryId: null,
+      linkedIngredientId: null,
     },
   })
+
+  // Fetch ingredients for the combobox
+  useEffect(() => {
+    if (!open) return
+    fetch("/api/ingredients")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setIngredients(data.map((i: { id: number; name: string; baseUnit: string }) => ({
+            id: i.id,
+            name: i.name,
+            baseUnit: i.baseUnit,
+          })))
+        }
+      })
+      .catch(() => {/* ingredients are optional */})
+  }, [open])
 
   // Reset form when product changes
   useEffect(() => {
@@ -66,12 +93,14 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         name: product.name,
         price: product.price.toString(),
         categoryId: product.categoryId,
+        linkedIngredientId: product.linkedIngredientId ?? null,
       })
     } else {
       reset({
         name: "",
         price: "",
         categoryId: null,
+        linkedIngredientId: null,
       })
     }
     setImageFile(null)
@@ -96,6 +125,7 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         name: data.name,
         price: parseFloat(data.price),
         categoryId: data.categoryId,
+        linkedIngredientId: data.linkedIngredientId || null,
         ...(imageFilename && { image: imageFilename }),
       }
 
@@ -158,13 +188,22 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
             </Select>
           </div>
 
-          {/* Stock information message */}
-          <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-md border">
-            <Info className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-            <p className="text-sm text-muted-foreground">
-              Stock is automatically calculated from ingredient availability.
-              Manage stock through the <Link href="/ingredients" className="text-primary underline hover:no-underline">Ingredients</Link> page,
-              or set up a recipe using the chef hat icon in the products table.
+          <div className="space-y-2">
+            <Label>Linked Ingredient</Label>
+            <Combobox<number>
+              options={ingredients.map((ing) => ({
+                value: ing.id,
+                label: `${ing.name} (${ing.baseUnit})`,
+              }))}
+              value={watch("linkedIngredientId")}
+              onChange={(v) => setValue("linkedIngredientId", v)}
+              placeholder="Select ingredient (optional)"
+              searchPlaceholder="Search ingredients..."
+              emptyMessage="No ingredients found."
+              icon={<Package className="size-4" />}
+            />
+            <p className="text-xs text-muted-foreground">
+              Link to an ingredient for automatic stock tracking. For recipes with multiple ingredients, use the chef hat icon in the products table.
             </p>
           </div>
 
