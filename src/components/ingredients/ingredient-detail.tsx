@@ -1,6 +1,6 @@
 "use client"
 
-import { Pencil, Package } from "lucide-react"
+import { Pencil, Package, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +15,7 @@ interface IngredientDetailProps {
   ingredient: Ingredient | null
   onEdit: (ingredient: Ingredient) => void
   onRestock: (ingredient: Ingredient) => void
+  onBack?: () => void
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,10 +187,17 @@ export function IngredientDetail({
   ingredient,
   onEdit,
   onRestock,
+  onBack,
 }: IngredientDetailProps) {
   if (!ingredient) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full flex-col items-center justify-center gap-3">
+        {onBack && (
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            Back to list
+          </Button>
+        )}
         <p className="text-muted-foreground">
           Select an ingredient to view details
         </p>
@@ -206,12 +214,22 @@ export function IngredientDetail({
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              All Ingredients
+            </button>
+          )}
           <h2 className="text-2xl font-semibold truncate">{ingredient.name}</h2>
           {subtitle && (
             <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -232,7 +250,7 @@ export function IngredientDetail({
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
           label="Current Stock"
           value={formatQty(ingredient.stockQty, ingredient.baseUnitAbbr)}

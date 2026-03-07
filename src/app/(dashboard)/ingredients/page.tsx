@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Plus, ClipboardList } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { RestockDialog } from "@/components/inventory/restock-dialog"
 import { IngredientEditPanel } from "@/components/ingredients/ingredient-edit-panel"
 import { IngredientList } from "@/components/ingredients/ingredient-list"
@@ -19,6 +20,7 @@ interface Vendor {
 // ─── Page Component ──────────────────────────────────────────────────────────
 
 export default function IngredientsPage() {
+  const isMobile = useIsMobile()
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [units, setUnits] = useState<Unit[]>([])
@@ -27,6 +29,7 @@ export default function IngredientsPage() {
   const [editIngredient, setEditIngredient] = useState<Ingredient | null>(null)
   const [restockIngredient, setRestockIngredient] = useState<Ingredient | null>(null)
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null)
+  const [mobileView, setMobileView] = useState<"list" | "detail">("list")
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -67,45 +70,58 @@ export default function IngredientsPage() {
     setPanelOpen(true)
   }
 
+  function handleSelect(ingredient: Ingredient) {
+    setSelectedIngredient(ingredient)
+    if (isMobile) setMobileView("detail")
+  }
+
   // ─── Render ─────────────────────────────────────────────────────────────────
+
+  const showList = !isMobile || mobileView === "list"
+  const showDetail = !isMobile || mobileView === "detail"
 
   return (
     <div className="flex h-[calc(100dvh-64px)]">
       {/* Left panel – ingredient list */}
-      <div className="w-[300px] shrink-0 border-r flex flex-col">
-        {/* Header actions */}
-        <div className="flex items-center gap-2 p-3 border-b">
-          <Button asChild variant="outline" size="sm" className="flex-1">
-            <Link href="/ingredients/count">
-              <ClipboardList className="h-4 w-4 mr-1.5" />
-              Start Count
-            </Link>
-          </Button>
-          <Button size="sm" className="flex-1" onClick={() => openPanel()}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add Ingredient
-          </Button>
-        </div>
+      {showList && (
+        <div className="w-full md:w-[300px] shrink-0 md:border-r flex flex-col">
+          {/* Header actions */}
+          <div className="flex items-center gap-2 p-3 border-b">
+            <Button asChild variant="outline" size="sm" className="flex-1">
+              <Link href="/ingredients/count">
+                <ClipboardList className="h-4 w-4 mr-1.5" />
+                Start Count
+              </Link>
+            </Button>
+            <Button size="sm" className="flex-1" onClick={() => openPanel()}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Add Ingredient
+            </Button>
+          </div>
 
-        {/* Scrollable ingredient list */}
-        <div className="flex-1 min-h-0">
-          <IngredientList
-            ingredients={ingredients}
-            selectedId={selectedIngredient?.id ?? null}
-            onSelect={setSelectedIngredient}
-            loading={loading}
-          />
+          {/* Scrollable ingredient list */}
+          <div className="flex-1 min-h-0">
+            <IngredientList
+              ingredients={ingredients}
+              selectedId={selectedIngredient?.id ?? null}
+              onSelect={handleSelect}
+              loading={loading}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Right panel – ingredient detail */}
-      <div className="flex-1 min-w-0">
-        <IngredientDetail
-          ingredient={selectedIngredient}
-          onEdit={(ing) => openPanel(ing)}
-          onRestock={setRestockIngredient}
-        />
-      </div>
+      {showDetail && (
+        <div className="flex-1 min-w-0">
+          <IngredientDetail
+            ingredient={selectedIngredient}
+            onEdit={(ing) => openPanel(ing)}
+            onRestock={setRestockIngredient}
+            onBack={isMobile ? () => setMobileView("list") : undefined}
+          />
+        </div>
+      )}
 
       {/* Edit Panel (Sheet) */}
       <IngredientEditPanel
