@@ -229,7 +229,8 @@ export function calculateStockRatio(
  * Format currency value for display (Philippine Peso)
  */
 export function formatCurrency(value: number, decimals: number = 2): string {
-  return `₱${value.toFixed(decimals)}`;
+  const safeValue = value ?? 0;
+  return `₱${safeValue.toFixed(decimals)}`;
 }
 
 /**
@@ -330,12 +331,20 @@ export function formatDualUnitDisplay(
  * Get available units for recipe entry.
  * Uses conversions from Unit table + ingredient-specific aliases.
  */
+/** Shape of a DB-loaded unit conversion row (from UnitConversion table). */
+export interface DbUnitConversion {
+  fromUnitName: string;
+  toUnitName: string;
+  factor: number;
+}
+
 export function getAvailableUnits(
   baseUnit: string,
-  unitAliases: Array<{ name: string; baseUnitMultiplier: number; description: string | null }>
+  unitAliases: Array<{ name: string; baseUnitMultiplier: number; description: string | null }>,
+  dbConversions?: DbUnitConversion[]
 ): Array<{ name: string; multiplier: number; description: string | null; isBase: boolean }> {
-  // Hardcoded STANDARD_CONVERSIONS for legacy compatibility
-  // New code should use convertUnits() with DB-loaded conversions
+  // Hardcoded STANDARD_CONVERSIONS kept as fallback for callers that
+  // haven't been updated to pass DB conversions yet.
   const STANDARD_CONVERSIONS: Record<string, Array<{ name: string; multiplier: number; description: string }>> = {
     g: [
       { name: "kg", multiplier: 1000, description: "1 kg = 1,000 g" },
@@ -368,6 +377,7 @@ export function getAvailableUnits(
     { name: baseUnit, multiplier: 1, description: "Base unit", isBase: true },
   ];
 
+  // 1. Custom aliases always come first (highest priority)
   for (const alias of unitAliases) {
     if (!seen.has(alias.name)) {
       seen.add(alias.name);
@@ -380,12 +390,30 @@ export function getAvailableUnits(
     }
   }
 
-  const conversions = STANDARD_CONVERSIONS[baseUnit];
-  if (conversions) {
-    for (const conv of conversions) {
-      if (!seen.has(conv.name)) {
-        seen.add(conv.name);
-        units.push({ name: conv.name, multiplier: conv.multiplier, description: conv.description, isBase: false });
+  // 2. Use DB conversions when provided, otherwise fall back to hardcoded
+  if (dbConversions) {
+    // Filter conversions where the baseUnit is the "from" side,
+    // giving us the multiplier to convert toUnit → baseUnit quantities.
+    const relevant = dbConversions.filter((c) => c.fromUnitName === baseUnit);
+    for (const conv of relevant) {
+      if (!seen.has(conv.toUnitName)) {
+        seen.add(conv.toUnitName);
+        units.push({
+          name: conv.toUnitName,
+          multiplier: conv.factor,
+          description: `1 ${conv.toUnitName} = ${conv.factor} ${baseUnit}`,
+          isBase: false,
+        });
+      }
+    }
+  } else {
+    const conversions = STANDARD_CONVERSIONS[baseUnit];
+    if (conversions) {
+      for (const conv of conversions) {
+        if (!seen.has(conv.name)) {
+          seen.add(conv.name);
+          units.push({ name: conv.name, multiplier: conv.multiplier, description: conv.description, isBase: false });
+        }
       }
     }
   }

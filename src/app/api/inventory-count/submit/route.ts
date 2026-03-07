@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { nanoid } from "nanoid"
+import { convertUnits } from "@/lib/ingredient-utils"
+import type { UnitConversion } from "@/types/ingredient"
 
 interface CountItem {
   ingredientId: number
@@ -52,34 +54,65 @@ export async function POST(request: NextRequest) {
     // Process counts that have discrepancies (actual != expected)
     const discrepancies = counts.filter((c) => c.actual !== c.expected)
 
-    // Get current ingredient data for history logging
+    // Get current ingredient data for history logging and unit conversion
     const ingredientIds = discrepancies.map((c) => c.ingredientId)
     const ingredients = await prisma.ingredient.findMany({
       where: { id: { in: ingredientIds } },
-      select: { id: true, name: true, stockQty: true },
+      select: { id: true, name: true, stockQty: true, baseUnitId: true, countUnitId: true },
     })
 
     const ingredientMap = new Map(ingredients.map((i) => [i.id, i]))
 
+    // Load all unit conversions (small table) for transitive conversion support
+    const allConversions: UnitConversion[] = (
+      await prisma.unitConversion.findMany()
+    ).map((c) => ({
+      id: c.id,
+      fromUnitId: c.fromUnitId,
+      toUnitId: c.toUnitId,
+      factor: Number(c.factor),
+    }))
+
     // Build transaction operations
     const operations = []
+    let skippedCount = 0
 
     for (const count of discrepancies) {
       const ingredient = ingredientMap.get(count.ingredientId)
       if (!ingredient) continue
 
-      // Update ingredient quantity
+      // Convert actual from count units to base units
+      let actualInBaseUnits = count.actual
+      if (ingredient.countUnitId && ingredient.countUnitId !== ingredient.baseUnitId) {
+        const converted = convertUnits(
+          count.actual,
+          ingredient.countUnitId,
+          ingredient.baseUnitId,
+          allConversions
+        )
+        if (converted !== null) {
+          actualInBaseUnits = converted
+        } else {
+          console.warn(
+            `No conversion path from count unit ${ingredient.countUnitId} to base unit ${ingredient.baseUnitId} for ingredient "${ingredient.name}" (id=${ingredient.id}). Skipping update to avoid data corruption.`
+          )
+          skippedCount++
+          continue
+        }
+      }
+
+      // Update ingredient quantity (stockQty is always in base units)
       operations.push(
         prisma.ingredient.update({
           where: { id: count.ingredientId },
           data: {
-            stockQty: count.actual,
+            stockQty: actualInBaseUnits,
             lastUpdated: new Date(),
           },
         })
       )
 
-      // Create history entry
+      // Create history entry (values in base units to match stockQty)
       operations.push(
         prisma.ingredientHistory.create({
           data: {
@@ -88,7 +121,7 @@ export async function POST(request: NextRequest) {
             changeId,
             field: "stockQty",
             oldValue: String(ingredient.stockQty),
-            newValue: String(count.actual),
+            newValue: String(actualInBaseUnits),
             source: "inventory_count",
             reason: count.reason || null,
             reasonNote: count.reasonNote || null,
@@ -114,6 +147,7 @@ export async function POST(request: NextRequest) {
       changeId,
       totalCounted: counts.length,
       discrepancies: discrepancies.length,
+      skipped: skippedCount,
     })
   } catch (error) {
     console.error("Failed to submit inventory count:", error)

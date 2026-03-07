@@ -391,6 +391,64 @@ describe("Unit Availability", () => {
       const unitNames = result.map((u) => u.name);
       expect(unitNames).toContain("dozen");
     });
+
+    test("uses DB conversions when provided instead of hardcoded", () => {
+      const dbConversions = [
+        { fromUnitName: "g", toUnitName: "kg", factor: 1000 },
+        { fromUnitName: "g", toUnitName: "mg", factor: 0.001 },
+        { fromUnitName: "mL", toUnitName: "L", factor: 1000 },
+      ];
+      const result = getAvailableUnits("g", [], dbConversions);
+      const unitNames = result.map((u) => u.name);
+
+      // Should include DB-provided conversions for "g"
+      expect(unitNames).toContain("kg");
+      expect(unitNames).toContain("mg");
+      // Should NOT include hardcoded "oz" or "lb" since DB conversions were provided
+      expect(unitNames).not.toContain("oz");
+      expect(unitNames).not.toContain("lb");
+    });
+
+    test("DB conversions only include conversions from the base unit", () => {
+      const dbConversions = [
+        { fromUnitName: "g", toUnitName: "kg", factor: 1000 },
+        { fromUnitName: "mL", toUnitName: "L", factor: 1000 },
+      ];
+      const result = getAvailableUnits("g", [], dbConversions);
+      const unitNames = result.map((u) => u.name);
+
+      expect(unitNames).toContain("kg");
+      // mL→L conversion should not appear when base unit is "g"
+      expect(unitNames).not.toContain("L");
+    });
+
+    test("custom aliases take priority over DB conversions", () => {
+      const aliases = [
+        { name: "kg", baseUnitMultiplier: 999, description: "custom kg" },
+      ];
+      const dbConversions = [
+        { fromUnitName: "g", toUnitName: "kg", factor: 1000 },
+        { fromUnitName: "g", toUnitName: "oz", factor: 28.3495 },
+      ];
+      const result = getAvailableUnits("g", aliases, dbConversions);
+
+      // "kg" should use the alias multiplier, not the DB conversion
+      const kgUnit = result.find((u) => u.name === "kg");
+      expect(kgUnit?.multiplier).toBe(999);
+      expect(kgUnit?.description).toBe("custom kg");
+
+      // "oz" from DB should still be included
+      const ozUnit = result.find((u) => u.name === "oz");
+      expect(ozUnit?.multiplier).toBe(28.3495);
+    });
+
+    test("falls back to hardcoded conversions when dbConversions is undefined", () => {
+      // Explicitly pass undefined to confirm fallback behavior
+      const result = getAvailableUnits("mL", [], undefined);
+      const unitNames = result.map((u) => u.name);
+      expect(unitNames).toContain("L");
+      expect(unitNames).toContain("tsp");
+    });
   });
 });
 
