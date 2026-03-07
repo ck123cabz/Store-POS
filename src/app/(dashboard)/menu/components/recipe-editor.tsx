@@ -31,7 +31,7 @@ interface RecipeIngredient {
   ingredientName: string
   unit: string
   quantity: number
-  costPerUnit: number
+  costPerBaseUnit: number
   lineCost: number
 }
 
@@ -122,7 +122,7 @@ export function RecipeEditor({
   // Calculate costs whenever recipe changes
   useEffect(() => {
     const foodCost = recipeIngredients.reduce(
-      (sum, item) => sum + item.quantity * item.costPerUnit,
+      (sum, item) => sum + item.quantity * item.costPerBaseUnit,
       0
     )
     const laborCost = prepTime > 0 ? (prepTime / 60) * hourlyLaborRate : 0
@@ -159,7 +159,7 @@ export function RecipeEditor({
         ingredientName: ingredient.name,
         unit: ingredient.baseUnit,
         quantity: 1,
-        costPerUnit: ingredient.costPerBaseUnit,
+        costPerBaseUnit: ingredient.costPerBaseUnit,
         lineCost: ingredient.costPerBaseUnit,
       },
     ])
@@ -172,7 +172,7 @@ export function RecipeEditor({
           ? {
               ...item,
               quantity,
-              lineCost: quantity * item.costPerUnit,
+              lineCost: quantity * item.costPerBaseUnit,
             }
           : item
       )
@@ -331,7 +331,7 @@ export function RecipeEditor({
                       {item.ingredientName}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatCurrency(item.costPerUnit)}/{item.unit}
+                      {formatCurrency(item.costPerBaseUnit)}/{item.unit}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">

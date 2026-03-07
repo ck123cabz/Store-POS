@@ -1,174 +1,55 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
-import { StatusDot } from "@/components/ui/status-dot"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Badge } from "@/components/ui/badge"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Plus, Pencil, Trash2, Package, ClipboardList, Info, Loader2 } from "lucide-react"
+import { Plus, ClipboardList } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { formatDualUnitDisplay, formatCurrency, getAvailableUnits } from "@/lib/ingredient-utils"
-import { PURCHASE_UNITS, BASE_UNITS } from "@/types/ingredient"
 import { RestockDialog } from "@/components/inventory/restock-dialog"
-
-interface Ingredient {
-  id: number
-  name: string
-  category: string
-  // New unit system
-  baseUnit: string
-  packageSize: number
-  packageUnit: string
-  costPerPackage: number
-  costPerBaseUnit: number
-  // Stock
-  quantity: number
-  totalBaseUnits: number
-  parLevel: number
-  stockStatus: "ok" | "low" | "critical" | "out"
-  stockRatio: number | null
-  countByBaseUnit: boolean
-  // Metadata
-  vendorId: number | null
-  vendorName: string | null
-  lastRestockDate: string | null
-  lastUpdated: string
-  barcode: string | null
-  // Sellable
-  sellable: boolean
-  sellPrice: number | null
-  linkedProductId: number | null
-  syncStatus: string
-  // Overhead
-  isOverhead: boolean
-  overheadPerTransaction: number | null
-  // Cooking yield
-  yieldFactor: number | null
-  // Unit aliases
-  unitAliases: Array<{
-    id: number
-    name: string
-    baseUnitMultiplier: number
-    description: string | null
-    isDefault: boolean
-  }>
-  // Legacy (deprecated)
-  unit: string
-  costPerUnit: number
-}
+import { IngredientEditPanel } from "@/components/ingredients/ingredient-edit-panel"
+import { IngredientList } from "@/components/ingredients/ingredient-list"
+import { IngredientDetail } from "@/components/ingredients/ingredient-detail"
+import type { Ingredient, Unit } from "@/types/ingredient"
 
 interface Vendor {
   id: number
   name: string
 }
 
-const INGREDIENT_CATEGORIES = [
-  "Protein",
-  "Produce",
-  "Dairy",
-  "Dry Goods",
-  "Beverages",
-  "Condiments",
-  "Spices",
-  "Packaging",
-  "Supplies",
-  "Other",
-]
+// ─── Page Component ──────────────────────────────────────────────────────────
 
 export default function IngredientsPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [vendors, setVendors] = useState<Vendor[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
-  const [formOpen, setFormOpen] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
   const [editIngredient, setEditIngredient] = useState<Ingredient | null>(null)
-  const [deleteId, setDeleteId] = useState<number | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-
-  // Restock state
   const [restockIngredient, setRestockIngredient] = useState<Ingredient | null>(null)
-
-  // Form state - new dual-unit system
-  const [name, setName] = useState("")
-  const [category, setCategory] = useState("")
-  const [vendorId, setVendorId] = useState<string>("")
-  // Purchasing section
-  const [packageUnit, setPackageUnit] = useState("pack")
-  const [costPerPackage, setCostPerPackage] = useState("")
-  // Usage section
-  const [baseUnit, setBaseUnit] = useState("pcs")
-  const [packageSize, setPackageSize] = useState("1")
-  // Stock section
-  const [quantity, setQuantity] = useState("0")
-  const [parLevel, setParLevel] = useState("0")
-  // Cooking yield
-  const [yieldFactor, setYieldFactor] = useState<string>("")
-  // Unit aliases
-  const [unitAliases, setUnitAliases] = useState<Array<{
-    id: number
-    name: string
-    baseUnitMultiplier: number
-    description: string | null
-    isDefault: boolean
-  }>>([])
-  const [newAliasName, setNewAliasName] = useState("")
-  const [customUnitName, setCustomUnitName] = useState("")
-  const [newAliasMultiplier, setNewAliasMultiplier] = useState("")
-  const [addingAlias, setAddingAlias] = useState(false)
-
-  // Calculated cost preview
-  const calculatedCostPerBaseUnit = useMemo(() => {
-    const cost = parseFloat(costPerPackage) || 0
-    const size = parseFloat(packageSize) || 1
-    if (size <= 0) return 0
-    return cost / size
-  }, [costPerPackage, packageSize])
-
-  // Whether units are the same (hide conversion section)
-  const showConversionSection = packageUnit !== baseUnit
+  const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [ingredientsRes, vendorsRes] = await Promise.all([
+      const [ingredientsRes, vendorsRes, unitsRes] = await Promise.all([
         fetch("/api/ingredients"),
         fetch("/api/vendors"),
+        fetch("/api/units"),
       ])
-      setIngredients(await ingredientsRes.json())
+      const ingredientsData: Ingredient[] = await ingredientsRes.json()
+      setIngredients(ingredientsData)
       setVendors(await vendorsRes.json())
+      const unitsData = await unitsRes.json()
+      setUnits(unitsData.units || [])
+
+      // Auto-select: try to keep current selection, otherwise pick first
+      setSelectedIngredient((prev) => {
+        if (prev) {
+          const found = ingredientsData.find((i) => i.id === prev.id)
+          if (found) return found
+        }
+        return ingredientsData[0] ?? null
+      })
     } catch (error) {
       console.error("Failed to fetch data", error)
       toast.error("Failed to load ingredients")
@@ -181,774 +62,66 @@ export default function IngredientsPage() {
     fetchData()
   }, [fetchData])
 
-  function openForm(ingredient?: Ingredient) {
+  function openPanel(ingredient?: Ingredient) {
     setEditIngredient(ingredient || null)
-    setName(ingredient?.name || "")
-    setCategory(ingredient?.category || "")
-    setVendorId(ingredient?.vendorId?.toString() || "")
-    // New unit system
-    setPackageUnit(ingredient?.packageUnit || "pack")
-    setCostPerPackage(ingredient?.costPerPackage?.toString() || "")
-    setBaseUnit(ingredient?.baseUnit || "pcs")
-    setPackageSize(ingredient?.packageSize?.toString() || "1")
-    setQuantity(ingredient?.quantity?.toString() || "0")
-    setParLevel(ingredient?.parLevel?.toString() || "0")
-    setYieldFactor(ingredient?.yieldFactor?.toString() || "")
-    setUnitAliases(ingredient?.unitAliases || [])
-    setFormOpen(true)
+    setPanelOpen(true)
   }
 
-  function closeForm() {
-    setFormOpen(false)
-    setEditIngredient(null)
-    setName("")
-    setCategory("")
-    setVendorId("")
-    setPackageUnit("pack")
-    setCostPerPackage("")
-    setBaseUnit("pcs")
-    setPackageSize("1")
-    setQuantity("0")
-    setParLevel("0")
-    setYieldFactor("")
-    setUnitAliases([])
-    setNewAliasName("")
-    setCustomUnitName("")
-    setNewAliasMultiplier("")
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-
-    const parsedPackageSize = parseFloat(packageSize) || 0
-    if (parsedPackageSize <= 0) {
-      toast.error("Package size must be greater than 0")
-      return
-    }
-
-    if (!name.trim() || !category || !packageUnit || !baseUnit) {
-      toast.error("Please fill in all required fields")
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      const url = editIngredient
-        ? `/api/ingredients/${editIngredient.id}`
-        : "/api/ingredients"
-      const method = editIngredient ? "PUT" : "POST"
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          category,
-          vendorId: vendorId ? parseInt(vendorId) : null,
-          // New unit system
-          packageUnit,
-          costPerPackage: parseFloat(costPerPackage) || 0,
-          baseUnit,
-          packageSize: parsedPackageSize,
-          // Stock
-          quantity: parseFloat(quantity) || 0,
-          parLevel: parseInt(parLevel) || 0,
-          // Cooking yield
-          yieldFactor: yieldFactor ? parseFloat(yieldFactor) : null,
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || "Failed to save")
-      }
-
-      toast.success(editIngredient ? "Ingredient updated" : "Ingredient created")
-      closeForm()
-      fetchData()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save ingredient")
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleDelete() {
-    if (!deleteId) return
-    setDeleting(true)
-    try {
-      const res = await fetch(`/api/ingredients/${deleteId}`, { method: "DELETE" })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || "Failed to delete ingredient")
-      }
-      toast.success("Ingredient deleted")
-      fetchData()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete ingredient")
-    } finally {
-      setDeleting(false)
-      setDeleteId(null)
-    }
-  }
-
-  async function handleAddAlias() {
-    const aliasName = newAliasName === "__custom__"
-      ? customUnitName.trim().toLowerCase()
-      : newAliasName.trim().toLowerCase()
-
-    if (!editIngredient || !aliasName || !newAliasMultiplier) return
-
-    setAddingAlias(true)
-    try {
-      const res = await fetch(`/api/ingredients/${editIngredient.id}/unit-aliases`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: aliasName,
-          baseUnitMultiplier: parseFloat(newAliasMultiplier),
-          description: `1 ${aliasName} = ${newAliasMultiplier} ${baseUnit}`,
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || "Failed to add unit")
-      }
-
-      const alias = await res.json()
-      setUnitAliases(prev => [...prev, alias])
-      setNewAliasName("")
-      setCustomUnitName("")
-      setNewAliasMultiplier("")
-      toast.success(`Added "${alias.name}" unit`)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to add unit")
-    } finally {
-      setAddingAlias(false)
-    }
-  }
-
-  async function handleRemoveAlias(aliasId: number) {
-    if (!editIngredient) return
-
-    try {
-      const res = await fetch(`/api/ingredients/${editIngredient.id}/unit-aliases/${aliasId}`, {
-        method: "DELETE",
-      })
-      if (!res.ok) throw new Error("Failed to delete")
-
-      setUnitAliases(prev => prev.filter(a => a.id !== aliasId))
-      toast.success("Unit removed")
-    } catch {
-      toast.error("Failed to remove unit")
-    }
-  }
-
-  const columns: DataTableColumn<Ingredient>[] = [
-    {
-      id: "name",
-      header: "Name",
-      cell: (ing) => (
-        <div className="flex items-center gap-2">
-          <span className="font-medium">{ing.name}</span>
-          {ing.isOverhead && <Badge variant="outline" className="text-xs">Overhead</Badge>}
-          {ing.sellable && <Badge variant="secondary" className="text-xs">Sellable</Badge>}
-        </div>
-      ),
-      priority: 0,
-    },
-    {
-      id: "category",
-      header: "Category",
-      cell: (ing) => <Badge variant="outline">{ing.category}</Badge>,
-      priority: 1,
-    },
-    {
-      id: "stock",
-      header: "Stock",
-      cell: (ing) => {
-        const stockVariant = {
-          ok: "ok" as const,
-          low: "warning" as const,
-          critical: "critical" as const,
-          out: "critical" as const,
-        }[ing.stockStatus]
-        const stockLabel = {
-          ok: "In Stock",
-          low: "Low",
-          critical: "Critical",
-          out: "Out",
-        }[ing.stockStatus]
-        return (
-          <div className="flex items-center gap-2">
-            <span className="font-mono tabular-nums">
-              {formatDualUnitDisplay(ing.quantity, ing.packageSize, ing.packageUnit, ing.baseUnit)}
-            </span>
-            <StatusDot variant={stockVariant} label={stockLabel} />
-          </div>
-        )
-      },
-      priority: 0,
-    },
-    {
-      id: "parLevel",
-      header: "Par Level",
-      cell: (ing) => (
-        <span className="font-mono tabular-nums">
-          {ing.parLevel} {ing.baseUnit}
-        </span>
-      ),
-      priority: 2,
-      align: "right",
-    },
-    {
-      id: "cost",
-      header: "Cost",
-      cell: (ing) => (
-        <div className="text-right">
-          <div className="font-mono tabular-nums">{formatCurrency(ing.costPerBaseUnit)}/{ing.baseUnit}</div>
-          {ing.packageUnit !== ing.baseUnit && (
-            <div className="text-xs text-muted-foreground">{formatCurrency(ing.costPerPackage)}/{ing.packageUnit}</div>
-          )}
-        </div>
-      ),
-      priority: 2,
-      align: "right",
-    },
-    {
-      id: "vendor",
-      header: "Vendor",
-      cell: (ing) => ing.vendorName || "\u2014",
-      priority: 3,
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: (ing) => (
-        <div className="flex items-center gap-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" aria-label={`Edit ${ing.name}`} onClick={(e) => { e.stopPropagation(); openForm(ing) }}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Edit</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" aria-label={`Delete ${ing.name}`} onClick={(e) => { e.stopPropagation(); setDeleteId(ing.id) }}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Delete</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" aria-label={`Restock ${ing.name}`} onClick={(e) => { e.stopPropagation(); setRestockIngredient(ing) }}>
-                  <Package className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Restock</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      ),
-      priority: 0,
-    },
-  ]
+  // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Ingredients</h1>
-          <p className="text-muted-foreground mt-1">Manage recipe ingredients and costs</p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
+    <div className="flex h-[calc(100dvh-64px)]">
+      {/* Left panel – ingredient list */}
+      <div className="w-[300px] shrink-0 border-r flex flex-col">
+        {/* Header actions */}
+        <div className="flex items-center gap-2 p-3 border-b">
+          <Button asChild variant="outline" size="sm" className="flex-1">
             <Link href="/ingredients/count">
-              <ClipboardList className="h-4 w-4 mr-2" />
+              <ClipboardList className="h-4 w-4 mr-1.5" />
               Start Count
             </Link>
           </Button>
-          <Button onClick={() => openForm()}>
-            <Plus className="h-4 w-4 mr-2" /> Add Ingredient
+          <Button size="sm" className="flex-1" onClick={() => openPanel()}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add Ingredient
           </Button>
+        </div>
+
+        {/* Scrollable ingredient list */}
+        <div className="flex-1 min-h-0">
+          <IngredientList
+            ingredients={ingredients}
+            selectedId={selectedIngredient?.id ?? null}
+            onSelect={setSelectedIngredient}
+            loading={loading}
+          />
         </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={ingredients}
-        rowKey={(ing) => ing.id}
-        loading={loading}
-        pageSize={20}
-        emptyIcon={<Package className="size-10" />}
-        emptyTitle="No ingredients tracked yet"
-        emptyDescription="Add your first ingredient to start managing inventory."
-        emptyAction={
-          <Button size="sm" onClick={() => openForm()}>
-            <Plus className="h-4 w-4 mr-2" /> Add Ingredient
-          </Button>
-        }
+      {/* Right panel – ingredient detail */}
+      <div className="flex-1 min-w-0">
+        <IngredientDetail
+          ingredient={selectedIngredient}
+          onEdit={(ing) => openPanel(ing)}
+          onRestock={setRestockIngredient}
+        />
+      </div>
+
+      {/* Edit Panel (Sheet) */}
+      <IngredientEditPanel
+        open={panelOpen}
+        onOpenChange={setPanelOpen}
+        ingredient={editIngredient}
+        vendors={vendors}
+        units={units}
+        onSaved={fetchData}
       />
-
-      {/* Add/Edit Dialog - New Dual-Unit Form */}
-      <Dialog open={formOpen} onOpenChange={closeForm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editIngredient ? "Edit Ingredient" : "Add Ingredient"}
-            </DialogTitle>
-            <DialogDescription>
-              Define how you purchase and use this ingredient
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Info Section */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Ingredient Name *</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Burger Patties"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Category *</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger aria-label="Category">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INGREDIENT_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Vendor</Label>
-                  <Select value={vendorId || "__none__"} onValueChange={(v) => setVendorId(v === "__none__" ? "" : v)}>
-                    <SelectTrigger aria-label="Vendor">
-                      <SelectValue placeholder="Optional" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">No vendor</SelectItem>
-                      {vendors.map((vendor) => (
-                        <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                          {vendor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Purchasing Section */}
-            <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
-              <h3 className="font-medium text-sm">Purchasing</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>I buy this as *</Label>
-                  <Select value={packageUnit} onValueChange={(v) => {
-                    setPackageUnit(v)
-                    // If same as baseUnit, set packageSize to 1
-                    if (v === baseUnit) {
-                      setPackageSize("1")
-                    }
-                  }}>
-                    <SelectTrigger aria-label="Purchase unit">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PURCHASE_UNITS.map((u) => (
-                        <SelectItem key={u} value={u}>
-                          {u}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="costPerPackage">Cost per {packageUnit} (₱) *</Label>
-                  <Input
-                    id="costPerPackage"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={costPerPackage}
-                    onChange={(e) => setCostPerPackage(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Usage/Conversion Section - only show if units differ */}
-            {showConversionSection && (
-              <div className="space-y-3 p-4 bg-status-info/10 rounded-lg border border-status-info/30">
-                <h3 className="font-medium text-sm">Usage (Conversion)</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="packageSize">Each {packageUnit} has</Label>
-                    <Input
-                      id="packageSize"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={packageSize}
-                      onChange={(e) => setPackageSize(e.target.value)}
-                      placeholder="8"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Unit for recipes *</Label>
-                    <Select value={baseUnit} onValueChange={(v) => {
-                      setBaseUnit(v)
-                      // If same as packageUnit, set packageSize to 1
-                      if (v === packageUnit) {
-                        setPackageSize("1")
-                      }
-                    }}>
-                      <SelectTrigger aria-label="Unit for recipes">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BASE_UNITS.map((u) => (
-                          <SelectItem key={u} value={u}>
-                            {u}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-1">
-                      Cost per {baseUnit}
-                      <Info className="h-3 w-3 text-muted-foreground" />
-                    </Label>
-                    <div className="h-9 px-3 flex items-center bg-status-ok/10 border border-status-ok/30 rounded-md text-status-ok font-medium">
-                      {formatCurrency(calculatedCostPerBaseUnit)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* When units are same, show simpler view */}
-            {!showConversionSection && (
-              <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Info className="h-4 w-4" />
-                  <span>Purchase unit and recipe unit are the same ({packageUnit})</span>
-                </div>
-                <input type="hidden" value="1" />
-              </div>
-            )}
-
-            {/* Cooking Yield Section */}
-            <div className="space-y-3 p-4 bg-status-warning/10 rounded-lg border border-status-warning/30">
-              <div className="flex items-center justify-between">
-                <Label className="font-medium">Cooking Yield (Optional)</Label>
-<TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" className="inline-flex">
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="max-w-xs">
-                      <p>
-                        How much this ingredient expands or shrinks when cooked.
-                        Rice typically yields 3x (expands), meat yields 0.8x (shrinks).
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    max="10"
-                    placeholder="e.g., 3 for rice"
-                    value={yieldFactor}
-                    onChange={(e) => setYieldFactor(e.target.value)}
-                  />
-                </div>
-                <span className="text-sm text-muted-foreground">× yield</span>
-              </div>
-              {yieldFactor && parseFloat(yieldFactor) > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  1 {baseUnit || "unit"} raw → {parseFloat(yieldFactor)} {baseUnit || "unit"} cooked
-                </p>
-              )}
-            </div>
-
-            {/* Recipe Units Section */}
-            <div className="space-y-3 p-4 bg-accent rounded-lg border border-border">
-              <div className="flex items-center justify-between">
-                <Label className="font-medium">Recipe Units</Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" className="inline-flex">
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="max-w-xs">
-                      <p>
-                        Standard conversions are always available. You can also
-                        add custom units for this ingredient.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-
-              {/* Standard conversions (read-only) */}
-              {(() => {
-                const allUnits = getAvailableUnits(baseUnit, unitAliases)
-                const standardUnits = allUnits.filter(
-                  (u) => !u.isBase && !unitAliases.some((a) => a.name === u.name)
-                )
-                if (standardUnits.length === 0) return null
-                return (
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Standard conversions</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {standardUnits.map((u) => (
-                        <Badge key={u.name} variant="secondary" className="font-normal text-xs">
-                          {u.name}
-                          <span className="text-muted-foreground ml-1">
-                            {u.description}
-                          </span>
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* Custom aliases (editable) */}
-              {editIngredient && unitAliases.length > 0 && (
-                <div className="space-y-1.5">
-                  <span className="text-xs text-muted-foreground">Custom units</span>
-                  <div className="space-y-2">
-                    {unitAliases.map((alias) => (
-                      <div
-                        key={alias.id}
-                        className="flex items-center justify-between p-2 bg-card rounded border"
-                      >
-                        <div>
-                          <span className="font-medium">{alias.name}</span>
-                          <span className="text-muted-foreground text-sm ml-2">
-                            = {alias.baseUnitMultiplier} {baseUnit}
-                          </span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          aria-label={`Remove unit alias ${alias.name}`}
-                          onClick={() => handleRemoveAlias(alias.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Add Custom Unit */}
-              {editIngredient && (() => {
-                const existingNames = new Set([
-                  baseUnit,
-                  ...unitAliases.map((a) => a.name),
-                  ...getAvailableUnits(baseUnit, unitAliases)
-                    .filter((u) => !u.isBase)
-                    .map((u) => u.name),
-                ])
-                const presetUnits = [
-                  { name: "serving", label: "serving" },
-                  { name: "slice", label: "slice" },
-                  { name: "scoop", label: "scoop" },
-                  { name: "pinch", label: "pinch" },
-                  { name: "dash", label: "dash" },
-                  { name: "bunch", label: "bunch" },
-                  { name: "clove", label: "clove" },
-                  { name: "head", label: "head" },
-                  { name: "stick", label: "stick" },
-                  { name: "portion", label: "portion" },
-                  { name: "cup", label: "cup" },
-                  { name: "tbsp", label: "tbsp" },
-                  { name: "tsp", label: "tsp" },
-                  { name: "oz", label: "oz" },
-                  { name: "lb", label: "lb" },
-                  { name: "kg", label: "kg" },
-                  { name: "g", label: "g" },
-                  { name: "L", label: "L" },
-                  { name: "mL", label: "mL" },
-                  { name: "fl oz", label: "fl oz" },
-                  { name: "dozen", label: "dozen" },
-                ].filter((p) => !existingNames.has(p.name))
-                const isCustom = newAliasName === "__custom__"
-
-                return (
-                  <div className="space-y-2 pt-2 border-t">
-                    <span className="text-xs text-muted-foreground">Add unit</span>
-                    <div className="flex gap-2">
-                      <Select
-                        value={isCustom ? "__custom__" : newAliasName}
-                        onValueChange={(v) => {
-                          setNewAliasName(v)
-                          setNewAliasMultiplier("")
-                        }}
-                      >
-                        <SelectTrigger className="flex-1" aria-label="Select unit to add">
-                          <SelectValue placeholder="Select unit..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {presetUnits.map((p) => (
-                            <SelectItem key={p.name} value={p.name}>
-                              {p.label}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value="__custom__">Other (custom)...</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm text-muted-foreground">=</span>
-                        <Input
-                          type="number"
-                          placeholder="Amount"
-                          value={newAliasMultiplier}
-                          onChange={(e) => setNewAliasMultiplier(e.target.value)}
-                          className="w-24"
-                        />
-                        <span className="text-sm text-muted-foreground">{baseUnit}</span>
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={handleAddAlias}
-                        disabled={addingAlias || (!isCustom && !newAliasName) || (isCustom && !customUnitName) || !newAliasMultiplier}
-                        size="sm"
-                      >
-                        {addingAlias ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
-                      </Button>
-                    </div>
-                    {isCustom && (
-                      <Input
-                        placeholder="Custom unit name"
-                        value={customUnitName}
-                        onChange={(e) => setCustomUnitName(e.target.value)}
-                      />
-                    )}
-                  </div>
-                )
-              })()}
-            </div>
-
-            {/* Stock Section */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Current Stock ({packageUnit}s)</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="parLevel">Min. Stock ({packageUnit}s)</Label>
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="inline-flex">
-                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs">
-                        <p>
-                          Alert threshold. When stock falls to this level,
-                          a warning badge appears in the sidebar. Set to 0 to disable alerts.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Input
-                  id="parLevel"
-                  type="number"
-                  min="0"
-                  value={parLevel}
-                  onChange={(e) => setParLevel(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={closeForm}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Saving..." : "Save"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Ingredient?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove the ingredient from all recipes that use it.
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Restock Dialog */}
       <RestockDialog
         open={!!restockIngredient}
         onOpenChange={(open) => { if (!open) setRestockIngredient(null) }}
-        ingredient={restockIngredient}
+        ingredient={restockIngredient as Parameters<typeof RestockDialog>[0]["ingredient"]}
         onSuccess={fetchData}
       />
     </div>

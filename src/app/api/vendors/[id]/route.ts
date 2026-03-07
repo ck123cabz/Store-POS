@@ -10,7 +10,9 @@ export async function GET(
     const vendor = await prisma.vendor.findUnique({
       where: { id: parseInt(id) },
       include: {
-        ingredients: true,
+        ingredients: {
+          include: { baseUnit: { select: { name: true } } },
+        },
         purchases: { orderBy: { date: "desc" }, take: 10 },
       },
     })
@@ -24,8 +26,8 @@ export async function GET(
       ingredients: vendor.ingredients.map((i) => ({
         id: i.id,
         name: i.name,
-        costPerUnit: Number(i.costPerUnit),
-        unit: i.unit,
+        avgCostPerBaseUnit: Number(i.avgCostPerBaseUnit),
+        unit: i.baseUnit.name,
       })),
       purchases: vendor.purchases.map((p) => ({
         id: p.id,

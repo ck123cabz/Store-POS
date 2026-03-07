@@ -1,172 +1,169 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import {
-  calculateCostPerBaseUnit,
-  calculateTotalBaseUnits,
   calculateStockStatus,
   calculateStockRatio,
   ingredientFormSchema,
+  purchaseVariantSchema,
+  computeBaseUnitsPerVariant,
 } from "@/lib/ingredient-utils"
 
 /**
  * Format ingredient for API response
- * Includes computed fields and maintains backward compatibility
  */
 function formatIngredient(i: {
   id: number
   name: string
   category: string
-  baseUnit: string
-  packageSize: { toNumber: () => number } | number
-  packageUnit: string
-  costPerPackage: { toNumber: () => number } | number
-  unit: string
-  costPerUnit: { toNumber: () => number } | number
-  parLevel: number
-  quantity: { toNumber: () => number } | number
-  lastRestockDate: Date | null
-  lastUpdated: Date | null
-  vendorId: number | null
-  barcode: string | null
-  countByBaseUnit: boolean
-  sellable: boolean
-  sellPrice: { toNumber: () => number } | null
-  linkedProductId: number | null
-  syncStatus: string
+  baseUnitId: number
+  stockQty: { toNumber?: () => number } | number
+  avgCostPerBaseUnit: { toNumber?: () => number } | number
+  parLevel: { toNumber?: () => number } | number
+  countUnitId: number | null
   isOverhead: boolean
-  overheadPerTransaction: { toNumber: () => number } | null
-  yieldFactor: { toNumber: () => number } | number | null
+  overheadPerTransaction: { toNumber?: () => number } | null
+  yieldFactor: { toNumber?: () => number } | null
+  vendorId: number | null
+  lastUpdated: Date | null
+  lastRestockDate: Date | null
+  isActive: boolean
+  baseUnit: { id: number; name: string; abbr: string; isDiscrete: boolean }
+  countUnit?: { id: number; name: string; abbr: string } | null
   vendor?: { name: string } | null
+  purchaseVariants?: Array<{
+    id: number
+    ingredientId: number
+    label: string
+    contentQty: { toNumber?: () => number } | number
+    contentUnitId: number
+    packageQty: number
+    packageUnitId: number
+    costPerVariant: { toNumber?: () => number } | number
+    baseUnitsPerVariant: { toNumber?: () => number } | number
+    sellable: boolean
+    sellPrice: { toNumber?: () => number } | null
+    linkedProductId: number | null
+    syncStatus: string
+    vendorId: number | null
+    barcode: string | null
+    sku: string | null
+    isActive: boolean
+    isDefault: boolean
+    contentUnit?: { name: string }
+    packageUnit?: { name: string }
+  }>
   unitAliases?: Array<{
     id: number
     name: string
-    baseUnitMultiplier: { toNumber: () => number } | number
+    baseUnitMultiplier: { toNumber?: () => number } | number
     description: string | null
     isDefault: boolean
+    unitId: number | null
     createdAt: Date
   }>
 }) {
-  const rawPackageSize = typeof i.packageSize === "number" ? i.packageSize : Number(i.packageSize)
-  const rawCostPerPackage = typeof i.costPerPackage === "number" ? i.costPerPackage : Number(i.costPerPackage)
-  const rawCostPerUnit = typeof i.costPerUnit === "number" ? i.costPerUnit : Number(i.costPerUnit)
-  const quantity = typeof i.quantity === "number" ? i.quantity : Number(i.quantity)
-  const parLevel = i.parLevel
-
-  // Check if using new unit system or legacy data
-  // Legacy data has: costPerPackage = 0 AND costPerUnit > 0
-  // OR: packageUnit = "each" AND unit is a real unit (kg, g, etc.)
-  const isLegacyData = rawCostPerPackage === 0 && rawCostPerUnit > 0
-
-  // Effective values - prefer new system, fall back to legacy
-  let effectivePackageUnit: string
-  let effectiveBaseUnit: string
-  let effectivePackageSize: number
-  let effectiveCostPerPackage: number
-  let effectiveCostPerBaseUnit: number
-
-  if (isLegacyData) {
-    // Use legacy unit/costPerUnit directly
-    effectivePackageUnit = i.unit || "each"
-    effectiveBaseUnit = i.unit || "each"
-    effectivePackageSize = 1
-    effectiveCostPerPackage = rawCostPerUnit
-    effectiveCostPerBaseUnit = rawCostPerUnit
-  } else {
-    // Use new unit system
-    effectivePackageUnit = i.packageUnit || "each"
-    effectiveBaseUnit = i.baseUnit || "pcs"
-    effectivePackageSize = rawPackageSize > 0 ? rawPackageSize : 1
-    effectiveCostPerPackage = rawCostPerPackage
-    effectiveCostPerBaseUnit = effectivePackageSize > 0
-      ? calculateCostPerBaseUnit(effectiveCostPerPackage, effectivePackageSize)
-      : 0
+  const num = (v: { toNumber?: () => number } | number | null | undefined): number => {
+    if (v === null || v === undefined) return 0
+    return typeof v === "number" ? v : Number(v)
   }
 
-  const totalBaseUnits = calculateTotalBaseUnits(quantity, effectivePackageSize)
-  const stockStatus = calculateStockStatus(quantity, parLevel)
-  const stockRatio = calculateStockRatio(quantity, parLevel)
+  const stockQty = num(i.stockQty)
+  const parLevel = num(i.parLevel)
+  const avgCost = num(i.avgCostPerBaseUnit)
 
   return {
     id: i.id,
     name: i.name,
     category: i.category,
 
-    // Unit system (uses effective values for backward compatibility)
-    baseUnit: effectiveBaseUnit,
-    packageSize: effectivePackageSize,
-    packageUnit: effectivePackageUnit,
-    costPerPackage: effectiveCostPerPackage,
-    costPerBaseUnit: effectiveCostPerBaseUnit,
+    // Unit system
+    baseUnitId: i.baseUnitId,
+    baseUnitName: i.baseUnit.name,
+    baseUnitAbbr: i.baseUnit.abbr,
 
-    // Stock data
-    quantity,
-    totalBaseUnits,
+    // Stock
+    stockQty,
+    avgCostPerBaseUnit: avgCost,
     parLevel,
-    stockStatus,
-    stockRatio,
-    countByBaseUnit: i.countByBaseUnit,
+    stockStatus: calculateStockStatus(stockQty, parLevel),
+    stockRatio: calculateStockRatio(stockQty, parLevel),
+
+    // Count preference
+    countUnitId: i.countUnitId,
+    countUnitName: i.countUnit?.name || null,
+
+    // Overhead
+    isOverhead: i.isOverhead,
+    overheadPerTransaction: i.overheadPerTransaction ? num(i.overheadPerTransaction) : null,
+
+    // Yield
+    yieldFactor: i.yieldFactor ? num(i.yieldFactor) : null,
 
     // Metadata
-    lastRestockDate: i.lastRestockDate,
-    lastUpdated: i.lastUpdated,
     vendorId: i.vendorId,
     vendorName: i.vendor?.name || null,
-    barcode: i.barcode,
+    lastUpdated: i.lastUpdated?.toISOString() || null,
+    lastRestockDate: i.lastRestockDate?.toISOString() || null,
 
-    // Sellable fields
-    sellable: i.sellable,
-    sellPrice: i.sellPrice ? (typeof i.sellPrice === "number" ? i.sellPrice : Number(i.sellPrice)) : null,
-    linkedProductId: i.linkedProductId,
-    syncStatus: i.syncStatus,
-
-    // Overhead fields
-    isOverhead: i.isOverhead,
-    overheadPerTransaction: i.overheadPerTransaction
-      ? (typeof i.overheadPerTransaction === "number" ? i.overheadPerTransaction : Number(i.overheadPerTransaction))
-      : null,
-
-    // Yield factor
-    yieldFactor: typeof i.yieldFactor === "number"
-      ? i.yieldFactor
-      : i.yieldFactor
-        ? Number(i.yieldFactor)
-        : null,
+    // Variants
+    purchaseVariants: (i.purchaseVariants || []).map((v) => ({
+      id: v.id,
+      ingredientId: v.ingredientId,
+      label: v.label,
+      contentQty: num(v.contentQty),
+      contentUnitId: v.contentUnitId,
+      contentUnitName: v.contentUnit?.name || null,
+      packageQty: v.packageQty,
+      packageUnitId: v.packageUnitId,
+      packageUnitName: v.packageUnit?.name || null,
+      costPerVariant: num(v.costPerVariant),
+      baseUnitsPerVariant: num(v.baseUnitsPerVariant),
+      sellable: v.sellable,
+      sellPrice: v.sellPrice ? num(v.sellPrice) : null,
+      linkedProductId: v.linkedProductId,
+      syncStatus: v.syncStatus,
+      vendorId: v.vendorId,
+      barcode: v.barcode,
+      sku: v.sku,
+      isActive: v.isActive,
+      isDefault: v.isDefault,
+    })),
 
     // Unit aliases
     unitAliases: (i.unitAliases || []).map((ua) => ({
       id: ua.id,
       ingredientId: i.id,
       name: ua.name,
-      baseUnitMultiplier: typeof ua.baseUnitMultiplier === "number"
-        ? ua.baseUnitMultiplier
-        : ua.baseUnitMultiplier.toNumber(),
+      baseUnitMultiplier: num(ua.baseUnitMultiplier),
       description: ua.description,
       isDefault: ua.isDefault,
+      unitId: ua.unitId,
       createdAt: ua.createdAt.toISOString(),
     })),
-
-    // Legacy fields (deprecated, for backward compatibility)
-    unit: i.unit || effectivePackageUnit,
-    costPerUnit: rawCostPerUnit || effectiveCostPerBaseUnit,
   }
+}
+
+const ingredientInclude = {
+  baseUnit: true,
+  countUnit: true,
+  vendor: true,
+  purchaseVariants: {
+    where: { isActive: true },
+    include: { contentUnit: true, packageUnit: true },
+    orderBy: { isDefault: "desc" as const },
+  },
+  unitAliases: { orderBy: { createdAt: "asc" as const } },
 }
 
 export async function GET() {
   try {
     const ingredients = await prisma.ingredient.findMany({
       where: { isActive: true },
-      include: {
-        vendor: true,
-        unitAliases: {
-          orderBy: { createdAt: "asc" },
-        },
-      },
+      include: ingredientInclude,
       orderBy: { name: "asc" },
     })
 
-    const formatted = ingredients.map(formatIngredient)
-
-    return NextResponse.json(formatted)
+    return NextResponse.json(ingredients.map(formatIngredient))
   } catch (error) {
     console.error("Failed to fetch ingredients:", error)
     return NextResponse.json({ error: "Failed to fetch ingredients" }, { status: 500 })
@@ -177,123 +174,121 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Check if using new unit system or legacy
-    const isNewUnitSystem = body.packageUnit !== undefined && body.baseUnit !== undefined
+    // Validate ingredient fields
+    const ingredientValidation = ingredientFormSchema.safeParse({
+      name: body.name,
+      category: body.category,
+      baseUnitId: body.baseUnitId,
+      vendorId: body.vendorId ?? null,
+      parLevel: body.parLevel ?? 0,
+      countUnitId: body.countUnitId ?? null,
+      isOverhead: body.isOverhead ?? false,
+      overheadPerTransaction: body.overheadPerTransaction ?? null,
+      yieldFactor: body.yieldFactor ?? null,
+    })
 
-    if (isNewUnitSystem) {
-      // Validate with new schema
-      const validation = ingredientFormSchema.safeParse({
-        name: body.name,
-        category: body.category,
-        vendorId: body.vendorId ?? null,
-        packageUnit: body.packageUnit,
-        costPerPackage: body.costPerPackage,
-        baseUnit: body.baseUnit,
-        packageSize: body.packageSize,
-        quantity: body.quantity ?? 0,
-        parLevel: body.parLevel ?? 0,
-        countByBaseUnit: body.countByBaseUnit ?? false,
-        sellable: body.sellable ?? false,
-        sellPrice: body.sellPrice ?? null,
-        isOverhead: body.isOverhead ?? false,
-        overheadPerTransaction: body.overheadPerTransaction ?? null,
-      })
+    if (!ingredientValidation.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: ingredientValidation.error.issues.map((issue) => ({
+            field: issue.path.join("."),
+            message: issue.message,
+          })),
+        },
+        { status: 400 }
+      )
+    }
 
-      if (!validation.success) {
+    // Validate default variant if provided
+    let variantData: ReturnType<typeof purchaseVariantSchema.parse> | null = null
+    if (body.defaultVariant) {
+      const variantValidation = purchaseVariantSchema.safeParse(body.defaultVariant)
+      if (!variantValidation.success) {
         return NextResponse.json(
           {
-            error: "Validation failed",
-            details: validation.error.issues.map((issue) => ({
-              field: issue.path.join("."),
+            error: "Default variant validation failed",
+            details: variantValidation.error.issues.map((issue) => ({
+              field: `defaultVariant.${issue.path.join(".")}`,
               message: issue.message,
             })),
           },
           { status: 400 }
         )
       }
+      variantData = variantValidation.data
+    }
 
-      const data = validation.data
+    const data = ingredientValidation.data
 
-      const ingredient = await prisma.ingredient.create({
+    // Compute baseUnitsPerVariant for the default variant
+    let baseUnitsPerVariant = 0
+    if (variantData) {
+      const conversions = await prisma.unitConversion.findMany()
+      baseUnitsPerVariant = computeBaseUnitsPerVariant(
+        variantData.contentQty,
+        variantData.contentUnitId,
+        data.baseUnitId,
+        variantData.packageQty,
+        conversions.map((c) => ({ id: c.id, fromUnitId: c.fromUnitId, toUnitId: c.toUnitId, factor: Number(c.factor) }))
+      )
+    }
+
+    // Compute initial avgCostPerBaseUnit from variant
+    const initialStockQty = body.initialStockQty ?? 0
+    const avgCostPerBaseUnit =
+      variantData && baseUnitsPerVariant > 0
+        ? variantData.costPerVariant / baseUnitsPerVariant
+        : 0
+
+    const ingredient = await prisma.$transaction(async (tx) => {
+      const created = await tx.ingredient.create({
         data: {
           name: data.name,
           category: data.category,
-
-          // New unit system
-          baseUnit: data.baseUnit,
-          packageSize: data.packageSize,
-          packageUnit: data.packageUnit,
-          costPerPackage: data.costPerPackage,
-
-          // Also set legacy fields for backward compatibility
-          unit: data.packageUnit,
-          costPerUnit: data.costPerPackage / data.packageSize,
-
-          // Stock
-          quantity: data.quantity,
+          baseUnitId: data.baseUnitId,
+          stockQty: initialStockQty,
+          avgCostPerBaseUnit,
           parLevel: data.parLevel,
-          countByBaseUnit: data.countByBaseUnit,
-
-          // Special options
-          vendorId: data.vendorId,
-          barcode: body.barcode || null,
-          sellable: data.sellable,
-          sellPrice: data.sellPrice,
+          countUnitId: data.countUnitId,
           isOverhead: data.isOverhead,
           overheadPerTransaction: data.overheadPerTransaction,
-
+          yieldFactor: data.yieldFactor,
+          vendorId: data.vendorId,
           lastUpdated: new Date(),
         },
-        include: { vendor: true },
       })
 
-      // Phase 4: Auto-sync if sellable
-      if (ingredient.sellable && body.categoryId) {
-        const { syncIngredientToProduct } = await import("@/lib/ingredient-sync")
-        await syncIngredientToProduct(ingredient.id, body.categoryId)
+      // Create default variant
+      if (variantData) {
+        await tx.purchaseVariant.create({
+          data: {
+            ingredientId: created.id,
+            label: variantData.label,
+            contentQty: variantData.contentQty,
+            contentUnitId: variantData.contentUnitId,
+            packageQty: variantData.packageQty,
+            packageUnitId: variantData.packageUnitId,
+            costPerVariant: variantData.costPerVariant,
+            baseUnitsPerVariant,
+            sellable: variantData.sellable,
+            sellPrice: variantData.sellPrice,
+            vendorId: variantData.vendorId,
+            barcode: variantData.barcode,
+            sku: variantData.sku,
+            isDefault: true,
+          },
+        })
       }
 
-      return NextResponse.json(formatIngredient(ingredient), { status: 201 })
-    } else {
-      // Legacy creation path - for backward compatibility
-      if (!body.name || !body.category || !body.unit || body.costPerUnit === undefined) {
-        return NextResponse.json(
-          { error: "Missing required fields: name, category, unit, costPerUnit" },
-          { status: 400 }
-        )
-      }
-
-      const ingredient = await prisma.ingredient.create({
-        data: {
-          name: body.name,
-          category: body.category,
-          unit: body.unit,
-          costPerUnit: body.costPerUnit,
-
-          // Set new unit system fields with defaults based on legacy data
-          baseUnit: body.unit,
-          packageSize: 1,
-          packageUnit: body.unit,
-          costPerPackage: body.costPerUnit,
-
-          parLevel: body.parLevel || 0,
-          quantity: body.quantity || 0,
-          vendorId: body.vendorId || null,
-          barcode: body.barcode || null,
-          sellable: body.sellable || false,
-          lastUpdated: new Date(),
-        },
-        include: { vendor: true },
+      // Return with full includes
+      return tx.ingredient.findUniqueOrThrow({
+        where: { id: created.id },
+        include: ingredientInclude,
       })
+    })
 
-      // Phase 4: Auto-sync if sellable
-      if (ingredient.sellable && body.categoryId) {
-        const { syncIngredientToProduct } = await import("@/lib/ingredient-sync")
-        await syncIngredientToProduct(ingredient.id, body.categoryId)
-      }
-
-      return NextResponse.json(formatIngredient(ingredient), { status: 201 })
-    }
+    return NextResponse.json(formatIngredient(ingredient), { status: 201 })
   } catch (error) {
     console.error("Failed to create ingredient:", error)
     return NextResponse.json({ error: "Failed to create ingredient" }, { status: 500 })

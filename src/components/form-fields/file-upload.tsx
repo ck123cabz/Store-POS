@@ -10,7 +10,6 @@ import {
 const getFileIcon = (file: { file: File | { type: string; name: string } }) => {
 	const fileType = file.file.type
 	if (fileType.startsWith('image/')) {
-		// return preview
 		return (
 			<div className="aspect-square size-10 overflow-hidden rounded-md">
 				{/* eslint-disable-next-line @next/next/no-img-element -- Local blob preview, not a remote image */}
@@ -33,7 +32,6 @@ export function FileUpload({
 	maxFiles,
 	maxSize,
 	placeholder,
-	// description,
 	required,
 	setValue,
 	accept,
@@ -43,7 +41,6 @@ export function FileUpload({
 	maxFiles: number
 	maxSize: number
 	placeholder?: string
-	// description?: string;
 	required?: boolean
 	disabled?: boolean
 	setValue: (
@@ -112,10 +109,7 @@ export function FileUpload({
 					>
 						<CloudUpload className="size-4 opacity-60" />
 					</div>
-					{/* <p className="mb-1.5 text-sm font-medium">
-            Upload
-          </p> */}
-					<p className="text-foreground font-medium text-sm mb-2">
+		<p className="text-foreground font-medium text-sm mb-2">
 						Drag & drop or click to browse
 					</p>
 					<div className="text-muted-foreground/70 flex flex-wrap justify-center gap-1 text-xs">

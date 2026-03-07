@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,27 +13,41 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { formatDualUnitDisplay, formatCurrency } from "@/lib/ingredient-utils"
+import { formatCurrency, pluralizeUnit } from "@/lib/ingredient-utils"
+
+interface PurchaseVariant {
+  id: number
+  label: string
+  contentQty: number
+  contentUnitName: string
+  packageQty: number
+  packageUnitName: string
+  costPerVariant: number
+  baseUnitsPerVariant: number
+  isDefault: boolean
+}
+
+interface RestockIngredient {
+  id: number
+  name: string
+  stockQty: number
+  baseUnitName: string
+  purchaseVariants: PurchaseVariant[]
+}
 
 interface RestockDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  ingredient: {
-    id: number
-    name: string
-    baseUnit: string
-    packageUnit: string
-    packageSize: number
-    quantity: number
-    totalBaseUnits: number
-    costPerPackage: number
-    costPerBaseUnit: number
-    vendorId: number | null
-    vendorName: string | null
-    stockStatus: string
-  } | null
+  ingredient: RestockIngredient | null
   onSuccess?: () => void
 }
 
@@ -42,25 +57,49 @@ export function RestockDialog({
   ingredient,
   onSuccess,
 }: RestockDialogProps) {
+  const { data: session } = useSession()
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("")
   const [quantity, setQuantity] = useState("")
-  const [costPerPackage, setCostPerPackage] = useState("")
+  const [costPerVariant, setCostPerVariant] = useState("")
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const quantityInputRef = useRef<HTMLInputElement>(null)
 
-  // Pre-fill cost when ingredient changes
+  // Reset form when ingredient changes
   useEffect(() => {
     if (ingredient) {
-      setCostPerPackage(ingredient.costPerPackage.toString())
+      const defaultVariant =
+        ingredient.purchaseVariants.find((v) => v.isDefault) ??
+        ingredient.purchaseVariants[0]
+      if (defaultVariant) {
+        setSelectedVariantId(defaultVariant.id.toString())
+        setCostPerVariant(defaultVariant.costPerVariant.toString())
+      } else {
+        setSelectedVariantId("")
+        setCostPerVariant("")
+      }
       setQuantity("")
       setNote("")
     }
   }, [ingredient])
 
+  // Update cost when variant selection changes
+  const selectedVariant = useMemo(() => {
+    if (!ingredient || !selectedVariantId) return null
+    return ingredient.purchaseVariants.find(
+      (v) => v.id === parseInt(selectedVariantId)
+    ) ?? null
+  }, [ingredient, selectedVariantId])
+
+  useEffect(() => {
+    if (selectedVariant) {
+      setCostPerVariant(selectedVariant.costPerVariant.toString())
+    }
+  }, [selectedVariant])
+
   // Auto-focus quantity input when dialog opens
   useEffect(() => {
     if (open) {
-      // Small delay to let the dialog animate in
       const timer = setTimeout(() => {
         quantityInputRef.current?.focus()
       }, 50)
@@ -69,32 +108,29 @@ export function RestockDialog({
   }, [open])
 
   const parsedQuantity = parseFloat(quantity) || 0
-  const parsedCost = parseFloat(costPerPackage) || 0
+  const parsedCost = parseFloat(costPerVariant) || 0
 
-  // Conversion helper: show base unit equivalent when packageSize != 1
+  // Conversion display: X x variant = Y base units
   const conversionDisplay = useMemo(() => {
-    if (!ingredient || ingredient.packageSize === 1 || parsedQuantity <= 0) {
-      return null
-    }
-    const totalBase = parsedQuantity * ingredient.packageSize
-    const formatted = totalBase % 1 === 0 ? totalBase.toString() : totalBase.toFixed(1)
-    return `= ${formatted} ${ingredient.baseUnit}`
-  }, [ingredient, parsedQuantity])
+    if (!ingredient || !selectedVariant || parsedQuantity <= 0) return null
+    const totalBase = parsedQuantity * selectedVariant.baseUnitsPerVariant
+    const formatted =
+      totalBase % 1 === 0 ? totalBase.toString() : totalBase.toFixed(2)
+    return `${parsedQuantity} x ${selectedVariant.label} = ${formatted} ${pluralizeUnit(ingredient.baseUnitName)} added to stock`
+  }, [ingredient, selectedVariant, parsedQuantity])
 
-  // Dynamic confirm button text
-  const confirmText = useMemo(() => {
-    if (!ingredient || parsedQuantity <= 0) return "Add"
-    const unitLabel = parsedQuantity === 1 ? ingredient.packageUnit : pluralizeUnit(ingredient.packageUnit)
-    if (parsedCost > 0) {
-      return `Add ${parsedQuantity} ${unitLabel} at ${formatCurrency(parsedCost)}/${ingredient.packageUnit}`
-    }
-    return `Add ${parsedQuantity} ${unitLabel}`
-  }, [ingredient, parsedQuantity, parsedCost])
+  // Cost per base unit display
+  const costPerBaseDisplay = useMemo(() => {
+    if (!selectedVariant || parsedCost <= 0) return null
+    if (selectedVariant.baseUnitsPerVariant <= 0) return null
+    const costPerBase = parsedCost / selectedVariant.baseUnitsPerVariant
+    return `${formatCurrency(costPerBase)} per ${ingredient?.baseUnitName}`
+  }, [selectedVariant, parsedCost, ingredient])
 
-  const isValid = parsedQuantity > 0
+  const isValid = parsedQuantity > 0 && !!selectedVariant
 
   async function handleSubmit() {
-    if (!ingredient || !isValid) return
+    if (!ingredient || !selectedVariant || !isValid) return
 
     setSubmitting(true)
     try {
@@ -102,10 +138,11 @@ export function RestockDialog({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          variantId: selectedVariant.id,
           quantity: parsedQuantity,
-          costPerPackage: costPerPackage ? parsedCost : undefined,
-          userId: 1, // TODO: Get from session
-          userName: "Admin", // TODO: Get from session
+          costPerVariant: costPerVariant ? parsedCost : undefined,
+          userId: session?.user?.id ? parseInt(session.user.id) : 0,
+          userName: session?.user?.name || "Unknown",
           note: note.trim() || undefined,
         }),
       })
@@ -115,12 +152,18 @@ export function RestockDialog({
         throw new Error(data.error || "Failed to restock")
       }
 
-      const unitLabel = parsedQuantity === 1 ? ingredient.packageUnit : pluralizeUnit(ingredient.packageUnit)
-      toast.success(`Restocked ${parsedQuantity} ${unitLabel} of ${ingredient.name}`)
+      const totalBase = parsedQuantity * selectedVariant.baseUnitsPerVariant
+      const baseFormatted =
+        totalBase % 1 === 0 ? totalBase.toString() : totalBase.toFixed(2)
+      toast.success(
+        `Restocked ${baseFormatted} ${pluralizeUnit(ingredient.baseUnitName)} of ${ingredient.name}`
+      )
       onOpenChange(false)
       onSuccess?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to restock ingredient")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to restock ingredient"
+      )
     } finally {
       setSubmitting(false)
     }
@@ -128,12 +171,11 @@ export function RestockDialog({
 
   if (!ingredient) return null
 
-  const currentStockDisplay = formatDualUnitDisplay(
-    ingredient.quantity,
-    ingredient.packageSize,
-    ingredient.packageUnit,
-    ingredient.baseUnit,
-  )
+  const hasVariants = ingredient.purchaseVariants.length > 0
+  const currentStockFormatted =
+    ingredient.stockQty % 1 === 0
+      ? ingredient.stockQty.toString()
+      : ingredient.stockQty.toFixed(2)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -141,101 +183,152 @@ export function RestockDialog({
         <DialogHeader>
           <DialogTitle>Restock {ingredient.name}</DialogTitle>
           <DialogDescription>
-            Current: <span className="font-mono tabular-nums">{currentStockDisplay}</span>
+            Current stock:{" "}
+            <span className="font-mono tabular-nums">
+              {currentStockFormatted} {pluralizeUnit(ingredient.baseUnitName)}
+            </span>
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Quantity input */}
-          <div className="space-y-2">
-            <Label htmlFor="restock-quantity" className="text-sm font-medium">
-              Quantity
-            </Label>
-            <div className="flex items-center gap-2">
-              <Input
-                ref={quantityInputRef}
-                id="restock-quantity"
-                type="number"
-                step="0.01"
-                min="0.01"
-                className="h-10 font-mono tabular-nums"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                placeholder="0"
-              />
-              <span className="text-sm text-muted-foreground whitespace-nowrap">
-                {ingredient.packageUnit}
-              </span>
-            </div>
-            {conversionDisplay && (
-              <p className="text-xs text-muted-foreground font-mono tabular-nums">
-                {conversionDisplay}
-              </p>
+        {!hasVariants ? (
+          <p className="text-sm text-muted-foreground py-4">
+            No purchase variants configured for this ingredient. Add a purchase
+            variant first.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {/* Variant selector */}
+            {ingredient.purchaseVariants.length > 1 && (
+              <div className="space-y-2">
+                <Label htmlFor="restock-variant" className="text-sm font-medium">
+                  Purchase Variant
+                </Label>
+                <Select
+                  value={selectedVariantId}
+                  onValueChange={setSelectedVariantId}
+                >
+                  <SelectTrigger id="restock-variant" className="h-10">
+                    <SelectValue placeholder="Select variant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ingredient.purchaseVariants.map((v) => (
+                      <SelectItem key={v.id} value={v.id.toString()}>
+                        {v.label}{" "}
+                        <span className="text-muted-foreground">
+                          ({v.baseUnitsPerVariant} {ingredient.baseUnitName})
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
-          </div>
 
-          {/* Cost per package input */}
-          <div className="space-y-2">
-            <Label htmlFor="restock-cost" className="text-sm font-medium">
-              Cost per {ingredient.packageUnit}
-            </Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">&#8369;</span>
+            {/* Single variant display */}
+            {ingredient.purchaseVariants.length === 1 && selectedVariant && (
+              <div className="rounded-md border px-3 py-2 text-sm">
+                <span className="font-medium">{selectedVariant.label}</span>
+                <span className="text-muted-foreground ml-2">
+                  ({selectedVariant.baseUnitsPerVariant}{" "}
+                  {pluralizeUnit(ingredient.baseUnitName)} per unit)
+                </span>
+              </div>
+            )}
+
+            {/* Quantity input */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="restock-quantity"
+                className="text-sm font-medium"
+              >
+                Quantity
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  ref={quantityInputRef}
+                  id="restock-quantity"
+                  type="number"
+                  step="1"
+                  min="1"
+                  className="h-10 font-mono tabular-nums"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder="0"
+                />
+                {selectedVariant && (
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    x {selectedVariant.label}
+                  </span>
+                )}
+              </div>
+              {conversionDisplay && (
+                <p className="text-xs text-muted-foreground font-mono tabular-nums">
+                  {conversionDisplay}
+                </p>
+              )}
+            </div>
+
+            {/* Cost per variant input */}
+            <div className="space-y-2">
+              <Label htmlFor="restock-cost" className="text-sm font-medium">
+                Cost per variant
+              </Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">&#8369;</span>
+                <Input
+                  id="restock-cost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="h-10 font-mono tabular-nums"
+                  value={costPerVariant}
+                  onChange={(e) => setCostPerVariant(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              {costPerBaseDisplay && (
+                <p className="text-xs text-muted-foreground">
+                  ={" "}
+                  <span className="font-mono tabular-nums">
+                    {costPerBaseDisplay}
+                  </span>
+                </p>
+              )}
+            </div>
+
+            {/* Note input */}
+            <div className="space-y-2">
+              <Label htmlFor="restock-note" className="text-sm font-medium">
+                Note
+              </Label>
               <Input
-                id="restock-cost"
-                type="number"
-                step="0.01"
-                min="0"
-                className="h-10 font-mono tabular-nums"
-                value={costPerPackage}
-                onChange={(e) => setCostPerPackage(e.target.value)}
-                placeholder="0.00"
+                id="restock-note"
+                type="text"
+                className="h-10"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Delivery note, invoice #..."
               />
             </div>
-            {parsedCost > 0 && ingredient.packageSize > 1 && (
-              <p className="text-xs text-muted-foreground">
-                = <span className="font-mono tabular-nums">{formatCurrency(parsedCost / ingredient.packageSize)}</span> per {ingredient.baseUnit}
-              </p>
-            )}
           </div>
-
-          {/* Note input */}
-          <div className="space-y-2">
-            <Label htmlFor="restock-note" className="text-sm font-medium">
-              Note
-            </Label>
-            <Input
-              id="restock-note"
-              type="text"
-              className="h-10"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Delivery note, invoice #..."
-            />
-          </div>
-        </div>
+        )}
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || submitting}>
+          <Button
+            onClick={handleSubmit}
+            disabled={!isValid || submitting || !hasVariants}
+          >
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              confirmText
+              "Add Stock"
             )}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
-}
-
-/** Simple pluralization for common units */
-function pluralizeUnit(unit: string): string {
-  const invariant = ["kg", "g", "L", "mL", "pcs", "each"]
-  if (invariant.includes(unit)) return unit
-  if (unit.endsWith("s") || unit.endsWith("x")) return unit
-  return `${unit}s`
 }

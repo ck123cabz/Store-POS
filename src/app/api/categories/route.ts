@@ -62,20 +62,23 @@ export async function GET() {
                   select: {
                     id: true,
                     name: true,
-                    quantity: true,
-                    packageSize: true,
-                    baseUnit: true,
+                    stockQty: true,
+                    baseUnit: { select: { name: true } },
                   },
                 },
               },
             },
-            linkedIngredient: {
+            linkedVariant: {
               select: {
-                id: true,
-                name: true,
-                quantity: true,
-                packageSize: true,
-                baseUnit: true,
+                baseUnitsPerVariant: true,
+                ingredient: {
+                  select: {
+                    id: true,
+                    name: true,
+                    stockQty: true,
+                    baseUnit: { select: { name: true } },
+                  },
+                },
               },
             },
           },
@@ -105,18 +108,21 @@ export async function GET() {
             ingredient: {
               id: ri.ingredient.id,
               name: ri.ingredient.name,
-              quantity: Number(ri.ingredient.quantity),
-              packageSize: Number(ri.ingredient.packageSize),
-              baseUnit: ri.ingredient.baseUnit,
+              quantity: Number(ri.ingredient.stockQty),
+              packageSize: 1, // stockQty is already in base units
+              baseUnit: ri.ingredient.baseUnit.name,
             },
           })),
-          linkedIngredient: product.linkedIngredient
+          linkedVariant: product.linkedVariant
             ? {
-                id: product.linkedIngredient.id,
-                name: product.linkedIngredient.name,
-                quantity: Number(product.linkedIngredient.quantity),
-                packageSize: Number(product.linkedIngredient.packageSize),
-                baseUnit: product.linkedIngredient.baseUnit,
+                baseUnitsPerVariant: Number(product.linkedVariant.baseUnitsPerVariant),
+                ingredient: {
+                  id: product.linkedVariant.ingredient.id,
+                  name: product.linkedVariant.ingredient.name,
+                  quantity: Number(product.linkedVariant.ingredient.stockQty),
+                  packageSize: 1,
+                  baseUnit: product.linkedVariant.ingredient.baseUnit.name,
+                },
               }
             : null,
         }

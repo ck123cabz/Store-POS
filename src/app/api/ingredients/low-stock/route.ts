@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
+/**
+ * GET /api/ingredients/low-stock
+ * Compare stockQty vs parLevel (both in base units)
+ */
 export async function GET() {
   try {
     const ingredients = await prisma.ingredient.findMany({
@@ -8,19 +12,18 @@ export async function GET() {
         isActive: true,
         parLevel: { gt: 0 },
       },
-      include: { vendor: true },
+      include: { baseUnit: true, vendor: true },
       orderBy: { name: "asc" },
     })
 
-    // Filter to only low stock items and calculate priority
     const lowStockItems = ingredients
       .map((i) => {
-        const quantity = Number(i.quantity)
-        const parLevel = i.parLevel
-        const ratio = parLevel > 0 ? quantity / parLevel : 1
+        const stockQty = Number(i.stockQty)
+        const parLevel = Number(i.parLevel)
+        const ratio = parLevel > 0 ? stockQty / parLevel : 1
 
         let priority: "critical" | "high" | "medium" | "low" | null
-        if (quantity <= 0) priority = "critical"
+        if (stockQty <= 0) priority = "critical"
         else if (ratio <= 0.25) priority = "critical"
         else if (ratio <= 0.5) priority = "high"
         else if (ratio < 1) priority = "medium"
@@ -30,10 +33,9 @@ export async function GET() {
           id: i.id,
           name: i.name,
           category: i.category,
-          unit: i.unit,
-          costPerUnit: Number(i.costPerUnit),
-          parLevel: i.parLevel,
-          quantity,
+          stockQty,
+          parLevel,
+          baseUnitName: i.baseUnit.name,
           priority,
           stockRatio: Math.round(ratio * 100),
           vendorId: i.vendorId,
@@ -42,12 +44,10 @@ export async function GET() {
       })
       .filter((i) => i.priority !== null)
       .sort((a, b) => {
-        // Sort by priority: critical > high > medium > low
         const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 }
         const aPriority = priorityOrder[a.priority!]
         const bPriority = priorityOrder[b.priority!]
         if (aPriority !== bPriority) return aPriority - bPriority
-        // Then by stock ratio (lowest first)
         return a.stockRatio - b.stockRatio
       })
 

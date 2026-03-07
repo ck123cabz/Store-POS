@@ -72,8 +72,8 @@ export interface EnhancedProductAvailability extends ProductAvailability {
 export interface AvailabilityIngredient {
   id: number;
   name: string;
-  quantity: number; // packages in stock
-  packageSize: number; // base units per package
+  quantity: number; // packages in stock (legacy) or stockQty (base units)
+  packageSize: number; // base units per package (legacy: use 1 for new model)
   baseUnit?: string; // base unit name (pcs, kg, etc.) — used for discrete rounding
 }
 
@@ -93,6 +93,7 @@ export interface AvailabilityProduct {
   name: string;
   recipeItems?: AvailabilityRecipeItem[];
   linkedIngredient?: AvailabilityIngredient | null;
+  linkedVariant?: { baseUnitsPerVariant: number; ingredient: AvailabilityIngredient } | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -321,7 +322,19 @@ export function calculateProductAvailability(
     return calculateRecipeAvailability(product.recipeItems);
   }
 
-  // Priority 2: Check linked ingredient (1:1 sellable ingredients)
+  // Priority 2: Check linked variant (sellable purchase variant)
+  if (product.linkedVariant) {
+    const variant = product.linkedVariant;
+    // Adapt to legacy interface: stockQty is already base units, packageSize=1
+    const adapted: AvailabilityIngredient = {
+      ...variant.ingredient,
+      quantity: variant.ingredient.quantity,
+      packageSize: 1,
+    };
+    return calculateLinkedIngredientAvailability(adapted);
+  }
+
+  // Priority 2b: Legacy linked ingredient
   if (product.linkedIngredient) {
     return calculateLinkedIngredientAvailability(product.linkedIngredient);
   }

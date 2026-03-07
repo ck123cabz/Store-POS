@@ -25,28 +25,17 @@ export async function GET(request: NextRequest) {
         : undefined,
       include: {
         category: true,
-        linkedIngredient: {
-          select: {
-            id: true,
-            name: true,
-            quantity: true,
-            parLevel: true,
-            unit: true,
-            packageSize: true,
-            baseUnit: true,
+        linkedVariant: {
+          include: {
+            ingredient: {
+              include: { baseUnit: true },
+            },
           },
         },
         recipeItems: {
           include: {
             ingredient: {
-              select: {
-                id: true,
-                name: true,
-                quantity: true,
-                packageSize: true,
-                baseUnit: true,
-                parLevel: true,
-              },
+              include: { baseUnit: true },
             },
           },
         },
@@ -55,16 +44,17 @@ export async function GET(request: NextRequest) {
     })
 
     const formatted = products.map((p) => {
-      // Calculate ingredient stock status if linked
+      // Calculate ingredient stock status if linked via variant
       let ingredientStockStatus: "ok" | "low" | "critical" | "out" | null = null
       let ingredientStockRatio: number | null = null
 
-      if (p.linkedIngredient) {
-        const qty = Number(p.linkedIngredient.quantity)
-        const par = p.linkedIngredient.parLevel
-        const ratio = par > 0 ? qty / par : 1
+      if (p.linkedVariant) {
+        const ingredient = p.linkedVariant.ingredient
+        const stockQty = Number(ingredient.stockQty)
+        const par = Number(ingredient.parLevel)
+        const ratio = par > 0 ? stockQty / par : 1
 
-        if (qty <= 0) ingredientStockStatus = "out"
+        if (stockQty <= 0) ingredientStockStatus = "out"
         else if (ratio <= 0.25) ingredientStockStatus = "critical"
         else if (ratio <= 0.5) ingredientStockStatus = "low"
         else ingredientStockStatus = "ok"
@@ -73,57 +63,60 @@ export async function GET(request: NextRequest) {
       }
 
       // Calculate recipe-based availability with enhanced details
-      let availability: EnhancedProductAvailability;
+      let availability: EnhancedProductAvailability
 
       if (p.recipeItems && p.recipeItems.length > 0) {
         availability = calculateEnhancedRecipeAvailability(
-          (p.recipeItems ?? []).map((ri) => ({
+          p.recipeItems.map((ri) => ({
             quantity: Number(ri.baseQuantity),
             ingredient: {
               id: ri.ingredient.id,
               name: ri.ingredient.name,
-              quantity: Number(ri.ingredient.quantity),
-              packageSize: Number(ri.ingredient.packageSize),
-              baseUnit: ri.ingredient.baseUnit,
+              quantity: Number(ri.ingredient.stockQty), // stockQty is already in base units
+              packageSize: 1, // already base units, no conversion needed
+              baseUnit: ri.ingredient.baseUnit.name,
             },
           }))
-        );
-      } else if (p.linkedIngredient) {
-        // For linked ingredients, use basic calculation
+        )
+      } else if (p.linkedVariant) {
+        const ingredient = p.linkedVariant.ingredient
         const basic = calculateProductAvailability({
           id: p.id,
           name: p.name,
-          linkedIngredient: {
-            id: p.linkedIngredient.id,
-            name: p.linkedIngredient.name,
-            quantity: Number(p.linkedIngredient.quantity),
-            packageSize: Number(p.linkedIngredient.packageSize ?? 1),
-            baseUnit: p.linkedIngredient.baseUnit ?? undefined,
+          linkedVariant: {
+            baseUnitsPerVariant: Number(p.linkedVariant.baseUnitsPerVariant),
+            ingredient: {
+              id: ingredient.id,
+              name: ingredient.name,
+              quantity: Number(ingredient.stockQty),
+              packageSize: 1,
+              baseUnit: ingredient.baseUnit.name,
+            },
           },
-        });
+        })
         availability = {
           ...basic,
           missingIngredients: basic.status === "out" ? [{
-            id: p.linkedIngredient.id,
-            name: p.linkedIngredient.name,
+            id: ingredient.id,
+            name: ingredient.name,
             have: 0,
             needPerUnit: 1,
             status: "missing" as const,
           }] : [],
           lowIngredients: basic.status === "low" || basic.status === "critical" ? [{
-            id: p.linkedIngredient.id,
-            name: p.linkedIngredient.name,
-            have: Number(p.linkedIngredient.quantity) * Number(p.linkedIngredient.packageSize ?? 1),
+            id: ingredient.id,
+            name: ingredient.name,
+            have: Number(ingredient.stockQty),
             needPerUnit: 1,
             status: "low" as const,
           }] : [],
           limitingIngredientDetails: basic.limitingIngredient ? {
             ...basic.limitingIngredient,
-            have: Number(p.linkedIngredient.quantity) * Number(p.linkedIngredient.packageSize ?? 1),
+            have: Number(ingredient.stockQty),
             needPerUnit: 1,
             status: basic.status === "out" ? "missing" as const : "low" as const,
           } : null,
-        };
+        }
       } else {
         availability = {
           status: "available",
@@ -133,7 +126,7 @@ export async function GET(request: NextRequest) {
           warnings: [],
           missingIngredients: [],
           lowIngredients: [],
-        };
+        }
       }
 
       return {
@@ -145,18 +138,16 @@ export async function GET(request: NextRequest) {
         quantity: p.quantity,
         trackStock: p.trackStock,
         image: p.image,
-        linkedIngredientId: p.linkedIngredientId,
+        linkedVariantId: p.linkedVariantId,
         needsPricing: p.needsPricing,
         status: p.status,
-        linkedIngredient: p.linkedIngredient
+        linkedIngredient: p.linkedVariant
           ? {
-              id: p.linkedIngredient.id,
-              name: p.linkedIngredient.name,
-              quantity: Number(p.linkedIngredient.quantity),
-              parLevel: p.linkedIngredient.parLevel,
-              unit: p.linkedIngredient.unit,
-              packageSize: Number(p.linkedIngredient.packageSize ?? 1),
-              baseUnit: p.linkedIngredient.baseUnit ?? null,
+              id: p.linkedVariant.ingredient.id,
+              name: p.linkedVariant.ingredient.name,
+              quantity: Number(p.linkedVariant.ingredient.stockQty),
+              parLevel: Number(p.linkedVariant.ingredient.parLevel),
+              unit: p.linkedVariant.ingredient.baseUnit.name,
               stockStatus: ingredientStockStatus,
               stockRatio: ingredientStockRatio,
             }
@@ -206,11 +197,10 @@ export async function POST(request: NextRequest) {
         quantity: body.quantity || 0,
         trackStock: body.trackStock || false,
         image: body.image || "",
-        linkedIngredientId: body.linkedIngredientId || null,
+        linkedVariantId: body.linkedVariantId || null,
         needsPricing: body.needsPricing || false,
-        requiresKitchen: body.requiresKitchen ?? null, // null means use category default
+        requiresKitchen: body.requiresKitchen ?? null,
       },
-      include: { linkedIngredient: true },
     })
 
     return NextResponse.json(
@@ -222,7 +212,7 @@ export async function POST(request: NextRequest) {
         quantity: product.quantity,
         trackStock: product.trackStock,
         image: product.image,
-        linkedIngredientId: product.linkedIngredientId,
+        linkedVariantId: product.linkedVariantId,
         needsPricing: product.needsPricing,
         requiresKitchen: product.requiresKitchen,
         status: product.status,

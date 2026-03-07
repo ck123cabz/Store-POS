@@ -112,17 +112,17 @@ model Product {
   menuDecision      String? @map("menu_decision") // Star, Workhorse, Puzzle, Dog
   weeklyUnitsSold   Int     @default(0) @map("weekly_units_sold")
 
-  // Phase 4: POS-Ingredient Integration
-  linkedIngredientId Int?    @unique @map("linked_ingredient_id")
-  needsPricing       Boolean @default(false) @map("needs_pricing")
+  // POS-Ingredient Integration (via purchase variant)
+  linkedVariantId Int?    @unique @map("linked_variant_id")
+  needsPricing    Boolean @default(false) @map("needs_pricing")
 
   // Kitchen Order Board - override category default (null = use category setting)
   requiresKitchen Boolean? @map("requires_kitchen")
 
   // Relations
-  category         Category     @relation(fields: [categoryId], references: [id])
-  recipeItems      RecipeItem[]
-  linkedIngredient Ingredient?  @relation("ProductIngredient", fields: [linkedIngredientId], references: [id])
+  category      Category        @relation(fields: [categoryId], references: [id])
+  recipeItems   RecipeItem[]
+  linkedVariant PurchaseVariant? @relation("VariantProduct", fields: [linkedVariantId], references: [id])
 
   @@map("products")
 }
@@ -282,6 +282,52 @@ model Settings {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// UNIT SYSTEM - Data-driven unit definitions and conversions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum UnitDimension {
+  WEIGHT
+  VOLUME
+  COUNT
+}
+
+model Unit {
+  id         Int           @id @default(autoincrement())
+  name       String        @unique // "kg", "g", "mL", "pcs", "bottle"
+  abbr       String        @unique // Display abbreviation
+  dimension  UnitDimension
+  isDiscrete Boolean       @default(false) @map("is_discrete")
+  sortOrder  Int           @default(0) @map("sort_order")
+
+  // Relations (both sides of conversions + all FK references)
+  conversionsFrom       UnitConversion[]      @relation("ConversionFrom")
+  conversionsTo         UnitConversion[]      @relation("ConversionTo")
+  ingredientBaseUnits   Ingredient[]          @relation("IngredientBaseUnit")
+  ingredientCountUnits  Ingredient[]          @relation("IngredientCountUnit")
+  variantContentUnits   PurchaseVariant[]     @relation("VariantContentUnit")
+  variantPackageUnits   PurchaseVariant[]     @relation("VariantPackageUnit")
+  recipeItemUnits       RecipeItem[]
+  ingredientUnitAliases IngredientUnitAlias[]
+  wasteLogUnits         WasteLog[]
+
+  @@index([dimension])
+  @@map("units")
+}
+
+model UnitConversion {
+  id         Int     @id @default(autoincrement())
+  fromUnitId Int     @map("from_unit_id")
+  toUnitId   Int     @map("to_unit_id")
+  factor     Decimal @db.Decimal(15, 6) // multiply "from" by this to get "to"
+
+  fromUnit Unit @relation("ConversionFrom", fields: [fromUnitId], references: [id])
+  toUnit   Unit @relation("ConversionTo", fields: [toUnitId], references: [id])
+
+  @@unique([fromUnitId, toUnitId])
+  @@map("unit_conversions")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // LEVER 1: UNIT ECONOMICS - Ingredients & Recipe Costing
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -299,8 +345,9 @@ model Vendor {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   // Relations
-  ingredients Ingredient[]
-  purchases   Purchase[]
+  ingredients      Ingredient[]
+  purchases        Purchase[]
+  purchaseVariants PurchaseVariant[]
 
   @@map("vendors")
 }
@@ -310,63 +357,93 @@ model Ingredient {
   name     String
   category String // Protein, Produce, Dairy, Dry Goods, Frozen, Beverage, Condiments
 
-  // ─── STANDARDIZED UNIT SYSTEM ───
-  // Base unit: fundamental measurement for recipes (kg, g, L, ml, pcs)
-  // Package: how you purchase (pack, box, bottle, bundle, sack, container)
-  // Example: Burger Patties - baseUnit="pcs", packageSize=8, packageUnit="pack"
-  //          Buy 3 packs @ ₱420/pack = 24 pieces, ₱52.50/piece for recipes
-  baseUnit       String  @default("pcs") @map("base_unit") // kg, g, L, ml, pcs
-  packageSize    Decimal @default(1) @map("package_size") @db.Decimal(10, 3) // base units per package
-  packageUnit    String  @default("each") @map("package_unit") // pack, box, bottle, bundle, sack, bag, container, can, gallon, tank
-  costPerPackage Decimal @default(0) @map("cost_per_package") @db.Decimal(10, 2) // cost to buy one package
+  // ─── CANONICAL BASE UNIT (FK → Unit) ───
+  baseUnitId Int @map("base_unit_id")
 
-  // Legacy field (deprecated, use costPerPackage / packageSize for base unit cost)
-  unit        String  @default("") // @deprecated - kept for migration
-  costPerUnit Decimal @default(0) @map("cost_per_unit") @db.Decimal(10, 2) // @deprecated
+  // ─── UNIFIED STOCK (always in base units) ───
+  stockQty           Decimal @default(0) @map("stock_qty") @db.Decimal(12, 4) // unified stock in base units
+  avgCostPerBaseUnit Decimal @default(0) @map("avg_cost_per_base_unit") @db.Decimal(12, 6) // weighted average cost
 
-  parLevel    Int       @default(0) @map("par_level") // minimum stock level (in packages)
-  lastUpdated DateTime? @map("last_updated")
-  vendorId    Int?      @map("vendor_id")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  // ─── PAR LEVEL (in base units) ───
+  parLevel Decimal @default(0) @map("par_level") @db.Decimal(12, 4)
 
-  // Stock tracking (quantity is in PACKAGES, not base units)
-  quantity        Decimal   @default(0) @db.Decimal(10, 4) // number of packages in stock (4dp to avoid base-unit rounding drift)
-  lastRestockDate DateTime? @map("last_restock_date")
+  // ─── INVENTORY COUNT PREFERENCE ───
+  countUnitId Int? @map("count_unit_id") // preferred unit for counting (null = baseUnit)
 
-  // Soft delete
-  isActive Boolean @default(true) @map("is_active")
-
-  // Barcode support
-  barcode String? @unique
-
-  // ─── INVENTORY COUNT PREFERENCE (004-ingredient-unit-system) ───
-  countByBaseUnit Boolean @default(false) @map("count_by_base_unit") // count in pieces vs packages
-
-  // ─── SELLABLE ITEMS (POS integration) ───
-  sellable        Boolean   @default(false)
-  sellPrice       Decimal?  @map("sell_price") @db.Decimal(10, 2) // selling price when sold at POS
-  linkedProductId Int?      @unique @map("linked_product_id")
-  syncStatus      String    @default("synced") @map("sync_status") // synced, pending, error
-  syncError       String?   @map("sync_error")
-  lastSyncAt      DateTime? @map("last_sync_at")
-
-  // ─── OVERHEAD ITEMS (004-ingredient-unit-system) ───
-  isOverhead             Boolean  @default(false) @map("is_overhead") // deduct per transaction
+  // ─── OVERHEAD ITEMS ───
+  isOverhead             Boolean  @default(false) @map("is_overhead")
   overheadPerTransaction Decimal? @map("overhead_per_transaction") @db.Decimal(10, 3) // base units per sale
 
   // ─── YIELD FACTOR (cooking expansion) ───
-  yieldFactor Decimal? @map("yield_factor") @db.Decimal(5, 2) // e.g., 3.0 for rice (raw to cooked)
+  yieldFactor Decimal? @map("yield_factor") @db.Decimal(5, 2) // e.g., 3.0 for rice
+
+  // ─── METADATA ───
+  vendorId        Int?      @map("vendor_id")
+  isActive        Boolean   @default(true) @map("is_active")
+  lastUpdated     DateTime? @map("last_updated")
+  lastRestockDate DateTime? @map("last_restock_date")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  vendor        Vendor?               @relation(fields: [vendorId], references: [id])
-  recipeItems   RecipeItem[]
-  wasteLogs     WasteLog[]
-  history       IngredientHistory[]
-  linkedProduct Product?              @relation("ProductIngredient")
-  unitAliases   IngredientUnitAlias[]
+  baseUnit         Unit                  @relation("IngredientBaseUnit", fields: [baseUnitId], references: [id])
+  countUnit        Unit?                 @relation("IngredientCountUnit", fields: [countUnitId], references: [id])
+  vendor           Vendor?               @relation(fields: [vendorId], references: [id])
+  purchaseVariants PurchaseVariant[]
+  recipeItems      RecipeItem[]
+  wasteLogs        WasteLog[]
+  history          IngredientHistory[]
+  unitAliases      IngredientUnitAlias[]
 
   @@map("ingredients")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PURCHASE VARIANT - Each buyable format of an ingredient
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model PurchaseVariant {
+  id           Int @id @default(autoincrement())
+  ingredientId Int @map("ingredient_id")
+
+  label         String // "500mL bottle", "25kg sack", "Case of 24"
+  contentQty    Decimal @map("content_qty") @db.Decimal(10, 3)    // total content per variant
+  contentUnitId Int     @map("content_unit_id")                   // unit of content (same dimension as ingredient baseUnit)
+  packageQty    Int     @default(1) @map("package_qty")           // items per purchase (24 for a case)
+  packageUnitId Int     @map("package_unit_id")                   // bottle, box, sack (display only)
+
+  costPerVariant      Decimal @default(0) @map("cost_per_variant") @db.Decimal(10, 2)
+  baseUnitsPerVariant Decimal @default(0) @map("base_units_per_variant") @db.Decimal(12, 4) // precomputed for stock conversion
+
+  // Sellable (POS integration) - each variant independently sellable
+  sellable        Boolean   @default(false)
+  sellPrice       Decimal?  @map("sell_price") @db.Decimal(10, 2)
+  linkedProductId Int?      @unique @map("linked_product_id")
+  syncStatus      String    @default("synced") @map("sync_status")
+  syncError       String?   @map("sync_error")
+  lastSyncAt      DateTime? @map("last_sync_at")
+
+  // Vendor override (can differ from ingredient's default vendor)
+  vendorId Int? @map("vendor_id")
+
+  // Identification
+  barcode  String? @unique
+  sku      String?
+  isActive  Boolean @default(true) @map("is_active")
+  isDefault Boolean @default(false) @map("is_default")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  contentUnit   Unit       @relation("VariantContentUnit", fields: [contentUnitId], references: [id])
+  packageUnit   Unit       @relation("VariantPackageUnit", fields: [packageUnitId], references: [id])
+  vendor        Vendor?    @relation(fields: [vendorId], references: [id])
+  linkedProduct Product?   @relation("VariantProduct")
+
+  @@index([ingredientId])
+  @@map("purchase_variants")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -380,9 +457,11 @@ model IngredientUnitAlias {
   baseUnitMultiplier Decimal  @map("base_unit_multiplier") @db.Decimal(10, 4) // 1 cup = X base units
   description        String? // "1 cup = 200g"
   isDefault          Boolean  @default(false) @map("is_default")
+  unitId             Int?     @map("unit_id") // optional FK → Unit, for aliases that map to standard units
   createdAt          DateTime @default(now()) @map("created_at")
 
   ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  unit       Unit?      @relation(fields: [unitId], references: [id])
 
   @@unique([ingredientId, name])
   @@map("ingredient_unit_aliases")
@@ -419,13 +498,15 @@ model IngredientHistory {
   ingredientName String @map("ingredient_name")
   changeId       String @map("change_id")
 
-  field    String // quantity, costPerUnit
+  field    String // stockQty, avgCostPerBaseUnit, etc.
   oldValue String @map("old_value")
   newValue String @map("new_value")
 
   source     String // manual_edit, sale, inventory_count, restock
   reason     String? // waste, breakage, theft, miscount, etc.
   reasonNote String? @map("reason_note")
+
+  purchaseVariantId Int? @map("purchase_variant_id") // which variant was restocked
 
   userId    Int      @map("user_id")
   userName  String   @map("user_name")
@@ -445,13 +526,14 @@ model RecipeItem {
   ingredientId Int      @map("ingredient_id")
   quantity     Decimal  @db.Decimal(10, 3) // amount in CHOSEN unit
   baseQuantity Decimal  @default(0) @map("base_quantity") @db.Decimal(10, 3) // converted amount in base units
-  unit         String   @default("") // chosen unit name (empty = base unit)
+  unitId       Int?     @map("unit_id") // FK → Unit (null = ingredient's baseUnit)
   portionNote  String?  @map("portion_note") // e.g., "2 slices", "1/4 cup"
   createdAt    DateTime @default(now()) @map("created_at")
 
   // Relations
   product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
   ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  unit       Unit?      @relation(fields: [unitId], references: [id])
 
   @@unique([productId, ingredientId])
   @@map("recipe_items")
@@ -465,7 +547,9 @@ model WasteLog {
   id            Int      @id @default(autoincrement())
   date          DateTime
   ingredientId  Int      @map("ingredient_id")
-  quantity      Decimal  @db.Decimal(10, 2)
+  quantity      Decimal  @db.Decimal(10, 2) // amount in chosen unit
+  unitId        Int      @map("unit_id") // FK → Unit (unit the waste was recorded in)
+  baseQuantity  Decimal  @default(0) @map("base_quantity") @db.Decimal(10, 3) // converted to base units
   reason        String // Expired, Overproduction, Spoiled, Damaged, Over-portioning, Customer Return, Staff Meal, Other
   estimatedCost Decimal  @map("estimated_cost") @db.Decimal(10, 2)
   preventable   Boolean  @default(false)
@@ -474,6 +558,7 @@ model WasteLog {
 
   // Relations
   ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  unit       Unit       @relation(fields: [unitId], references: [id])
 
   @@map("waste_logs")
 }

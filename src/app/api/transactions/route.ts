@@ -431,9 +431,13 @@ export async function POST(request: Request) {
           const product = await tx.product.findUnique({
             where: { id: item.id },
             include: {
-              linkedIngredient: true,
-              recipeItems: {
+              linkedVariant: {
                 include: { ingredient: true },
+              },
+              recipeItems: {
+                include: {
+                  ingredient: { include: { baseUnit: true } },
+                },
               },
             },
           })
@@ -451,73 +455,69 @@ export async function POST(request: Request) {
             })
           }
 
-          // Phase 4: Decrement linked ingredient (for directly-linked products like "Bottled Water")
-          if (product.linkedIngredientId && product.linkedIngredient) {
-            const ingredient = product.linkedIngredient
-            const oldQty = Number(ingredient.quantity)
-            const newQty = Math.max(0, oldQty - item.quantity)
+          // Variant-linked products: deduct baseUnitsPerVariant from ingredient stockQty
+          if (product.linkedVariantId && product.linkedVariant) {
+            const variant = product.linkedVariant
+            const ingredient = variant.ingredient
+            const baseUnitsPerVariant = Number(variant.baseUnitsPerVariant)
+            const deduction = baseUnitsPerVariant * item.quantity
+            const oldStockQty = Number(ingredient.stockQty)
+            const newStockQty = Math.max(0, oldStockQty - deduction)
 
             await tx.ingredient.update({
               where: { id: ingredient.id },
               data: {
-                quantity: newQty,
+                stockQty: newStockQty,
                 lastUpdated: new Date(),
               },
             })
 
-            // Log to ingredient history
             await tx.ingredientHistory.create({
               data: {
                 ingredientId: ingredient.id,
                 ingredientName: ingredient.name,
                 changeId: saleChangeId,
-                field: "quantity",
-                oldValue: oldQty.toString(),
-                newValue: newQty.toString(),
+                field: "stockQty",
+                oldValue: oldStockQty.toString(),
+                newValue: newStockQty.toString(),
                 source: "sale",
                 reason: "sale",
                 reasonNote: `Sold ${item.quantity}x ${product.name} (Order #${orderNumber})`,
+                purchaseVariantId: variant.id,
                 userId: parseInt(session.user.id),
                 userName: session.user.name || "Unknown",
               },
             })
           }
 
-          // Phase 5: Decrement recipe ingredients (for products with recipes)
-          // baseQuantity is in the ingredient's base unit (e.g., g, mL, pcs)
-          // ingredient.quantity is in packages — convert via packageSize
+          // Recipe ingredients: deduct baseQuantity * itemQty from ingredient stockQty
           if (product.recipeItems.length > 0) {
             for (const recipeItem of product.recipeItems) {
               const ingredient = recipeItem.ingredient
               const baseUnitsPerProduct = Number(recipeItem.baseQuantity) || Number(recipeItem.quantity)
               const totalBaseUnits = baseUnitsPerProduct * item.quantity
-              const packageSize = Number(ingredient.packageSize) || 1
-              // Work in base units to minimize precision loss from package division
-              const oldQty = Number(ingredient.quantity)
-              const oldBase = oldQty * packageSize
-              const newBase = Math.max(0, oldBase - totalBaseUnits)
-              const newQty = newBase / packageSize
+              const oldStockQty = Number(ingredient.stockQty)
+              const newStockQty = Math.max(0, oldStockQty - totalBaseUnits)
 
               await tx.ingredient.update({
                 where: { id: ingredient.id },
                 data: {
-                  quantity: newQty,
+                  stockQty: newStockQty,
                   lastUpdated: new Date(),
                 },
               })
 
-              // Log to ingredient history
               await tx.ingredientHistory.create({
                 data: {
                   ingredientId: ingredient.id,
                   ingredientName: ingredient.name,
                   changeId: saleChangeId,
-                  field: "quantity",
-                  oldValue: oldQty.toString(),
-                  newValue: newQty.toString(),
+                  field: "stockQty",
+                  oldValue: oldStockQty.toString(),
+                  newValue: newStockQty.toString(),
                   source: "sale",
                   reason: "sale",
-                  reasonNote: `Recipe: ${item.quantity}x ${product.name} used ${totalBaseUnits} ${ingredient.baseUnit || ingredient.unit} (Order #${orderNumber})`,
+                  reasonNote: `Recipe: ${item.quantity}x ${product.name} used ${totalBaseUnits} ${ingredient.baseUnit.name} (Order #${orderNumber})`,
                   userId: parseInt(session.user.id),
                   userName: session.user.name || "Unknown",
                 },
@@ -567,14 +567,7 @@ export async function POST(request: Request) {
             },
           })
 
-          // T050: Log credit limit overrides to audit trail
-          if (body.overrideCreditLimit) {
-            // Create audit log entry for credit limit override
-            // This uses a generic audit pattern - could be enhanced with dedicated AuditLog model
-            console.log(
-              `[AUDIT] Credit limit override: User ${session.user.id} allowed customer ${body.customerId} to exceed limit by charging ${body.total}`
-            )
-          }
+
         }
       }
 

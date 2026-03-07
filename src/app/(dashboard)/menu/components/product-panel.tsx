@@ -102,7 +102,7 @@ interface RecipeIngredient {
   unit: string            // chosen unit name
   baseUnit: string        // ingredient's base unit
   baseQuantity: number    // converted to base units
-  costPerUnit: number     // cost per base unit
+  costPerBaseUnit: number     // cost per base unit
   lineCost: number
   yieldFactor: number | null
   unitAliases: UnitAlias[]
@@ -315,7 +315,7 @@ export function ProductPanel({
 
     const price = parseFloat(formData.price) || 0
     const foodCost = recipeIngredients.reduce(
-      (sum, item) => sum + item.baseQuantity * item.costPerUnit,
+      (sum, item) => sum + item.baseQuantity * item.costPerBaseUnit,
       0
     )
     const laborCostCalc = prepTime > 0 ? (prepTime / 60) * hourlyLaborRate : 0
@@ -364,7 +364,7 @@ export function ProductPanel({
         baseUnit: ingredient.baseUnit,
         quantity: 1,
         baseQuantity: 1,
-        costPerUnit: ingredient.costPerBaseUnit,
+        costPerBaseUnit: ingredient.costPerBaseUnit,
         lineCost: ingredient.costPerBaseUnit,
         yieldFactor: ingredient.yieldFactor ?? null,
         unitAliases: ingredient.unitAliases || [],
@@ -391,7 +391,7 @@ export function ProductPanel({
           ...item,
           unit: newUnit,
           baseQuantity,
-          lineCost: baseQuantity * item.costPerUnit,
+          lineCost: baseQuantity * item.costPerBaseUnit,
         }
       })
     )
@@ -409,7 +409,7 @@ export function ProductPanel({
           ...item,
           quantity,
           baseQuantity,
-          lineCost: baseQuantity * item.costPerUnit,
+          lineCost: baseQuantity * item.costPerBaseUnit,
         }
       })
     )
@@ -670,7 +670,7 @@ export function ProductPanel({
                             {item.ingredientName}
                           </p>
                           <p className="text-xs text-muted-foreground font-mono tabular-nums">
-                            {formatCurrency(item.costPerUnit)}/{item.baseUnit}
+                            {formatCurrency(item.costPerBaseUnit)}/{item.baseUnit}
                           </p>
                         </div>
 

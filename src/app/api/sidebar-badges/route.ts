@@ -25,15 +25,15 @@ export async function GET() {
 
     // T041: Low-stock ingredient count query
     // Only count ingredients that are LOW (have stock > 0 but at or below parLevel)
-    // Not counting items that are completely OUT (quantity <= 0)
+    // Not counting items that are completely OUT (stock_qty <= 0)
     // Prisma doesn't support field references in where, so use raw SQL
     const lowStockResult = await prisma.$queryRaw<[{ count: bigint }]>`
       SELECT COUNT(*) as count
       FROM ingredients
       WHERE is_active = true
         AND par_level > 0
-        AND quantity > 0
-        AND quantity <= par_level
+        AND stock_qty > 0
+        AND stock_qty <= par_level
     `
     const lowStockIngredients = Number(lowStockResult[0]?.count ?? 0)
 

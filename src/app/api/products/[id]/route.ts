@@ -66,9 +66,8 @@ export async function PUT(
         ...(body.quantity !== undefined && { quantity: body.quantity }),
         ...(body.trackStock !== undefined && { trackStock: body.trackStock }),
         ...(body.image && { image: body.image }),
-        // Phase 4: Support needsPricing and linkedIngredientId
         ...(body.needsPricing !== undefined && { needsPricing: body.needsPricing }),
-        ...(body.linkedIngredientId !== undefined && { linkedIngredientId: body.linkedIngredientId }),
+        ...(body.linkedVariantId !== undefined && { linkedVariantId: body.linkedVariantId }),
         // Kitchen Order Board: requiresKitchen override (null = use category default)
         ...(body.requiresKitchen !== undefined && { requiresKitchen: body.requiresKitchen }),
       },
@@ -83,7 +82,7 @@ export async function PUT(
       trackStock: product.trackStock,
       image: product.image,
       needsPricing: product.needsPricing,
-      linkedIngredientId: product.linkedIngredientId,
+      linkedVariantId: product.linkedVariantId,
       requiresKitchen: product.requiresKitchen,
     })
   } catch {

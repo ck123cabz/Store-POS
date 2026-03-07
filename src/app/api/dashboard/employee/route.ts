@@ -55,7 +55,7 @@ export async function GET() {
           isActive: true,
           parLevel: { gt: 0 },
         },
-        select: { id: true, quantity: true, parLevel: true },
+        select: { id: true, stockQty: true, parLevel: true },
       }),
       // Team streaks for comparison
       prisma.userStreak.findMany({
@@ -69,7 +69,7 @@ export async function GET() {
 
     // Calculate low stock count by filtering in JavaScript
     const lowStockCount = lowStockIngredients.filter(i =>
-      Number(i.quantity) <= i.parLevel * 0.5
+      Number(i.stockQty) <= Number(i.parLevel) * 0.5
     ).length
 
     // Build completion map

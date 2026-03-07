@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { nanoid } from "nanoid"
 import {
-  calculateCostPerBaseUnit,
-  calculateTotalBaseUnits,
   calculateStockStatus,
   calculateStockRatio,
+  calculateWeightedAvgCost,
 } from "@/lib/ingredient-utils"
 
+/**
+ * POST /api/ingredients/:id/restock
+ * Accept variantId + quantity. Convert to base units. Update weighted avg cost.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,7 +20,7 @@ export async function POST(
     const ingredientId = parseInt(id)
     const body = await request.json()
 
-    // Validate required fields (quantity in packages)
+    // Validate required fields
     if (typeof body.quantity !== "number" || body.quantity <= 0) {
       return NextResponse.json(
         { error: "Quantity must be a positive number" },
@@ -25,10 +28,17 @@ export async function POST(
       )
     }
 
-    // Get current ingredient
+    if (!body.variantId) {
+      return NextResponse.json(
+        { error: "variantId is required" },
+        { status: 400 }
+      )
+    }
+
+    // Get ingredient and variant
     const ingredient = await prisma.ingredient.findUnique({
       where: { id: ingredientId },
-      include: { vendor: true },
+      include: { baseUnit: true },
     })
 
     if (!ingredient) {
@@ -39,148 +49,116 @@ export async function POST(
       return NextResponse.json({ error: "Ingredient is inactive" }, { status: 400 })
     }
 
-    const oldQuantity = Number(ingredient.quantity)
-    const newQuantity = oldQuantity + body.quantity
+    const variant = await prisma.purchaseVariant.findFirst({
+      where: { id: body.variantId, ingredientId },
+    })
 
-    // Handle new unit system (costPerPackage) or legacy (costPerUnit)
-    const oldCostPerPackage = Number(ingredient.costPerPackage)
-    const oldPackageSize = Number(ingredient.packageSize)
-    const oldCostPerUnit = Number(ingredient.costPerUnit)
-
-    // Accept costPerPackage (new) or costPerUnit (legacy)
-    let newCostPerPackage = oldCostPerPackage
-    let newPackageSize = oldPackageSize
-    let newCostPerUnit = oldCostPerUnit
-
-    // New unit system: costPerPackage
-    if (body.costPerPackage !== undefined) {
-      newCostPerPackage = body.costPerPackage
-      newCostPerUnit = newPackageSize > 0 ? newCostPerPackage / newPackageSize : 0
-    }
-    // Legacy: costPerUnit
-    else if (body.costPerUnit !== undefined) {
-      newCostPerUnit = body.costPerUnit
-      newCostPerPackage = newCostPerUnit * newPackageSize
+    if (!variant) {
+      return NextResponse.json({ error: "Variant not found" }, { status: 404 })
     }
 
-    // Update package size if provided
-    if (body.packageSize !== undefined && body.packageSize > 0) {
-      newPackageSize = body.packageSize
-      // Recalculate costPerUnit based on new package size
-      newCostPerUnit = newCostPerPackage / newPackageSize
-    }
+    // Calculate stock changes
+    const oldStockQty = Number(ingredient.stockQty)
+    const oldAvgCost = Number(ingredient.avgCostPerBaseUnit)
+    const baseUnitsPerVariant = Number(variant.baseUnitsPerVariant)
 
-    // Generate a change ID to group related history entries
+    // Use cost override or variant's cost
+    const costPerVariant = body.costPerVariant ?? Number(variant.costPerVariant)
+    const costPerBaseUnit = baseUnitsPerVariant > 0 ? costPerVariant / baseUnitsPerVariant : 0
+
+    const addedBaseUnits = body.quantity * baseUnitsPerVariant
+    const newStockQty = oldStockQty + addedBaseUnits
+    const newAvgCost = calculateWeightedAvgCost(
+      oldStockQty,
+      oldAvgCost,
+      addedBaseUnits,
+      costPerBaseUnit
+    )
+
+    // Generate change ID for audit trail
     const changeId = `restock_${nanoid(10)}`
+    const parLevel = Number(ingredient.parLevel)
 
     const historyEntries: Parameters<typeof prisma.ingredientHistory.create>[0]["data"][] = [
-      // Always log quantity change
       {
         ingredientId,
         ingredientName: ingredient.name,
         changeId,
-        field: "quantity",
-        oldValue: oldQuantity.toString(),
-        newValue: newQuantity.toString(),
+        field: "stockQty",
+        oldValue: oldStockQty.toString(),
+        newValue: newStockQty.toString(),
         source: "restock",
         reason: "restock",
-        reasonNote: body.note || null,
+        reasonNote: body.note || `Restocked ${body.quantity}x ${variant.label}`,
+        purchaseVariantId: variant.id,
         userId: body.userId || 0,
         userName: body.userName || "System",
       },
     ]
 
-    // Log cost change if changed
-    if (newCostPerPackage !== oldCostPerPackage) {
+    if (newAvgCost !== oldAvgCost) {
       historyEntries.push({
         ingredientId,
         ingredientName: ingredient.name,
         changeId,
-        field: "costPerPackage",
-        oldValue: oldCostPerPackage.toString(),
-        newValue: newCostPerPackage.toString(),
+        field: "avgCostPerBaseUnit",
+        oldValue: oldAvgCost.toString(),
+        newValue: newAvgCost.toString(),
         source: "restock",
-        reason: "price_update",
+        reason: "cost_update",
         reasonNote: body.note || null,
+        purchaseVariantId: variant.id,
         userId: body.userId || 0,
         userName: body.userName || "System",
       })
     }
 
-    // Log package size change if changed
-    if (newPackageSize !== oldPackageSize) {
-      historyEntries.push({
-        ingredientId,
-        ingredientName: ingredient.name,
-        changeId,
-        field: "packageSize",
-        oldValue: oldPackageSize.toString(),
-        newValue: newPackageSize.toString(),
-        source: "restock",
-        reason: "package_update",
-        reasonNote: body.note || null,
-        userId: body.userId || 0,
-        userName: body.userName || "System",
-      })
-    }
+    // Update variant cost if override was provided
+    const variantUpdate = body.costPerVariant !== undefined
+      ? { costPerVariant: body.costPerVariant }
+      : {}
 
-    // Use transaction to update ingredient and create history
-    const [updatedIngredient] = await prisma.$transaction([
-      // Update ingredient
+    // Atomic update
+    await prisma.$transaction([
       prisma.ingredient.update({
         where: { id: ingredientId },
         data: {
-          quantity: newQuantity,
-          costPerPackage: newCostPerPackage,
-          costPerUnit: newCostPerUnit,
-          packageSize: newPackageSize,
+          stockQty: newStockQty,
+          avgCostPerBaseUnit: newAvgCost,
           lastRestockDate: new Date(),
           lastUpdated: new Date(),
         },
-        include: { vendor: true },
       }),
-      // Log all history entries
+      ...(Object.keys(variantUpdate).length > 0
+        ? [prisma.purchaseVariant.update({ where: { id: variant.id }, data: variantUpdate })]
+        : []),
       ...historyEntries.map((entry) =>
         prisma.ingredientHistory.create({ data: entry })
       ),
     ])
 
-    // Calculate computed fields
-    const costPerBaseUnit = calculateCostPerBaseUnit(
-      Number(updatedIngredient.costPerPackage),
-      Number(updatedIngredient.packageSize)
-    )
-    const totalBaseUnits = calculateTotalBaseUnits(
-      Number(updatedIngredient.quantity),
-      Number(updatedIngredient.packageSize)
-    )
-
     return NextResponse.json({
       ingredient: {
-        id: updatedIngredient.id,
-        name: updatedIngredient.name,
-        baseUnit: updatedIngredient.baseUnit,
-        packageUnit: updatedIngredient.packageUnit,
-        packageSize: Number(updatedIngredient.packageSize),
-        quantity: Number(updatedIngredient.quantity),
-        totalBaseUnits,
-        costPerPackage: Number(updatedIngredient.costPerPackage),
-        costPerBaseUnit,
-        stockStatus: calculateStockStatus(Number(updatedIngredient.quantity), updatedIngredient.parLevel),
-        stockRatio: calculateStockRatio(Number(updatedIngredient.quantity), updatedIngredient.parLevel),
-        lastRestockDate: updatedIngredient.lastRestockDate,
-        // Legacy
-        costPerUnit: Number(updatedIngredient.costPerUnit),
+        id: ingredient.id,
+        name: ingredient.name,
+        baseUnitName: ingredient.baseUnit.name,
+        stockQty: newStockQty,
+        avgCostPerBaseUnit: newAvgCost,
+        parLevel,
+        stockStatus: calculateStockStatus(newStockQty, parLevel),
+        stockRatio: calculateStockRatio(newStockQty, parLevel),
+        lastRestockDate: new Date().toISOString(),
       },
       restockDetails: {
-        previousQuantity: oldQuantity,
-        addedQuantity: body.quantity,
-        newQuantity,
-        previousCostPerPackage: oldCostPerPackage,
-        newCostPerPackage,
-        costPerBaseUnit,
+        variantId: variant.id,
+        variantLabel: variant.label,
+        previousStockQty: oldStockQty,
+        addedBaseUnits,
+        newStockQty,
+        previousAvgCost: oldAvgCost,
+        newAvgCost,
       },
-      message: `Added ${body.quantity} ${ingredient.packageUnit}(s) to ${ingredient.name}`,
+      message: `Added ${body.quantity}x ${variant.label} to ${ingredient.name} (+${addedBaseUnits} ${ingredient.baseUnit.name})`,
     })
   } catch (error) {
     console.error("Failed to restock ingredient:", error)

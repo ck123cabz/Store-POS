@@ -2,105 +2,101 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { nanoid } from "nanoid"
 import {
-  calculateCostPerBaseUnit,
-  calculateTotalBaseUnits,
   calculateStockStatus,
   calculateStockRatio,
 } from "@/lib/ingredient-utils"
 
 /**
- * Format ingredient for API response
+ * Format ingredient for API response (same as list route)
  */
-function formatIngredient(i: {
-  id: number
-  name: string
-  category: string
-  baseUnit: string
-  packageSize: { toNumber?: () => number } | number
-  packageUnit: string
-  costPerPackage: { toNumber?: () => number } | number
-  unit: string
-  costPerUnit: { toNumber?: () => number } | number
-  parLevel: number
-  quantity: { toNumber?: () => number } | number
-  lastRestockDate: Date | null
-  lastUpdated: Date | null
-  vendorId: number | null
-  barcode: string | null
-  countByBaseUnit: boolean
-  sellable: boolean
-  sellPrice: { toNumber?: () => number } | null
-  linkedProductId: number | null
-  syncStatus: string
-  isOverhead: boolean
-  overheadPerTransaction: { toNumber?: () => number } | null
-  vendor?: { name: string } | null
-  recipeItems?: Array<{
-    productId: number
-    quantity: { toNumber?: () => number } | number
-    product: { name: string }
-  }>
-}) {
-  const packageSize = typeof i.packageSize === "number" ? i.packageSize : Number(i.packageSize)
-  const costPerPackage = typeof i.costPerPackage === "number" ? i.costPerPackage : Number(i.costPerPackage)
-  const quantity = typeof i.quantity === "number" ? i.quantity : Number(i.quantity)
-  const parLevel = i.parLevel
+function formatIngredient(i: Record<string, unknown>) {
+  const num = (v: unknown): number => {
+    if (v === null || v === undefined) return 0
+    return typeof v === "number" ? v : Number(v)
+  }
 
-  const costPerBaseUnit = packageSize > 0 ? calculateCostPerBaseUnit(costPerPackage, packageSize) : 0
-  const totalBaseUnits = calculateTotalBaseUnits(quantity, packageSize)
-  const stockStatus = calculateStockStatus(quantity, parLevel)
-  const stockRatio = calculateStockRatio(quantity, parLevel)
+  const baseUnit = i.baseUnit as { id: number; name: string; abbr: string; isDiscrete: boolean }
+  const countUnit = i.countUnit as { id: number; name: string; abbr: string } | null
+  const vendor = i.vendor as { name: string } | null
+
+  const stockQty = num(i.stockQty)
+  const parLevel = num(i.parLevel)
 
   return {
     id: i.id,
     name: i.name,
     category: i.category,
-
-    // New unit system
-    baseUnit: i.baseUnit,
-    packageSize,
-    packageUnit: i.packageUnit,
-    costPerPackage,
-    costPerBaseUnit,
-
-    // Stock
-    quantity,
-    totalBaseUnits,
+    baseUnitId: i.baseUnitId,
+    baseUnitName: baseUnit.name,
+    baseUnitAbbr: baseUnit.abbr,
+    stockQty,
+    avgCostPerBaseUnit: num(i.avgCostPerBaseUnit),
     parLevel,
-    stockStatus,
-    stockRatio,
-    countByBaseUnit: i.countByBaseUnit,
-
-    // Metadata
-    lastRestockDate: i.lastRestockDate,
-    lastUpdated: i.lastUpdated,
-    vendorId: i.vendorId,
-    vendorName: i.vendor?.name || null,
-    barcode: i.barcode,
-
-    // Sellable
-    sellable: i.sellable,
-    sellPrice: i.sellPrice ? (typeof i.sellPrice === "number" ? i.sellPrice : Number(i.sellPrice)) : null,
-    linkedProductId: i.linkedProductId,
-    syncStatus: i.syncStatus,
-
-    // Overhead
+    stockStatus: calculateStockStatus(stockQty, parLevel),
+    stockRatio: calculateStockRatio(stockQty, parLevel),
+    countUnitId: i.countUnitId,
+    countUnitName: countUnit?.name || null,
     isOverhead: i.isOverhead,
-    overheadPerTransaction: i.overheadPerTransaction
-      ? (typeof i.overheadPerTransaction === "number" ? i.overheadPerTransaction : Number(i.overheadPerTransaction))
-      : null,
+    overheadPerTransaction: i.overheadPerTransaction ? num(i.overheadPerTransaction) : null,
+    yieldFactor: i.yieldFactor ? num(i.yieldFactor) : null,
+    vendorId: i.vendorId,
+    vendorName: vendor?.name || null,
+    lastUpdated: i.lastUpdated ? (i.lastUpdated as Date).toISOString() : null,
+    lastRestockDate: i.lastRestockDate ? (i.lastRestockDate as Date).toISOString() : null,
 
-    // Legacy (deprecated)
-    unit: i.unit || i.packageUnit,
-    costPerUnit: typeof i.costPerUnit === "number" ? i.costPerUnit : Number(i.costPerUnit),
+    purchaseVariants: ((i.purchaseVariants as Array<Record<string, unknown>>) || []).map((v) => ({
+      id: v.id,
+      ingredientId: v.ingredientId,
+      label: v.label,
+      contentQty: num(v.contentQty),
+      contentUnitId: v.contentUnitId,
+      contentUnitName: (v.contentUnit as { name: string } | undefined)?.name || null,
+      packageQty: v.packageQty,
+      packageUnitId: v.packageUnitId,
+      packageUnitName: (v.packageUnit as { name: string } | undefined)?.name || null,
+      costPerVariant: num(v.costPerVariant),
+      baseUnitsPerVariant: num(v.baseUnitsPerVariant),
+      sellable: v.sellable,
+      sellPrice: v.sellPrice ? num(v.sellPrice) : null,
+      linkedProductId: v.linkedProductId,
+      syncStatus: v.syncStatus,
+      vendorId: v.vendorId,
+      barcode: v.barcode,
+      sku: v.sku,
+      isActive: v.isActive,
+      isDefault: v.isDefault,
+    })),
 
-    // Recipe usage
-    usedInProducts: i.recipeItems?.map((ri) => ({
+    unitAliases: ((i.unitAliases as Array<Record<string, unknown>>) || []).map((ua) => ({
+      id: ua.id,
+      ingredientId: i.id,
+      name: ua.name,
+      baseUnitMultiplier: num(ua.baseUnitMultiplier),
+      description: ua.description,
+      isDefault: ua.isDefault,
+      unitId: ua.unitId,
+      createdAt: (ua.createdAt as Date).toISOString(),
+    })),
+
+    usedInProducts: ((i.recipeItems as Array<Record<string, unknown>> | undefined) || []).map((ri) => ({
       productId: ri.productId,
-      productName: ri.product.name,
-      quantity: typeof ri.quantity === "number" ? ri.quantity : Number(ri.quantity),
+      productName: (ri.product as { name: string }).name,
+      quantity: num(ri.quantity),
     })),
   }
+}
+
+const ingredientInclude = {
+  baseUnit: true,
+  countUnit: true,
+  vendor: true,
+  purchaseVariants: {
+    where: { isActive: true },
+    include: { contentUnit: true, packageUnit: true },
+    orderBy: { isDefault: "desc" as const },
+  },
+  unitAliases: { orderBy: { createdAt: "asc" as const } },
+  recipeItems: { include: { product: true } },
 }
 
 export async function GET(
@@ -111,14 +107,14 @@ export async function GET(
     const { id } = await params
     const ingredient = await prisma.ingredient.findUnique({
       where: { id: parseInt(id) },
-      include: { vendor: true, recipeItems: { include: { product: true } } },
+      include: ingredientInclude,
     })
 
     if (!ingredient) {
       return NextResponse.json({ error: "Ingredient not found" }, { status: 404 })
     }
 
-    return NextResponse.json(formatIngredient(ingredient))
+    return NextResponse.json(formatIngredient(ingredient as unknown as Record<string, unknown>))
   } catch {
     return NextResponse.json({ error: "Failed to fetch ingredient" }, { status: 500 })
   }
@@ -133,7 +129,6 @@ export async function PUT(
     const ingredientId = parseInt(id)
     const body = await request.json()
 
-    // Get current ingredient for history comparison
     const current = await prisma.ingredient.findUnique({
       where: { id: ingredientId },
     })
@@ -145,175 +140,69 @@ export async function PUT(
     const changeId = `edit_${nanoid(10)}`
     const historyEntries: Parameters<typeof prisma.ingredientHistory.create>[0]["data"][] = []
 
-    // Check if using new unit system or legacy
-    const isNewUnitSystem = body.packageUnit !== undefined && body.baseUnit !== undefined
-
-    // Build update data based on input type
-    let updateData: Record<string, unknown>
-
-    if (isNewUnitSystem) {
-      // Validate new unit system input
-      const parsedPackageSize = parseFloat(body.packageSize) || 1
-      if (parsedPackageSize <= 0) {
-        return NextResponse.json(
-          { error: "Package size must be greater than 0" },
-          { status: 400 }
-        )
-      }
-
-      const parsedCostPerPackage = parseFloat(body.costPerPackage) || 0
-
-      // Track cost changes for history
-      if (parsedCostPerPackage !== Number(current.costPerPackage)) {
-        historyEntries.push({
-          ingredientId,
-          ingredientName: current.name,
-          changeId,
-          field: "costPerPackage",
-          oldValue: current.costPerPackage.toString(),
-          newValue: parsedCostPerPackage.toString(),
-          source: "manual_edit",
-          reason: body.reason || "price_update",
-          reasonNote: body.reasonNote || null,
-          userId: body.userId || 0,
-          userName: body.userName || "System",
-        })
-      }
-
-      // Track quantity changes
-      const parsedQuantity = parseFloat(body.quantity) ?? Number(current.quantity)
-      if (parsedQuantity !== Number(current.quantity)) {
-        historyEntries.push({
-          ingredientId,
-          ingredientName: current.name,
-          changeId,
-          field: "quantity",
-          oldValue: current.quantity.toString(),
-          newValue: parsedQuantity.toString(),
-          source: "manual_edit",
-          reason: body.reason || null,
-          reasonNote: body.reasonNote || null,
-          userId: body.userId || 0,
-          userName: body.userName || "System",
-        })
-      }
-
-      updateData = {
-        name: body.name,
-        category: body.category,
-
-        // New unit system
-        baseUnit: body.baseUnit,
-        packageSize: parsedPackageSize,
-        packageUnit: body.packageUnit,
-        costPerPackage: parsedCostPerPackage,
-
-        // Also update legacy fields for backward compatibility
-        unit: body.packageUnit,
-        costPerUnit: parsedCostPerPackage / parsedPackageSize,
-
-        // Stock
-        parLevel: parseInt(body.parLevel) ?? current.parLevel,
-        quantity: parsedQuantity,
-        countByBaseUnit: body.countByBaseUnit ?? current.countByBaseUnit,
-
-        // Special
-        vendorId: body.vendorId ?? null,
-        barcode: body.barcode ?? null,
-        sellable: body.sellable ?? current.sellable,
-        sellPrice: body.sellPrice ?? current.sellPrice,
-        isOverhead: body.isOverhead ?? current.isOverhead,
-        overheadPerTransaction: body.overheadPerTransaction ?? current.overheadPerTransaction,
-
-        // Yield factor
-        yieldFactor: body.yieldFactor !== undefined
-          ? (body.yieldFactor === null ? null : parseFloat(String(body.yieldFactor)))
-          : undefined,
-
-        lastUpdated: new Date(),
-      }
-    } else {
-      // Legacy update path
-      // Track quantity changes
-      if (body.quantity !== undefined && Number(body.quantity) !== Number(current.quantity)) {
-        historyEntries.push({
-          ingredientId,
-          ingredientName: current.name,
-          changeId,
-          field: "quantity",
-          oldValue: current.quantity.toString(),
-          newValue: body.quantity.toString(),
-          source: "manual_edit",
-          reason: body.reason || null,
-          reasonNote: body.reasonNote || null,
-          userId: body.userId || 0,
-          userName: body.userName || "System",
-        })
-      }
-
-      // Track cost changes
-      if (body.costPerUnit !== undefined && Number(body.costPerUnit) !== Number(current.costPerUnit)) {
-        historyEntries.push({
-          ingredientId,
-          ingredientName: current.name,
-          changeId,
-          field: "costPerUnit",
-          oldValue: current.costPerUnit.toString(),
-          newValue: body.costPerUnit.toString(),
-          source: "manual_edit",
-          reason: body.reason || "price_update",
-          reasonNote: body.reasonNote || null,
-          userId: body.userId || 0,
-          userName: body.userName || "System",
-        })
-      }
-
-      updateData = {
-        name: body.name,
-        category: body.category,
-        unit: body.unit,
-        costPerUnit: body.costPerUnit,
-        parLevel: body.parLevel,
-        quantity: body.quantity,
-        vendorId: body.vendorId || null,
-        barcode: body.barcode || null,
-        sellable: body.sellable ?? current.sellable,
-
-        // Yield factor
-        yieldFactor: body.yieldFactor !== undefined
-          ? (body.yieldFactor === null ? null : parseFloat(String(body.yieldFactor)))
-          : undefined,
-
-        lastUpdated: new Date(),
-      }
+    // Track stockQty changes
+    if (body.stockQty !== undefined && Number(body.stockQty) !== Number(current.stockQty)) {
+      historyEntries.push({
+        ingredientId,
+        ingredientName: current.name,
+        changeId,
+        field: "stockQty",
+        oldValue: current.stockQty.toString(),
+        newValue: body.stockQty.toString(),
+        source: "manual_edit",
+        reason: body.reason || null,
+        reasonNote: body.reasonNote || null,
+        userId: body.userId || 0,
+        userName: body.userName || "System",
+      })
     }
 
-    // Update ingredient and create history entries in transaction
+    // Track avgCostPerBaseUnit changes
+    if (body.avgCostPerBaseUnit !== undefined && Number(body.avgCostPerBaseUnit) !== Number(current.avgCostPerBaseUnit)) {
+      historyEntries.push({
+        ingredientId,
+        ingredientName: current.name,
+        changeId,
+        field: "avgCostPerBaseUnit",
+        oldValue: current.avgCostPerBaseUnit.toString(),
+        newValue: body.avgCostPerBaseUnit.toString(),
+        source: "manual_edit",
+        reason: body.reason || "price_update",
+        reasonNote: body.reasonNote || null,
+        userId: body.userId || 0,
+        userName: body.userName || "System",
+      })
+    }
+
+    const updateData: Record<string, unknown> = {
+      lastUpdated: new Date(),
+    }
+
+    // Only set fields that are provided
+    if (body.name !== undefined) updateData.name = body.name
+    if (body.category !== undefined) updateData.category = body.category
+    if (body.baseUnitId !== undefined) updateData.baseUnitId = body.baseUnitId
+    if (body.stockQty !== undefined) updateData.stockQty = body.stockQty
+    if (body.avgCostPerBaseUnit !== undefined) updateData.avgCostPerBaseUnit = body.avgCostPerBaseUnit
+    if (body.parLevel !== undefined) updateData.parLevel = body.parLevel
+    if (body.countUnitId !== undefined) updateData.countUnitId = body.countUnitId
+    if (body.vendorId !== undefined) updateData.vendorId = body.vendorId
+    if (body.isOverhead !== undefined) updateData.isOverhead = body.isOverhead
+    if (body.overheadPerTransaction !== undefined) updateData.overheadPerTransaction = body.overheadPerTransaction
+    if (body.yieldFactor !== undefined) updateData.yieldFactor = body.yieldFactor === null ? null : parseFloat(String(body.yieldFactor))
+
     const [ingredient] = await prisma.$transaction([
       prisma.ingredient.update({
         where: { id: ingredientId },
         data: updateData,
-        include: { vendor: true },
+        include: ingredientInclude,
       }),
       ...historyEntries.map((entry) =>
         prisma.ingredientHistory.create({ data: entry })
       ),
     ])
 
-    // Handle sellable toggle
-    if (body.sellable !== undefined && body.sellable !== current.sellable) {
-      if (body.sellable && body.categoryId) {
-        // Turning on sellable - sync to product
-        const { syncIngredientToProduct } = await import("@/lib/ingredient-sync")
-        await syncIngredientToProduct(ingredientId, body.categoryId)
-      } else if (!body.sellable && current.linkedProductId) {
-        // Turning off sellable - unlink from product
-        const { unlinkIngredientFromProduct } = await import("@/lib/ingredient-sync")
-        await unlinkIngredientFromProduct(ingredientId)
-      }
-    }
-
-    return NextResponse.json(formatIngredient(ingredient))
+    return NextResponse.json(formatIngredient(ingredient as unknown as Record<string, unknown>))
   } catch (error) {
     console.error("Failed to update ingredient:", error)
     return NextResponse.json({ error: "Failed to update ingredient" }, { status: 500 })
@@ -328,7 +217,6 @@ export async function DELETE(
     const { id } = await params
     const ingredientId = parseInt(id)
 
-    // Check existence before update
     const ingredient = await prisma.ingredient.findUnique({
       where: { id: ingredientId },
     })
@@ -337,13 +225,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Ingredient not found" }, { status: 404 })
     }
 
-    // Soft delete - set isActive to false
     await prisma.ingredient.update({
       where: { id: ingredientId },
-      data: {
-        isActive: false,
-        updatedAt: new Date(),
-      },
+      data: { isActive: false, updatedAt: new Date() },
     })
 
     return NextResponse.json({ success: true, message: `${ingredient.name} has been deactivated` })

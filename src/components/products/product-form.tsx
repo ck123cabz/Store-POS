@@ -27,9 +27,10 @@ interface Category {
   name: string
 }
 
-interface IngredientOption {
+interface VariantOption {
   id: number
-  name: string
+  label: string
+  ingredientName: string
   baseUnit: string
 }
 
@@ -37,7 +38,7 @@ interface ProductFormData {
   name: string
   price: string
   categoryId: number | null
-  linkedIngredientId: number | null
+  linkedVariantId: number | null
 }
 
 interface ProductFormProps {
@@ -51,36 +52,45 @@ interface ProductFormProps {
     price: number
     image: string
     categoryId: number
-    linkedIngredientId?: number | null
+    linkedVariantId?: number | null
   } | null
 }
 
 export function ProductForm({ open, onClose, onSuccess, categories, product }: ProductFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
-  const [ingredients, setIngredients] = useState<IngredientOption[]>([])
+  const [variants, setVariants] = useState<VariantOption[]>([])
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<ProductFormData>({
     defaultValues: {
       name: "",
       price: "",
       categoryId: null,
-      linkedIngredientId: null,
+      linkedVariantId: null,
     },
   })
 
-  // Fetch ingredients for the combobox
+  // Fetch ingredients with their purchase variants for the combobox
   useEffect(() => {
     if (!open) return
     fetch("/api/ingredients")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setIngredients(data.map((i: { id: number; name: string; baseUnit: string }) => ({
-            id: i.id,
-            name: i.name,
-            baseUnit: i.baseUnit,
-          })))
+          const opts: VariantOption[] = []
+          for (const ing of data) {
+            if (ing.purchaseVariants) {
+              for (const v of ing.purchaseVariants) {
+                opts.push({
+                  id: v.id,
+                  label: v.label,
+                  ingredientName: ing.name,
+                  baseUnit: ing.baseUnitName || ing.baseUnit,
+                })
+              }
+            }
+          }
+          setVariants(opts)
         }
       })
       .catch(() => {/* ingredients are optional */})
@@ -93,14 +103,14 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         name: product.name,
         price: product.price.toString(),
         categoryId: product.categoryId,
-        linkedIngredientId: product.linkedIngredientId ?? null,
+        linkedVariantId: product.linkedVariantId ?? null,
       })
     } else {
       reset({
         name: "",
         price: "",
         categoryId: null,
-        linkedIngredientId: null,
+        linkedVariantId: null,
       })
     }
     setImageFile(null)
@@ -125,7 +135,7 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         name: data.name,
         price: parseFloat(data.price),
         categoryId: data.categoryId,
-        linkedIngredientId: data.linkedIngredientId || null,
+        linkedVariantId: data.linkedVariantId || null,
         ...(imageFilename && { image: imageFilename }),
       }
 
@@ -189,21 +199,21 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
           </div>
 
           <div className="space-y-2">
-            <Label>Linked Ingredient</Label>
+            <Label>Linked Variant</Label>
             <Combobox<number>
-              options={ingredients.map((ing) => ({
-                value: ing.id,
-                label: `${ing.name} (${ing.baseUnit})`,
+              options={variants.map((v) => ({
+                value: v.id,
+                label: `${v.ingredientName} — ${v.label} (${v.baseUnit})`,
               }))}
-              value={watch("linkedIngredientId")}
-              onChange={(v) => setValue("linkedIngredientId", v)}
-              placeholder="Select ingredient (optional)"
-              searchPlaceholder="Search ingredients..."
-              emptyMessage="No ingredients found."
+              value={watch("linkedVariantId")}
+              onChange={(v) => setValue("linkedVariantId", v)}
+              placeholder="Select variant (optional)"
+              searchPlaceholder="Search variants..."
+              emptyMessage="No variants found."
               icon={<Package className="size-4" />}
             />
             <p className="text-xs text-muted-foreground">
-              Link to an ingredient for automatic stock tracking. For recipes with multiple ingredients, use the chef hat icon in the products table.
+              Link to a purchase variant for automatic stock tracking. For recipes with multiple ingredients, use the chef hat icon in the products table.
             </p>
           </div>
 

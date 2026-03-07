@@ -9,30 +9,30 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Fetch all active ingredients with current quantities
+    // Fetch all active ingredients with current stock
     const ingredients = await prisma.ingredient.findMany({
       where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        category: true,
-        unit: true,
-        quantity: true,
-        parLevel: true,
-        barcode: true,
+      include: {
+        baseUnit: true,
+        countUnit: true,
+        purchaseVariants: {
+          where: { isDefault: true, isActive: true },
+          take: 1,
+          select: { barcode: true },
+        },
       },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     })
 
-    // Transform to count format with expected quantities
+    // Transform to count format
     const countItems = ingredients.map((ing) => ({
       ingredientId: ing.id,
       name: ing.name,
       category: ing.category,
-      unit: ing.unit,
-      expected: Number(ing.quantity),
-      parLevel: ing.parLevel,
-      barcode: ing.barcode,
+      unit: ing.countUnit?.name || ing.baseUnit.name,
+      expected: Number(ing.stockQty),
+      parLevel: Number(ing.parLevel),
+      barcode: ing.purchaseVariants[0]?.barcode || null,
     }))
 
     return NextResponse.json(countItems)

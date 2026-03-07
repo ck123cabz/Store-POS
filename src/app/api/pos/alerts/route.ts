@@ -6,22 +6,17 @@ export async function GET() {
     // Get low-stock ingredients
     const ingredients = await prisma.ingredient.findMany({
       where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        quantity: true,
-        parLevel: true,
-        unit: true,
-      },
+      include: { baseUnit: true },
     })
 
     const lowStockItems = ingredients
       .map((i) => {
-        const qty = Number(i.quantity)
-        const ratio = i.parLevel > 0 ? qty / i.parLevel : 1
+        const stockQty = Number(i.stockQty)
+        const parLevel = Number(i.parLevel)
+        const ratio = parLevel > 0 ? stockQty / parLevel : 1
 
         let priority: "critical" | "high" | "medium" | null = null
-        if (qty <= 0 || ratio <= 0.25) priority = "critical"
+        if (stockQty <= 0 || ratio <= 0.25) priority = "critical"
         else if (ratio <= 0.5) priority = "high"
         else if (ratio < 1) priority = "medium"
 
@@ -30,11 +25,11 @@ export async function GET() {
         return {
           id: i.id,
           name: i.name,
-          quantity: qty,
-          parLevel: i.parLevel,
-          unit: i.unit,
+          quantity: stockQty,
+          parLevel,
+          unit: i.baseUnit.name,
           priority,
-          stockRatio: i.parLevel > 0 ? Math.round(ratio * 100) : null,
+          stockRatio: parLevel > 0 ? Math.round(ratio * 100) : null,
         }
       })
       .filter(Boolean)
@@ -50,24 +45,31 @@ export async function GET() {
         id: true,
         name: true,
         price: true,
-        linkedIngredient: {
+        linkedVariant: {
           select: {
-            costPerUnit: true,
-            unit: true,
+            costPerVariant: true,
+            baseUnitsPerVariant: true,
+            label: true,
           },
         },
       },
     })
 
-    const needsPricing = needsPricingProducts.map((p) => ({
-      id: p.id,
-      name: p.name,
-      currentPrice: Number(p.price),
-      suggestedPrice: p.linkedIngredient
-        ? Math.ceil(Number(p.linkedIngredient.costPerUnit) * 1.5 * 100) / 100 // 50% markup suggestion
-        : null,
-      ingredientCost: p.linkedIngredient ? Number(p.linkedIngredient.costPerUnit) : null,
-    }))
+    const needsPricing = needsPricingProducts.map((p) => {
+      const variantCostPerUnit = p.linkedVariant && Number(p.linkedVariant.baseUnitsPerVariant) > 0
+        ? Number(p.linkedVariant.costPerVariant) / Number(p.linkedVariant.baseUnitsPerVariant)
+        : null
+
+      return {
+        id: p.id,
+        name: p.name,
+        currentPrice: Number(p.price),
+        suggestedPrice: variantCostPerUnit
+          ? Math.ceil(variantCostPerUnit * 1.5 * 100) / 100
+          : null,
+        ingredientCost: variantCostPerUnit,
+      }
+    })
 
     return NextResponse.json({
       lowStock: {

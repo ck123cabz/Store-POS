@@ -25,7 +25,7 @@ interface Product {
   trackStock: boolean
   image: string
   categoryId: number
-  linkedIngredientId?: number | null
+  linkedVariantId?: number | null
   needsPricing?: boolean
   status?: string
   availability: Availability

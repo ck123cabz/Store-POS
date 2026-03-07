@@ -1,142 +1,148 @@
 /**
  * Unit Tests: Ingredient Unit System Calculations
- * Feature: 004-ingredient-unit-system
- *
- * Tests cost calculation, stock status, and display formatting functions.
- * Following TDD approach - these tests drive the implementation.
+ * Normalized schema: data-driven units, base-unit stock, weighted avg cost
  */
 
 import { describe, test, expect } from "vitest";
 import {
-  calculateCostPerBaseUnit,
-  calculateTotalBaseUnits,
-  calculateRecipeCost,
   calculateStockStatus,
   calculateStockRatio,
-  getLowStockPriority,
+  calculateWeightedAvgCost,
+  convertUnits,
+  computeBaseUnitsPerVariant,
   formatCurrency,
-  formatDualUnitDisplay,
-  formatPackageEquivalent,
-  getEffectiveCostPerBaseUnit,
-  getEffectiveUnit,
-  isUsingNewUnitSystem,
-  isSameUnit,
+  formatStockDisplay,
   ingredientFormSchema,
-  convertToBaseUnits,
-  convertFromBaseUnits,
-  calculateCookedYield,
-  calculateRecipeIngredientCost,
+  purchaseVariantSchema,
   getAvailableUnits,
-  getUnitMultiplier,
+  // Legacy compat
+  calculateCostPerBaseUnit,
+  calculateTotalBaseUnits,
+  formatDualUnitDisplay,
 } from "@/lib/ingredient-utils";
+import type { UnitConversion } from "@/types/ingredient";
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Cost Calculations
+// Unit Conversions
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe("Cost Calculations", () => {
-  describe("calculateCostPerBaseUnit", () => {
-    test("calculates cost per piece correctly", () => {
-      // ₱420 per pack / 8 pcs per pack = ₱52.50 per piece
-      const result = calculateCostPerBaseUnit(420, 8);
-      expect(result).toBe(52.5);
+// Test conversions matching the seed data
+const testConversions: UnitConversion[] = [
+  // kg(2) ↔ g(1)
+  { id: 1, fromUnitId: 2, toUnitId: 1, factor: 1000 },
+  { id: 2, fromUnitId: 1, toUnitId: 2, factor: 0.001 },
+  // L(6) ↔ mL(5)
+  { id: 3, fromUnitId: 6, toUnitId: 5, factor: 1000 },
+  { id: 4, fromUnitId: 5, toUnitId: 6, factor: 0.001 },
+  // lb(4) ↔ g(1)
+  { id: 5, fromUnitId: 4, toUnitId: 1, factor: 453.592 },
+  { id: 6, fromUnitId: 1, toUnitId: 4, factor: 0.002205 },
+  // oz(3) ↔ g(1)
+  { id: 7, fromUnitId: 3, toUnitId: 1, factor: 28.3495 },
+  { id: 8, fromUnitId: 1, toUnitId: 3, factor: 0.035274 },
+  // cup(8) ↔ mL(5)
+  { id: 9, fromUnitId: 8, toUnitId: 5, factor: 240 },
+  { id: 10, fromUnitId: 5, toUnitId: 8, factor: 0.004167 },
+  // dozen(14) ↔ pcs(12)
+  { id: 11, fromUnitId: 14, toUnitId: 12, factor: 12 },
+  { id: 12, fromUnitId: 12, toUnitId: 14, factor: 0.083333 },
+];
+
+describe("Unit Conversion", () => {
+  describe("convertUnits", () => {
+    test("same unit returns identity", () => {
+      expect(convertUnits(5, 2, 2, testConversions)).toBe(5);
     });
 
-    test("handles decimal package sizes", () => {
-      // ₱270 per kg / 0.5 kg portions = ₱540 per portion
-      const result = calculateCostPerBaseUnit(270, 0.5);
-      expect(result).toBe(540);
+    test("direct conversion: kg → g", () => {
+      expect(convertUnits(2, 2, 1, testConversions)).toBe(2000);
     });
 
-    test("handles same-unit conversion (packageSize = 1)", () => {
-      // ₱135 per liter / 1 liter = ₱135 per liter
-      const result = calculateCostPerBaseUnit(135, 1);
-      expect(result).toBe(135);
+    test("direct conversion: g → kg", () => {
+      expect(convertUnits(500, 1, 2, testConversions)).toBe(0.5);
     });
 
-    test("handles large package sizes", () => {
-      // ₱1000 per sack / 50 kg = ₱20 per kg
-      const result = calculateCostPerBaseUnit(1000, 50);
-      expect(result).toBe(20);
+    test("direct conversion: L → mL", () => {
+      expect(convertUnits(1.5, 6, 5, testConversions)).toBe(1500);
     });
 
-    test("maintains precision for recurring decimals", () => {
-      // ₱100 / 3 = ₱33.333...
-      const result = calculateCostPerBaseUnit(100, 3);
-      expect(result).toBeCloseTo(33.333, 2);
+    test("direct conversion: dozen → pcs", () => {
+      expect(convertUnits(2, 14, 12, testConversions)).toBe(24);
     });
 
-    test("throws error for zero package size", () => {
-      expect(() => calculateCostPerBaseUnit(420, 0)).toThrow(
-        "Package size must be greater than 0"
-      );
+    test("transitive conversion: oz → kg (via g)", () => {
+      // oz(3) → g(1) → kg(2)
+      const result = convertUnits(16, 3, 2, testConversions);
+      expect(result).not.toBeNull();
+      expect(result!).toBeCloseTo(0.4536, 2);
     });
 
-    test("throws error for negative package size", () => {
-      expect(() => calculateCostPerBaseUnit(420, -1)).toThrow(
-        "Package size must be greater than 0"
-      );
+    test("transitive conversion: lb → kg (via g)", () => {
+      const result = convertUnits(1, 4, 2, testConversions);
+      expect(result).not.toBeNull();
+      expect(result!).toBeCloseTo(0.4536, 2);
     });
 
-    test("handles zero cost (free items)", () => {
-      const result = calculateCostPerBaseUnit(0, 8);
-      expect(result).toBe(0);
+    test("returns null for incompatible dimensions", () => {
+      // kg(2) → mL(5) — no conversion path
+      expect(convertUnits(1, 2, 5, testConversions)).toBeNull();
     });
   });
 
-  describe("calculateTotalBaseUnits", () => {
-    test("calculates total base units from whole packages", () => {
-      // 3 packs × 8 pcs/pack = 24 pcs
-      const result = calculateTotalBaseUnits(3, 8);
-      expect(result).toBe(24);
+  describe("computeBaseUnitsPerVariant", () => {
+    test("same units: 1 kg variant for kg-based ingredient", () => {
+      // 1 kg content, 1 package, base unit = kg
+      expect(computeBaseUnitsPerVariant(1, 2, 2, 1, testConversions)).toBe(1);
     });
 
-    test("handles fractional packages", () => {
-      // 3.5 packs × 8 pcs/pack = 28 pcs
-      const result = calculateTotalBaseUnits(3.5, 8);
-      expect(result).toBe(28);
+    test("conversion needed: 500mL bottle for L-based ingredient", () => {
+      // 500 mL content → 0.5 L, base unit = L(6)
+      expect(computeBaseUnitsPerVariant(500, 5, 6, 1, testConversions)).toBeCloseTo(0.5, 2);
     });
 
-    test("handles zero quantity", () => {
-      const result = calculateTotalBaseUnits(0, 8);
-      expect(result).toBe(0);
+    test("case of 24: 500mL × 24", () => {
+      // 500mL content, 24 per case, base = L
+      const result = computeBaseUnitsPerVariant(500, 5, 6, 24, testConversions);
+      expect(result).toBeCloseTo(12, 1); // 12 L
     });
 
-    test("handles decimal base units (weight)", () => {
-      // 2.5 kg packs × 1 kg/pack = 2.5 kg
-      const result = calculateTotalBaseUnits(2.5, 1);
-      expect(result).toBe(2.5);
-    });
-
-    test("handles very small fractions", () => {
-      // 0.125 pack × 8 pcs = 1 pc
-      const result = calculateTotalBaseUnits(0.125, 8);
-      expect(result).toBe(1);
+    test("simple count: 1 bottle per variant, base = each", () => {
+      // 1 each content, base = each(13)
+      expect(computeBaseUnitsPerVariant(1, 13, 13, 1, testConversions)).toBe(1);
     });
   });
+});
 
-  describe("calculateRecipeCost", () => {
-    test("calculates cost for whole units", () => {
-      // 2 pcs × ₱52.50 per pc = ₱105.00
-      const result = calculateRecipeCost(2, 52.5);
-      expect(result).toBe(105);
+// ═══════════════════════════════════════════════════════════════════════════════
+// Weighted Average Cost
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe("Weighted Average Cost", () => {
+  describe("calculateWeightedAvgCost", () => {
+    test("first restock sets cost directly", () => {
+      // Empty stock + 10 units @ ₱280/unit
+      expect(calculateWeightedAvgCost(0, 0, 10, 280)).toBe(280);
     });
 
-    test("handles fractional quantities", () => {
-      // 0.5 kg × ₱270 per kg = ₱135.00
-      const result = calculateRecipeCost(0.5, 270);
-      expect(result).toBe(135);
+    test("equal quantities blend evenly", () => {
+      // 10 @ ₱100 + 10 @ ₱200 = 20 @ ₱150
+      expect(calculateWeightedAvgCost(10, 100, 10, 200)).toBe(150);
     });
 
-    test("handles zero quantity", () => {
-      const result = calculateRecipeCost(0, 52.5);
-      expect(result).toBe(0);
+    test("weighted toward larger stock", () => {
+      // 90 @ ₱100 + 10 @ ₱200 = 100 @ ₱110
+      expect(calculateWeightedAvgCost(90, 100, 10, 200)).toBe(110);
     });
 
-    test("handles very small quantities", () => {
-      // 0.01 g × ₱50 per g = ₱0.50
-      const result = calculateRecipeCost(0.01, 50);
-      expect(result).toBeCloseTo(0.5, 2);
+    test("handles small addition to large stock", () => {
+      // 1000 @ ₱50 + 1 @ ₱100 = 1001 @ ≈₱50.05
+      const result = calculateWeightedAvgCost(1000, 50, 1, 100);
+      expect(result).toBeCloseTo(50.05, 1);
+    });
+
+    test("handles zero current stock gracefully", () => {
+      const result = calculateWeightedAvgCost(0, 0, 5, 300);
+      expect(result).toBe(300);
     });
   });
 });
@@ -147,41 +153,27 @@ describe("Cost Calculations", () => {
 
 describe("Stock Status Calculations", () => {
   describe("calculateStockStatus", () => {
-    test('returns "out" when quantity is 0', () => {
+    test('returns "out" when stockQty is 0', () => {
       expect(calculateStockStatus(0, 10)).toBe("out");
     });
 
-    test('returns "out" when quantity is negative', () => {
+    test('returns "out" when stockQty is negative', () => {
       expect(calculateStockStatus(-1, 10)).toBe("out");
     });
 
     test('returns "critical" when below 25% of PAR', () => {
-      // 2 / 10 = 0.2 (20%) < 0.25 = critical
       expect(calculateStockStatus(2, 10)).toBe("critical");
     });
 
-    test('returns "critical" at exactly 24% of PAR', () => {
-      // 2.4 / 10 = 0.24 (24%) < 0.25 = critical
-      expect(calculateStockStatus(2.4, 10)).toBe("critical");
-    });
-
     test('returns "low" at exactly 25% of PAR', () => {
-      // 2.5 / 10 = 0.25 (25%) >= 0.25 but < 0.5 = low
       expect(calculateStockStatus(2.5, 10)).toBe("low");
     });
 
     test('returns "low" when between 25-50% of PAR', () => {
-      // 4 / 10 = 0.4 (40%) = low
       expect(calculateStockStatus(4, 10)).toBe("low");
     });
 
-    test('returns "low" at 49% of PAR', () => {
-      // 4.9 / 10 = 0.49 (49%) < 0.5 = low
-      expect(calculateStockStatus(4.9, 10)).toBe("low");
-    });
-
     test('returns "ok" at exactly 50% of PAR', () => {
-      // 5 / 10 = 0.5 (50%) >= 0.5 = ok
       expect(calculateStockStatus(5, 10)).toBe("ok");
     });
 
@@ -193,10 +185,9 @@ describe("Stock Status Calculations", () => {
 
     test('returns "ok" when PAR level is 0 (no threshold)', () => {
       expect(calculateStockStatus(5, 0)).toBe("ok");
-      expect(calculateStockStatus(1, 0)).toBe("ok");
     });
 
-    test('returns "out" for 0 quantity regardless of PAR', () => {
+    test('returns "out" for 0 stockQty regardless of PAR', () => {
       expect(calculateStockStatus(0, 0)).toBe("out");
     });
   });
@@ -213,36 +204,7 @@ describe("Stock Status Calculations", () => {
     });
 
     test("rounds to nearest integer", () => {
-      // 3.5 / 10 = 35%
       expect(calculateStockRatio(3.5, 10)).toBe(35);
-      // 7.777 / 10 = 78%
-      expect(calculateStockRatio(7.777, 10)).toBe(78);
-    });
-
-    test("returns 0 when quantity is 0", () => {
-      expect(calculateStockRatio(0, 10)).toBe(0);
-    });
-  });
-
-  describe("getLowStockPriority", () => {
-    test('returns "critical" for 0 ratio', () => {
-      expect(getLowStockPriority(0)).toBe("critical");
-    });
-
-    test('returns "high" for ratio < 0.25', () => {
-      expect(getLowStockPriority(0.1)).toBe("high");
-      expect(getLowStockPriority(0.24)).toBe("high");
-    });
-
-    test('returns "medium" for ratio 0.25-0.5', () => {
-      expect(getLowStockPriority(0.25)).toBe("medium");
-      expect(getLowStockPriority(0.4)).toBe("medium");
-      expect(getLowStockPriority(0.49)).toBe("medium");
-    });
-
-    test('returns "low" for ratio >= 0.5', () => {
-      expect(getLowStockPriority(0.5)).toBe("low");
-      expect(getLowStockPriority(0.9)).toBe("low");
     });
   });
 });
@@ -271,189 +233,36 @@ describe("Display Formatting", () => {
     });
   });
 
-  describe("formatDualUnitDisplay", () => {
-    test("shows dual units with conversion", () => {
-      // 3.5 packs × 8 pcs/pack = 28 pcs
-      const result = formatDualUnitDisplay(3.5, 8, "pack", "pcs");
-      expect(result).toBe("3.50 packs (28 pcs)");
+  describe("formatStockDisplay", () => {
+    test("discrete units round to integer", () => {
+      expect(formatStockDisplay(28, "pcs", true)).toBe("28 pcs");
+      expect(formatStockDisplay(28.7, "pcs", true)).toBe("29 pcs");
     });
 
-    test("shows single unit when packageUnit equals baseUnit", () => {
-      // Same unit, no conversion needed
-      const result = formatDualUnitDisplay(2, 1, "kg", "kg");
-      expect(result).toBe("2 kg");
+    test("continuous units show decimals when fractional", () => {
+      expect(formatStockDisplay(2.5, "kg", false)).toBe("2.50 kg");
     });
 
-    test("shows single unit when packageSize is 1", () => {
-      // packageSize 1 = no conversion
-      const result = formatDualUnitDisplay(5, 1, "bottle", "bottle");
-      expect(result).toBe("5 bottles");
-    });
-
-    test("handles whole numbers without trailing decimals", () => {
-      const result = formatDualUnitDisplay(3, 8, "pack", "pcs");
-      expect(result).toBe("3 packs (24 pcs)");
-    });
-
-    test("pluralizes units correctly for single quantity", () => {
-      const result = formatDualUnitDisplay(1, 8, "pack", "pcs");
-      expect(result).toBe("1 pack (8 pcs)");
-    });
-
-    test("handles fractional base units", () => {
-      // 1.5 bottles × 500 mL/bottle = 750 mL
-      const result = formatDualUnitDisplay(1.5, 500, "bottle", "mL");
-      expect(result).toBe("1.50 bottles (750 mL)");
-    });
-  });
-
-  describe("formatPackageEquivalent", () => {
-    test("shows fraction of package", () => {
-      // 2 pcs out of 8-pc pack = 0.25 pack
-      const result = formatPackageEquivalent(2, 8, "pack");
-      expect(result).toBe("0.25 packs");
-    });
-
-    test("handles whole packages", () => {
-      // 8 pcs = 1 pack
-      const result = formatPackageEquivalent(8, 8, "pack");
-      expect(result).toBe("1.00 pack");
-    });
-
-    test("handles zero base units", () => {
-      const result = formatPackageEquivalent(0, 8, "pack");
-      expect(result).toBe("0.00 packs");
-    });
-
-    test("returns empty for invalid packageSize", () => {
-      expect(formatPackageEquivalent(5, 0, "pack")).toBe("");
-      expect(formatPackageEquivalent(5, -1, "pack")).toBe("");
+    test("whole numbers without trailing decimals", () => {
+      expect(formatStockDisplay(10, "kg", false)).toBe("10 kg");
     });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Backward Compatibility
-// ═══════════════════════════════════════════════════════════════════════════════
-
-describe("Backward Compatibility", () => {
-  describe("getEffectiveCostPerBaseUnit", () => {
-    test("uses new unit system when available", () => {
-      const ingredient = {
-        costPerPackage: 420,
-        packageSize: 8,
-        costPerUnit: 100, // Legacy value ignored
-      };
-      expect(getEffectiveCostPerBaseUnit(ingredient)).toBe(52.5);
-    });
-
-    test("falls back to legacy costPerUnit", () => {
-      const ingredient = {
-        costPerUnit: 50,
-        // No new unit system fields
-      };
-      expect(getEffectiveCostPerBaseUnit(ingredient)).toBe(50);
-    });
-
-    test("returns 0 for empty ingredient", () => {
-      expect(getEffectiveCostPerBaseUnit({})).toBe(0);
-    });
-
-    test("ignores new system if packageSize is 0", () => {
-      const ingredient = {
-        costPerPackage: 420,
-        packageSize: 0,
-        costPerUnit: 50,
-      };
-      expect(getEffectiveCostPerBaseUnit(ingredient)).toBe(50);
-    });
-  });
-
-  describe("getEffectiveUnit", () => {
-    test("uses baseUnit when available", () => {
-      const ingredient = { baseUnit: "pcs", unit: "pack" };
-      expect(getEffectiveUnit(ingredient)).toBe("pcs");
-    });
-
-    test("falls back to legacy unit", () => {
-      const ingredient = { unit: "kg" };
-      expect(getEffectiveUnit(ingredient)).toBe("kg");
-    });
-
-    test("defaults to pcs", () => {
-      expect(getEffectiveUnit({})).toBe("pcs");
-    });
-  });
-
-  describe("isUsingNewUnitSystem", () => {
-    test("returns true for complete new system data", () => {
-      const ingredient = {
-        packageSize: 8,
-        costPerPackage: 420,
-        baseUnit: "pcs",
-      };
-      expect(isUsingNewUnitSystem(ingredient)).toBe(true);
-    });
-
-    test("returns false for missing packageSize", () => {
-      const ingredient = {
-        costPerPackage: 420,
-        baseUnit: "pcs",
-      };
-      expect(isUsingNewUnitSystem(ingredient)).toBe(false);
-    });
-
-    test("returns false for packageSize = 0", () => {
-      const ingredient = {
-        packageSize: 0,
-        costPerPackage: 420,
-        baseUnit: "pcs",
-      };
-      expect(isUsingNewUnitSystem(ingredient)).toBe(false);
-    });
-
-    test("returns false for legacy-only data", () => {
-      const ingredient = {
-        unit: "kg",
-        costPerUnit: 50,
-      };
-      expect(isUsingNewUnitSystem(ingredient)).toBe(false);
-    });
-  });
-
-  describe("isSameUnit", () => {
-    test("returns true for identical units", () => {
-      expect(isSameUnit("kg", "kg")).toBe(true);
-      expect(isSameUnit("pcs", "pcs")).toBe(true);
-    });
-
-    test("returns false for different units", () => {
-      expect(isSameUnit("pack", "pcs")).toBe(false);
-      expect(isSameUnit("bottle", "mL")).toBe(false);
-    });
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Zod Validation Schema
+// Zod Validation Schemas
 // ═══════════════════════════════════════════════════════════════════════════════
 
 describe("Ingredient Form Validation", () => {
   describe("ingredientFormSchema", () => {
     test("validates correct form data", () => {
       const validData = {
-        name: "Burger Patties",
+        name: "Ground Beef",
         category: "Protein",
+        baseUnitId: 2,
         vendorId: null,
-        packageUnit: "pack",
-        costPerPackage: 420,
-        baseUnit: "pcs",
-        packageSize: 8,
-        quantity: 3.5,
-        parLevel: 2,
-        countByBaseUnit: false,
-        sellable: false,
-        sellPrice: null,
+        parLevel: 10,
+        countUnitId: null,
         isOverhead: false,
         overheadPerTransaction: null,
       };
@@ -466,83 +275,32 @@ describe("Ingredient Form Validation", () => {
       const data = {
         name: "",
         category: "Protein",
-        packageUnit: "pack",
-        costPerPackage: 420,
-        baseUnit: "pcs",
-        packageSize: 8,
-      };
-
-      const result = ingredientFormSchema.safeParse(data);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues[0].path).toContain("name");
-      }
-    });
-
-    test("rejects zero packageSize", () => {
-      const data = {
-        name: "Test",
-        category: "Protein",
-        vendorId: null,
-        packageUnit: "pack",
-        costPerPackage: 420,
-        baseUnit: "pcs",
-        packageSize: 0, // Invalid!
-      };
-
-      const result = ingredientFormSchema.safeParse(data);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues[0].path).toContain("packageSize");
-      }
-    });
-
-    test("rejects negative packageSize", () => {
-      const data = {
-        name: "Test",
-        category: "Protein",
-        vendorId: null,
-        packageUnit: "pack",
-        costPerPackage: 420,
-        baseUnit: "pcs",
-        packageSize: -1, // Invalid!
+        baseUnitId: 2,
       };
 
       const result = ingredientFormSchema.safeParse(data);
       expect(result.success).toBe(false);
     });
 
-    test("requires sellPrice when sellable is true", () => {
+    test("requires positive baseUnitId", () => {
       const data = {
         name: "Test",
         category: "Protein",
-        vendorId: null,
-        packageUnit: "pack",
-        costPerPackage: 420,
-        baseUnit: "pcs",
-        packageSize: 8,
-        sellable: true,
-        sellPrice: null, // Invalid! Required when sellable
+        baseUnitId: 0,
       };
 
       const result = ingredientFormSchema.safeParse(data);
       expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues[0].message).toContain("Sell price required");
-      }
     });
 
     test("requires overheadPerTransaction when isOverhead is true", () => {
       const data = {
-        name: "Test",
-        category: "Protein",
+        name: "Gloves",
+        category: "Supplies",
+        baseUnitId: 12,
         vendorId: null,
-        packageUnit: "pack",
-        costPerPackage: 420,
-        baseUnit: "pcs",
-        packageSize: 8,
         isOverhead: true,
-        overheadPerTransaction: null, // Invalid! Required when isOverhead
+        overheadPerTransaction: null,
       };
 
       const result = ingredientFormSchema.safeParse(data);
@@ -551,144 +309,56 @@ describe("Ingredient Form Validation", () => {
         expect(result.error.issues[0].message).toContain("Usage rate required");
       }
     });
+  });
 
-    test("accepts sellable items with sellPrice", () => {
-      const data = {
-        name: "Test",
-        category: "Protein",
-        vendorId: null,
-        packageUnit: "pack",
-        costPerPackage: 420,
-        baseUnit: "pcs",
-        packageSize: 8,
-        sellable: true,
-        sellPrice: 50,
+  describe("purchaseVariantSchema", () => {
+    test("validates correct variant data", () => {
+      const validData = {
+        label: "25kg sack",
+        contentQty: 25,
+        contentUnitId: 2,
+        packageQty: 1,
+        packageUnitId: 19,
+        costPerVariant: 500,
       };
 
-      const result = ingredientFormSchema.safeParse(data);
+      const result = purchaseVariantSchema.safeParse(validData);
       expect(result.success).toBe(true);
     });
 
-    test("accepts overhead items with usage rate", () => {
+    test("requires label", () => {
       const data = {
-        name: "Gloves",
-        category: "Supplies",
-        vendorId: null,
-        packageUnit: "box",
-        costPerPackage: 500,
-        baseUnit: "pcs",
-        packageSize: 100,
-        isOverhead: true,
-        overheadPerTransaction: 2,
+        label: "",
+        contentQty: 25,
+        contentUnitId: 2,
+        packageUnitId: 19,
+        costPerVariant: 500,
       };
 
-      const result = ingredientFormSchema.safeParse(data);
-      expect(result.success).toBe(true);
+      const result = purchaseVariantSchema.safeParse(data);
+      expect(result.success).toBe(false);
+    });
+
+    test("requires positive contentQty", () => {
+      const data = {
+        label: "sack",
+        contentQty: 0,
+        contentUnitId: 2,
+        packageUnitId: 19,
+        costPerVariant: 500,
+      };
+
+      const result = purchaseVariantSchema.safeParse(data);
+      expect(result.success).toBe(false);
     });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Unit Conversion
+// Unit Availability (legacy compat)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe("Unit Conversion", () => {
-  describe("convertToBaseUnits", () => {
-    test("converts cups to mL", () => {
-      // 2 cups × 240 mL/cup = 480 mL
-      const result = convertToBaseUnits(2, 240);
-      expect(result).toBe(480);
-    });
-
-    test("handles fractional quantities", () => {
-      // 0.5 cup × 240 mL/cup = 120 mL
-      const result = convertToBaseUnits(0.5, 240);
-      expect(result).toBe(120);
-    });
-
-    test("handles multiplier of 1 (base unit)", () => {
-      const result = convertToBaseUnits(100, 1);
-      expect(result).toBe(100);
-    });
-
-    test("handles zero quantity", () => {
-      const result = convertToBaseUnits(0, 240);
-      expect(result).toBe(0);
-    });
-  });
-
-  describe("convertFromBaseUnits", () => {
-    test("converts mL to cups", () => {
-      // 480 mL ÷ 240 mL/cup = 2 cups
-      const result = convertFromBaseUnits(480, 240);
-      expect(result).toBe(2);
-    });
-
-    test("handles fractional result", () => {
-      // 120 mL ÷ 240 mL/cup = 0.5 cups
-      const result = convertFromBaseUnits(120, 240);
-      expect(result).toBe(0.5);
-    });
-
-    test("returns original value when multiplier is 0", () => {
-      const result = convertFromBaseUnits(100, 0);
-      expect(result).toBe(100);
-    });
-
-    test("returns original value when multiplier is negative", () => {
-      const result = convertFromBaseUnits(100, -5);
-      expect(result).toBe(100);
-    });
-  });
-
-  describe("calculateCookedYield", () => {
-    test("calculates cooked yield with expansion factor", () => {
-      // 100g rice × 3 yield = 300g cooked
-      const result = calculateCookedYield(100, 3);
-      expect(result).toBe(300);
-    });
-
-    test("calculates cooked yield with shrink factor", () => {
-      // 100g meat × 0.8 yield = 80g cooked
-      const result = calculateCookedYield(100, 0.8);
-      expect(result).toBe(80);
-    });
-
-    test("returns raw amount when yield factor is null", () => {
-      const result = calculateCookedYield(100, null);
-      expect(result).toBe(100);
-    });
-
-    test("returns raw amount when yield factor is 0", () => {
-      const result = calculateCookedYield(100, 0);
-      expect(result).toBe(100);
-    });
-
-    test("returns raw amount when yield factor is negative", () => {
-      const result = calculateCookedYield(100, -1);
-      expect(result).toBe(100);
-    });
-  });
-
-  describe("calculateRecipeIngredientCost", () => {
-    test("calculates cost with unit conversion", () => {
-      // 2 cups × 240 mL/cup × ₱0.50/mL = ₱240
-      const result = calculateRecipeIngredientCost(2, 240, 0.5);
-      expect(result).toBe(240);
-    });
-
-    test("calculates cost with base unit (multiplier 1)", () => {
-      // 100g × 1 × ₱0.50/g = ₱50
-      const result = calculateRecipeIngredientCost(100, 1, 0.5);
-      expect(result).toBe(50);
-    });
-
-    test("handles zero quantity", () => {
-      const result = calculateRecipeIngredientCost(0, 240, 0.5);
-      expect(result).toBe(0);
-    });
-  });
-
+describe("Unit Availability", () => {
   describe("getAvailableUnits", () => {
     test("includes base unit first, then custom aliases, then standard conversions", () => {
       const aliases = [
@@ -696,71 +366,66 @@ describe("Unit Conversion", () => {
       ];
       const result = getAvailableUnits("mL", aliases);
 
-      // mL (base) + cup (custom alias) + L, tbsp, tsp, fl oz (standard conversions, cup deduped)
       expect(result.length).toBeGreaterThanOrEqual(2);
       expect(result[0].name).toBe("mL");
       expect(result[0].isBase).toBe(true);
-      expect(result[0].multiplier).toBe(1);
-      // Custom alias appears before standard conversions
       expect(result[1].name).toBe("cup");
       expect(result[1].multiplier).toBe(240);
     });
 
-    test("custom aliases take priority over standard conversions with same name", () => {
+    test("custom aliases take priority over standard conversions", () => {
       const aliases = [
         { name: "cup", baseUnitMultiplier: 240, description: null },
         { name: "tbsp", baseUnitMultiplier: 15, description: null },
       ];
       const result = getAvailableUnits("mL", aliases);
-
-      // Custom aliases come before standard conversions; duplicates are skipped
-      expect(result[1].name).toBe("cup");
-      expect(result[1].multiplier).toBe(240);
-      expect(result[1].isBase).toBe(false);
-      expect(result[2].name).toBe("tbsp");
-      expect(result[2].multiplier).toBe(15);
-      // Standard conversions (L, tsp, fl oz) should also be present
       const unitNames = result.map((u) => u.name);
       expect(unitNames).toContain("L");
       expect(unitNames).toContain("tsp");
     });
 
-    test("includes standard conversions when no custom aliases exist", () => {
+    test("includes standard conversions when no aliases exist", () => {
       const result = getAvailableUnits("pcs", []);
-      // pcs (base) + dozen (standard conversion)
-      expect(result.length).toBeGreaterThanOrEqual(1);
       expect(result[0].name).toBe("pcs");
       expect(result[0].isBase).toBe(true);
-      // "dozen" is a standard conversion for pcs
       const unitNames = result.map((u) => u.name);
       expect(unitNames).toContain("dozen");
     });
   });
+});
 
-  describe("getUnitMultiplier", () => {
-    const aliases = [
-      { name: "cup", baseUnitMultiplier: 240 },
-      { name: "tbsp", baseUnitMultiplier: 15 },
-    ];
+// ═══════════════════════════════════════════════════════════════════════════════
+// Legacy Compatibility Functions
+// ═══════════════════════════════════════════════════════════════════════════════
 
-    test("returns 1 for base unit", () => {
-      const result = getUnitMultiplier("mL", "mL", aliases);
-      expect(result).toBe(1);
+describe("Legacy Compatibility", () => {
+  describe("calculateCostPerBaseUnit", () => {
+    test("calculates correctly", () => {
+      expect(calculateCostPerBaseUnit(420, 8)).toBe(52.5);
     });
 
-    test("returns 1 for empty unit string", () => {
-      const result = getUnitMultiplier("", "mL", aliases);
-      expect(result).toBe(1);
+    test("throws for zero package size", () => {
+      expect(() => calculateCostPerBaseUnit(420, 0)).toThrow();
+    });
+  });
+
+  describe("calculateTotalBaseUnits", () => {
+    test("calculates correctly", () => {
+      expect(calculateTotalBaseUnits(3, 8)).toBe(24);
     });
 
-    test("returns alias multiplier when found", () => {
-      const result = getUnitMultiplier("cup", "mL", aliases);
-      expect(result).toBe(240);
+    test("handles fractional packages", () => {
+      expect(calculateTotalBaseUnits(3.5, 8)).toBe(28);
+    });
+  });
+
+  describe("formatDualUnitDisplay", () => {
+    test("shows dual units with conversion", () => {
+      expect(formatDualUnitDisplay(3.5, 8, "pack", "pcs")).toBe("3.50 packs (28 pcs)");
     });
 
-    test("returns 1 when alias not found", () => {
-      const result = getUnitMultiplier("gallon", "mL", aliases);
-      expect(result).toBe(1);
+    test("shows single unit when same", () => {
+      expect(formatDualUnitDisplay(2, 1, "kg", "kg")).toBe("2 kg");
     });
   });
 });

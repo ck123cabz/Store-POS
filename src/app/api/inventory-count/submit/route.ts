@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const ingredientIds = discrepancies.map((c) => c.ingredientId)
     const ingredients = await prisma.ingredient.findMany({
       where: { id: { in: ingredientIds } },
-      select: { id: true, name: true, quantity: true },
+      select: { id: true, name: true, stockQty: true },
     })
 
     const ingredientMap = new Map(ingredients.map((i) => [i.id, i]))
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         prisma.ingredient.update({
           where: { id: count.ingredientId },
           data: {
-            quantity: count.actual,
+            stockQty: count.actual,
             lastUpdated: new Date(),
           },
         })
@@ -86,8 +86,8 @@ export async function POST(request: NextRequest) {
             ingredientId: count.ingredientId,
             ingredientName: ingredient.name,
             changeId,
-            field: "quantity",
-            oldValue: String(ingredient.quantity),
+            field: "stockQty",
+            oldValue: String(ingredient.stockQty),
             newValue: String(count.actual),
             source: "inventory_count",
             reason: count.reason || null,

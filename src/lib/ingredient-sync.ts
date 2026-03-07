@@ -7,40 +7,43 @@ interface SyncResult {
 }
 
 /**
- * Syncs a sellable ingredient to a product
- * Creates a new product if one doesn't exist, or updates the existing linked product
+ * Syncs a sellable purchase variant to a POS product.
+ * Creates a new product if one doesn't exist, or updates the existing linked product.
  */
-export async function syncIngredientToProduct(
-  ingredientId: number,
+export async function syncVariantToProduct(
+  variantId: number,
   categoryId: number
 ): Promise<SyncResult> {
   try {
-    const ingredient = await prisma.ingredient.findUnique({
-      where: { id: ingredientId },
-      include: { linkedProduct: true },
+    const variant = await prisma.purchaseVariant.findUnique({
+      where: { id: variantId },
+      include: {
+        ingredient: true,
+        linkedProduct: true,
+      },
     })
 
-    if (!ingredient) {
-      return { success: false, error: "Ingredient not found" }
+    if (!variant) {
+      return { success: false, error: "Variant not found" }
     }
 
-    if (!ingredient.sellable) {
-      return { success: false, error: "Ingredient is not sellable" }
+    if (!variant.sellable) {
+      return { success: false, error: "Variant is not sellable" }
     }
 
     // If already has a linked product, update it
-    if (ingredient.linkedProductId && ingredient.linkedProduct) {
+    if (variant.linkedProductId && variant.linkedProduct) {
+      const displayName = `${variant.ingredient.name} (${variant.label})`
       await prisma.product.update({
-        where: { id: ingredient.linkedProductId },
+        where: { id: variant.linkedProductId },
         data: {
-          name: ingredient.name,
-          // Keep existing price, or mark as needs pricing if zero
-          needsPricing: Number(ingredient.linkedProduct.price) === 0,
+          name: displayName,
+          needsPricing: Number(variant.linkedProduct.price) === 0,
         },
       })
 
-      await prisma.ingredient.update({
-        where: { id: ingredientId },
+      await prisma.purchaseVariant.update({
+        where: { id: variantId },
         data: {
           syncStatus: "synced",
           syncError: null,
@@ -48,26 +51,27 @@ export async function syncIngredientToProduct(
         },
       })
 
-      return { success: true, productId: ingredient.linkedProductId }
+      return { success: true, productId: variant.linkedProductId }
     }
 
     // Create new product
+    const displayName = `${variant.ingredient.name} (${variant.label})`
     const product = await prisma.product.create({
       data: {
-        name: ingredient.name,
-        price: 0, // Will be set by user
+        name: displayName,
+        price: variant.sellPrice ?? 0,
         categoryId,
-        quantity: Math.floor(Number(ingredient.quantity)),
+        quantity: 0,
         trackStock: false, // Stock tracked via ingredient
         image: "",
-        linkedIngredientId: ingredientId,
-        needsPricing: true,
+        linkedVariantId: variantId,
+        needsPricing: !variant.sellPrice || Number(variant.sellPrice) === 0,
       },
     })
 
-    // Link back to ingredient
-    await prisma.ingredient.update({
-      where: { id: ingredientId },
+    // Link back to variant
+    await prisma.purchaseVariant.update({
+      where: { id: variantId },
       data: {
         linkedProductId: product.id,
         syncStatus: "synced",
@@ -80,8 +84,8 @@ export async function syncIngredientToProduct(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
 
-    await prisma.ingredient.update({
-      where: { id: ingredientId },
+    await prisma.purchaseVariant.update({
+      where: { id: variantId },
       data: {
         syncStatus: "error",
         syncError: errorMessage,
@@ -93,29 +97,27 @@ export async function syncIngredientToProduct(
 }
 
 /**
- * Unlinks an ingredient from its product when sellable is set to false
+ * Unlinks a variant from its product when sellable is set to false.
  */
-export async function unlinkIngredientFromProduct(ingredientId: number): Promise<SyncResult> {
+export async function unlinkVariantFromProduct(variantId: number): Promise<SyncResult> {
   try {
-    const ingredient = await prisma.ingredient.findUnique({
-      where: { id: ingredientId },
+    const variant = await prisma.purchaseVariant.findUnique({
+      where: { id: variantId },
     })
 
-    if (!ingredient?.linkedProductId) {
+    if (!variant?.linkedProductId) {
       return { success: true }
     }
 
     // Remove the link from the product
     await prisma.product.update({
-      where: { id: ingredient.linkedProductId },
-      data: {
-        linkedIngredientId: null,
-      },
+      where: { id: variant.linkedProductId },
+      data: { linkedVariantId: null },
     })
 
-    // Clear the link from the ingredient
-    await prisma.ingredient.update({
-      where: { id: ingredientId },
+    // Clear the link from the variant
+    await prisma.purchaseVariant.update({
+      where: { id: variantId },
       data: {
         linkedProductId: null,
         syncStatus: "synced",
@@ -129,4 +131,38 @@ export async function unlinkIngredientFromProduct(ingredientId: number): Promise
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
     return { success: false, error: errorMessage }
   }
+}
+
+/**
+ * @deprecated Use syncVariantToProduct instead
+ */
+export async function syncIngredientToProduct(
+  ingredientId: number,
+  categoryId: number
+): Promise<SyncResult> {
+  // Find the default variant for this ingredient
+  const variant = await prisma.purchaseVariant.findFirst({
+    where: { ingredientId, isDefault: true, isActive: true },
+  })
+
+  if (!variant) {
+    return { success: false, error: "No default variant found for ingredient" }
+  }
+
+  return syncVariantToProduct(variant.id, categoryId)
+}
+
+/**
+ * @deprecated Use unlinkVariantFromProduct instead
+ */
+export async function unlinkIngredientFromProduct(ingredientId: number): Promise<SyncResult> {
+  const variant = await prisma.purchaseVariant.findFirst({
+    where: { ingredientId, isDefault: true },
+  })
+
+  if (!variant) {
+    return { success: true }
+  }
+
+  return unlinkVariantFromProduct(variant.id)
 }

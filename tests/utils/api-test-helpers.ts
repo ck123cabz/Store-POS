@@ -225,7 +225,7 @@ export const mockPrismaData = {
       userId: 1,
       userName: 'Test Admin',
       createdAt: new Date(),
-      ingredient: { id: 1, name: 'Test Ingredient', unit: 'each' },
+      ingredient: { id: 1, name: 'Test Ingredient', baseUnit: { name: 'each' } },
     },
   ],
 }

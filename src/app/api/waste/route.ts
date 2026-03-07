@@ -17,7 +17,10 @@ export async function GET(request: NextRequest) {
 
     const wasteLogs = await prisma.wasteLog.findMany({
       where,
-      include: { ingredient: true },
+      include: {
+        ingredient: { include: { baseUnit: true } },
+        unit: true,
+      },
       orderBy: { date: "desc" },
       take: 100,
     })
@@ -28,7 +31,7 @@ export async function GET(request: NextRequest) {
       ingredientId: w.ingredientId,
       ingredientName: w.ingredient.name,
       quantity: Number(w.quantity),
-      unit: w.ingredient.unit,
+      unit: w.unit.name,
       reason: w.reason,
       estimatedCost: Number(w.estimatedCost),
       preventable: w.preventable,
@@ -63,25 +66,36 @@ export async function POST(request: NextRequest) {
     // Get ingredient to calculate cost
     const ingredient = await prisma.ingredient.findUnique({
       where: { id: body.ingredientId },
+      include: { baseUnit: true },
     })
 
     if (!ingredient) {
       return NextResponse.json({ error: "Ingredient not found" }, { status: 404 })
     }
 
-    const estimatedCost = Number(body.quantity) * Number(ingredient.costPerUnit)
+    // Use avgCostPerBaseUnit for cost estimation
+    const estimatedCost = Number(body.quantity) * Number(ingredient.avgCostPerBaseUnit)
+
+    // unitId is required — use ingredient's baseUnitId if not provided
+    const unitId = body.unitId || ingredient.baseUnitId
+    const baseQuantity = body.baseQuantity ?? body.quantity
 
     const wasteLog = await prisma.wasteLog.create({
       data: {
         date: body.date ? new Date(body.date) : new Date(),
         ingredientId: body.ingredientId,
         quantity: body.quantity,
+        unitId,
+        baseQuantity,
         reason: body.reason,
         estimatedCost: Math.round(estimatedCost * 100) / 100,
         preventable: body.preventable || false,
         notes: body.notes || null,
       },
-      include: { ingredient: true },
+      include: {
+        ingredient: { include: { baseUnit: true } },
+        unit: true,
+      },
     })
 
     return NextResponse.json({
@@ -90,7 +104,7 @@ export async function POST(request: NextRequest) {
       ingredientId: wasteLog.ingredientId,
       ingredientName: wasteLog.ingredient.name,
       quantity: Number(wasteLog.quantity),
-      unit: wasteLog.ingredient.unit,
+      unit: wasteLog.unit.name,
       reason: wasteLog.reason,
       estimatedCost: Number(wasteLog.estimatedCost),
       preventable: wasteLog.preventable,

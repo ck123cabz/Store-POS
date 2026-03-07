@@ -22,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
-import { FilterPills } from "@/components/ui/filter-pills"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { StatusDot } from "@/components/ui/status-dot"
 import { Plus, Trash2 as WasteIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -53,8 +53,9 @@ interface WasteResponse {
 interface Ingredient {
   id: number
   name: string
-  unit: string
-  costPerUnit: number
+  baseUnitId: number
+  baseUnitName: string
+  avgCostPerBaseUnit: number
 }
 
 const WASTE_REASONS = [
@@ -159,7 +160,7 @@ export default function WastePage() {
 
   const selectedIngredient = ingredients.find((i) => i.id.toString() === ingredientId)
   const estimatedCost = selectedIngredient
-    ? (parseFloat(quantity) || 0) * selectedIngredient.costPerUnit
+    ? (parseFloat(quantity) || 0) * selectedIngredient.avgCostPerBaseUnit
     : 0
 
   const fetchData = useCallback(async () => {
@@ -233,6 +234,7 @@ export default function WastePage() {
           date,
           ingredientId: parseInt(ingredientId),
           quantity: parseFloat(quantity),
+          unitId: selectedIngredient!.baseUnitId,
           reason,
           preventable,
           notes: notes || null,
@@ -288,18 +290,19 @@ export default function WastePage() {
         </SummaryCardGrid>
       )}
 
-      {/* FilterPills + Date Inputs */}
+      {/* Date Filters + Date Inputs */}
       <div className="space-y-4">
-        <FilterPills
-          options={[
-            { label: "Last 7 Days", value: "7d" },
-            { label: "Last 30 Days", value: "30d" },
-            { label: "This Month", value: "month" },
-          ]}
-          value={activeFilter}
-          onChange={handleFilterChange}
-          ariaLabel="Date range filters"
-        />
+        <ToggleGroup
+          type="single"
+          value={activeFilter ?? ""}
+          onValueChange={(value) => handleFilterChange(value || null)}
+          variant="outline"
+          aria-label="Date range filters"
+        >
+          <ToggleGroupItem value="7d">Last 7 Days</ToggleGroupItem>
+          <ToggleGroupItem value="30d">Last 30 Days</ToggleGroupItem>
+          <ToggleGroupItem value="month">This Month</ToggleGroupItem>
+        </ToggleGroup>
         <div className="flex gap-4 items-end">
           <div className="space-y-2">
             <Label>From</Label>
@@ -366,7 +369,7 @@ export default function WastePage() {
                 <SelectContent>
                   {ingredients.map((ing) => (
                     <SelectItem key={ing.id} value={ing.id.toString()}>
-                      {ing.name} ({ing.unit})
+                      {ing.name} ({ing.baseUnitName})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -388,7 +391,7 @@ export default function WastePage() {
                 />
                 {selectedIngredient && (
                   <p className="text-xs text-muted-foreground">
-                    Unit: {selectedIngredient.unit}
+                    Unit: {selectedIngredient.baseUnitName}
                   </p>
                 )}
               </div>

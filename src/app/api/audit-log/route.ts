@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              unit: true,
+              baseUnit: { select: { name: true } },
             },
           },
         },
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
         changeId: log.changeId,
         ingredientId: log.ingredientId,
         ingredientName: log.ingredientName,
-        unit: log.ingredient.unit,
+        unit: log.ingredient.baseUnit.name,
         field: log.field,
         oldValue: log.oldValue,
         newValue: log.newValue,

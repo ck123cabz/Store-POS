@@ -95,7 +95,9 @@ export async function POST(
           const product = await tx.product.findUnique({
             where: { id: item.productId },
             include: {
-              linkedIngredient: true,
+              linkedVariant: {
+                include: { ingredient: true },
+              },
               recipeItems: {
                 include: { ingredient: true },
               },
@@ -115,28 +117,26 @@ export async function POST(
             })
           }
 
-          // Restore linked ingredient stock
-          if (product.linkedIngredientId && product.linkedIngredient) {
+          // Restore linked variant ingredient stock (base units)
+          if (product.linkedVariantId && product.linkedVariant) {
+            const baseUnitsToRestore = Number(product.linkedVariant.baseUnitsPerVariant) * item.quantity
             await tx.ingredient.update({
-              where: { id: product.linkedIngredientId },
+              where: { id: product.linkedVariant.ingredient.id },
               data: {
-                quantity: { increment: item.quantity },
+                stockQty: { increment: baseUnitsToRestore },
                 lastUpdated: new Date(),
               },
             })
           }
 
-          // Restore recipe ingredient stock (convert base units → packages)
+          // Restore recipe ingredient stock (already in base units)
           if (product.recipeItems.length > 0) {
             for (const recipeItem of product.recipeItems) {
-              const baseUnitsPerProduct = Number(recipeItem.baseQuantity) || Number(recipeItem.quantity)
-              const totalBaseUnits = baseUnitsPerProduct * item.quantity
-              const packageSize = Number(recipeItem.ingredient.packageSize) || 1
-              const packagesToRestore = totalBaseUnits / packageSize
+              const baseUnitsToRestore = Number(recipeItem.baseQuantity) * item.quantity
               await tx.ingredient.update({
                 where: { id: recipeItem.ingredientId },
                 data: {
-                  quantity: { increment: packagesToRestore },
+                  stockQty: { increment: baseUnitsToRestore },
                   lastUpdated: new Date(),
                 },
               })
