@@ -27,10 +27,16 @@ export const ingredientFormSchema = z
     isOverhead: z.boolean().default(false),
     overheadPerTransaction: z.number().min(0).nullable().default(null),
     yieldFactor: z.number().min(0).nullable().default(null),
+    type: z.enum(["RAW", "PREPARED"]).default("RAW"),
+    batchYield: z.number().positive("Batch yield must be positive").nullable().default(null),
   })
   .refine((data) => !data.isOverhead || data.overheadPerTransaction !== null, {
     message: "Usage rate required for overhead items",
     path: ["overheadPerTransaction"],
+  })
+  .refine((data) => data.type !== "PREPARED" || (data.batchYield !== null && data.batchYield > 0), {
+    message: "Batch yield is required for prepared ingredients",
+    path: ["batchYield"],
   });
 
 export type IngredientFormSchema = z.infer<typeof ingredientFormSchema>;
@@ -84,6 +90,32 @@ export const unitAliasSchema = z.object({
 });
 
 export type UnitAliasSchema = z.infer<typeof unitAliasSchema>;
+
+/**
+ * Validation schema for production recipe item input
+ */
+export const productionRecipeItemSchema = z.object({
+  inputIngredientId: z.number().int().positive("Input ingredient is required"),
+  quantity: z.number().positive("Quantity must be positive"),
+  unitId: z.number().int().positive().nullable().optional().default(null),
+  unitName: z.string().optional(),
+  baseQuantity: z.number().min(0).optional(),
+  note: z.string().max(200).nullable().optional().default(null),
+})
+
+export type ProductionRecipeItemSchema = z.infer<typeof productionRecipeItemSchema>
+
+/**
+ * Validation schema for a production run request
+ */
+export const productionRunSchema = z.object({
+  batchCount: z.number().positive("Must produce at least 1 batch"),
+  userId: z.number().int().positive(),
+  userName: z.string().min(1),
+  note: z.string().max(500).optional(),
+})
+
+export type ProductionRunSchema = z.infer<typeof productionRunSchema>
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Unit Conversion Functions
@@ -180,6 +212,27 @@ export function calculateWeightedAvgCost(
     (currentStockQty * currentAvgCost + addedBaseUnits * addedCostPerBaseUnit) /
     totalQty
   );
+}
+
+/**
+ * Calculate the cost per base unit of a PREPARED ingredient from its production inputs.
+ *
+ * @param inputs - Array of { baseQuantity, avgCostPerBaseUnit } for each input ingredient
+ * @param batchYield - How many base units of output one batch produces
+ * @returns Cost per base unit of the output ingredient
+ */
+export function calculateProductionCostPerBaseUnit(
+  inputs: Array<{ baseQuantity: number; avgCostPerBaseUnit: number }>,
+  batchYield: number
+): number {
+  if (batchYield <= 0 || inputs.length === 0) return 0
+
+  const totalInputCost = inputs.reduce(
+    (sum, input) => sum + input.baseQuantity * input.avgCostPerBaseUnit,
+    0
+  )
+
+  return totalInputCost / batchYield
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

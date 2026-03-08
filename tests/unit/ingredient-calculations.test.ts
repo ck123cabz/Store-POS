@@ -8,6 +8,7 @@ import {
   calculateStockStatus,
   calculateStockRatio,
   calculateWeightedAvgCost,
+  calculateProductionCostPerBaseUnit,
   convertUnits,
   computeBaseUnitsPerVariant,
   formatCurrency,
@@ -486,4 +487,34 @@ describe("Legacy Compatibility", () => {
       expect(formatDualUnitDisplay(2, 1, "kg", "kg")).toBe("2 kg");
     });
   });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Production Cost Calculation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe("calculateProductionCostPerBaseUnit", () => {
+  test("calculates cost from input ingredients divided by yield", () => {
+    const inputs = [
+      { baseQuantity: 1000, avgCostPerBaseUnit: 0.35 },  // 1000g pork @ ₱0.35/g
+      { baseQuantity: 200, avgCostPerBaseUnit: 0.05 },   // 200g sugar @ ₱0.05/g
+      { baseQuantity: 100, avgCostPerBaseUnit: 0.08 },   // 100mL soy sauce @ ₱0.08/mL
+    ]
+    const batchYield = 20 // 20 sticks
+
+    const result = calculateProductionCostPerBaseUnit(inputs, batchYield)
+
+    // Total input cost: (1000*0.35) + (200*0.05) + (100*0.08) = 350 + 10 + 8 = 368
+    // Cost per stick: 368 / 20 = 18.4
+    expect(result).toBeCloseTo(18.4)
+  })
+
+  test("returns 0 when no inputs", () => {
+    expect(calculateProductionCostPerBaseUnit([], 20)).toBe(0)
+  })
+
+  test("handles zero yield gracefully", () => {
+    const inputs = [{ baseQuantity: 100, avgCostPerBaseUnit: 1 }]
+    expect(calculateProductionCostPerBaseUnit(inputs, 0)).toBe(0)
+  })
 });
