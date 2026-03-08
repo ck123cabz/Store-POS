@@ -201,232 +201,147 @@ async function main() {
   console.log(`Seeded ${benchmarks.length} industry benchmarks`)
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // CATEGORIES
+  // EXAMPLE INGREDIENTS - RAW inputs + one PREPARED item (Tocino Sticks)
   // ═══════════════════════════════════════════════════════════════════════════════
 
-  await prisma.category.upsert({
-    where: { id: 1 },
-    update: { requiresKitchen: true },
-    create: { id: 1, name: 'Food', requiresKitchen: true },
-  })
+  // Unit ID quick reference (from units array above):
+  //   1=g, 2=kg, 5=mL, 6=L, 12=pcs, 15=bottle, 17=pack, 19=sack
 
-  await prisma.category.upsert({
-    where: { id: 2 },
-    update: {},
-    create: { id: 2, name: 'Beverages' },
-  })
-
-  console.log('Created categories')
-
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // PRODUCTS
-  // ═══════════════════════════════════════════════════════════════════════════════
-
-  await prisma.product.upsert({
+  // --- RAW ingredients (inputs for Tocino Sticks) ---
+  const porkBelly = await prisma.ingredient.upsert({
     where: { id: 1 },
     update: {},
     create: {
-      id: 1, name: 'Burger Steak', price: 95, categoryId: 1, quantity: 50, trackStock: true, image: '',
-      prepTime: 8, overheadAllocation: 10, speedRating: 'Medium', ingredientSharing: 'Medium', menuDecision: 'Workhorse',
+      id: 1,
+      name: 'Pork Belly',
+      category: 'Protein',
+      type: 'RAW',
+      baseUnitId: 1, // g
+      stockQty: 5000,
+      avgCostPerBaseUnit: 0.38, // ~₱380/kg
+      parLevel: 2000,
     },
   })
 
-  await prisma.product.upsert({
+  const brownSugar = await prisma.ingredient.upsert({
     where: { id: 2 },
     update: {},
     create: {
-      id: 2, name: 'Tocilog', price: 85, categoryId: 1, quantity: 50, trackStock: true, image: '',
-      prepTime: 6, overheadAllocation: 8, speedRating: 'Fast', ingredientSharing: 'High', menuDecision: 'Star', isHeroItem: true,
+      id: 2,
+      name: 'Brown Sugar',
+      category: 'Dry Goods',
+      type: 'RAW',
+      baseUnitId: 1, // g
+      stockQty: 2000,
+      avgCostPerBaseUnit: 0.06, // ~₱60/kg
+      parLevel: 500,
     },
   })
 
-  await prisma.product.upsert({
+  const soySauce = await prisma.ingredient.upsert({
     where: { id: 3 },
     update: {},
     create: {
-      id: 3, name: 'Loaded Fries', price: 65, categoryId: 1, quantity: 100, trackStock: true, image: '',
-      prepTime: 5, overheadAllocation: 5, speedRating: 'Fast', ingredientSharing: 'High', menuDecision: 'Star',
+      id: 3,
+      name: 'Soy Sauce',
+      category: 'Condiments',
+      type: 'RAW',
+      baseUnitId: 5, // mL
+      stockQty: 1000,
+      avgCostPerBaseUnit: 0.08, // ~₱80/L
+      parLevel: 500,
     },
   })
 
-  await prisma.product.upsert({
+  const garlic = await prisma.ingredient.upsert({
     where: { id: 4 },
     update: {},
     create: {
-      id: 4, name: 'Gatorade', price: 45, categoryId: 2, quantity: 200, trackStock: true, image: '',
-      prepTime: 0, overheadAllocation: 0, speedRating: 'Instant', ingredientSharing: 'Low', menuDecision: 'Workhorse',
+      id: 4,
+      name: 'Garlic',
+      category: 'Produce',
+      type: 'RAW',
+      baseUnitId: 1, // g
+      stockQty: 500,
+      avgCostPerBaseUnit: 0.20, // ~₱200/kg
+      parLevel: 200,
     },
   })
 
-  await prisma.product.upsert({
+  const pineappleJuice = await prisma.ingredient.upsert({
     where: { id: 5 },
     update: {},
     create: {
-      id: 5, name: 'Pocari Sweat', price: 50, categoryId: 2, quantity: 200, trackStock: true, image: '',
-      prepTime: 0, overheadAllocation: 0, speedRating: 'Instant', ingredientSharing: 'Low', menuDecision: 'Workhorse',
+      id: 5,
+      name: 'Pineapple Juice',
+      category: 'Condiments',
+      type: 'RAW',
+      baseUnitId: 5, // mL
+      stockQty: 500,
+      avgCostPerBaseUnit: 0.10, // ~₱100/L
+      parLevel: 250,
     },
   })
 
-  await prisma.product.upsert({
+  // --- PREPARED ingredient: Tocino Sticks ---
+  const tocinoSticks = await prisma.ingredient.upsert({
     where: { id: 6 },
     update: {},
     create: {
-      id: 6, name: 'Iced Coffee', price: 55, categoryId: 2, quantity: 100, trackStock: false, image: '',
-      prepTime: 2, overheadAllocation: 3, speedRating: 'Fast', ingredientSharing: 'Low', menuDecision: 'Puzzle',
+      id: 6,
+      name: 'Tocino Sticks',
+      category: 'Protein',
+      type: 'PREPARED',
+      baseUnitId: 12, // pcs
+      batchYield: 20, // 20 sticks per batch
+      stockQty: 0,
+      avgCostPerBaseUnit: 0,
+      parLevel: 20,
     },
   })
 
-  console.log('Created sample products')
-
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // VENDORS
-  // ═══════════════════════════════════════════════════════════════════════════════
-
-  await prisma.vendor.upsert({ where: { id: 1 }, update: {}, create: { id: 1, name: 'Metro Supermarket', category: 'Food - General', paymentTerms: 'COD', notes: 'Daily grocery runs' } })
-  await prisma.vendor.upsert({ where: { id: 2 }, update: {}, create: { id: 2, name: 'Meat Supplier Co.', category: 'Food - Protein', paymentTerms: 'Net 7', notes: 'Delivers Tuesdays and Fridays' } })
-  await prisma.vendor.upsert({ where: { id: 3 }, update: {}, create: { id: 3, name: 'Beverage Distributor', category: 'Beverage', paymentTerms: 'Net 15', notes: 'Gatorade, Pocari wholesale' } })
-
-  console.log('Created sample vendors')
-
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // INGREDIENTS - Using new schema (baseUnitId, stockQty, avgCostPerBaseUnit)
-  // ═══════════════════════════════════════════════════════════════════════════════
-
-  // Unit ID references: g=1, kg=2, mL=5, L=6, pcs=12, each=13, bottle=15
-
-  const ingredients = [
-    // Proteins - stock in base units
-    { id: 1,  name: 'Ground Beef',        category: 'Protein',    baseUnitId: 2,  stockQty: 50,    avgCostPerBaseUnit: 280,  vendorId: 2 },  // 50 kg @ ₱280/kg
-    { id: 2,  name: 'Tocino (Pork)',      category: 'Protein',    baseUnitId: 2,  stockQty: 50,    avgCostPerBaseUnit: 220,  vendorId: 2 },  // 50 kg @ ₱220/kg
-    { id: 3,  name: 'Eggs',              category: 'Protein',    baseUnitId: 12, stockQty: 200,   avgCostPerBaseUnit: 8,    vendorId: 1 },  // 200 pcs @ ₱8/pc
-    { id: 4,  name: 'Bacon Bits',        category: 'Protein',    baseUnitId: 2,  stockQty: 20,    avgCostPerBaseUnit: 350,  vendorId: 2 },  // 20 kg @ ₱350/kg
-    // Produce & Dry Goods
-    { id: 5,  name: 'Garlic Rice',       category: 'Dry Goods',  baseUnitId: 2,  stockQty: 50,    avgCostPerBaseUnit: 55,   vendorId: 1 },  // 50 kg @ ₱55/kg
-    { id: 6,  name: 'Potatoes (Fries)',  category: 'Produce',    baseUnitId: 2,  stockQty: 50,    avgCostPerBaseUnit: 45,   vendorId: 1 },  // 50 kg @ ₱45/kg
-    { id: 7,  name: 'Onions',           category: 'Produce',    baseUnitId: 2,  stockQty: 30,    avgCostPerBaseUnit: 60,   vendorId: 1 },  // 30 kg @ ₱60/kg
-    { id: 8,  name: 'Cheese (shredded)', category: 'Dairy',      baseUnitId: 2,  stockQty: 20,    avgCostPerBaseUnit: 380,  vendorId: 1 },  // 20 kg @ ₱380/kg
-    // Condiments
-    { id: 9,  name: 'Mushroom Gravy',    category: 'Condiments', baseUnitId: 6,  stockQty: 30,    avgCostPerBaseUnit: 120,  vendorId: 1 },  // 30 L @ ₱120/L
-    { id: 10, name: 'Sour Cream',        category: 'Condiments', baseUnitId: 2,  stockQty: 20,    avgCostPerBaseUnit: 280,  vendorId: 1 },  // 20 kg @ ₱280/kg
-    // Beverages
-    { id: 11, name: 'Gatorade (wholesale)',  category: 'Beverage', baseUnitId: 13, stockQty: 100, avgCostPerBaseUnit: 28,   vendorId: 3 },  // 100 ea @ ₱28/ea
-    { id: 12, name: 'Pocari (wholesale)',    category: 'Beverage', baseUnitId: 13, stockQty: 100, avgCostPerBaseUnit: 30,   vendorId: 3 },  // 100 ea @ ₱30/ea
-    { id: 13, name: 'Coffee Beans',          category: 'Beverage', baseUnitId: 2,  stockQty: 10,  avgCostPerBaseUnit: 450,  vendorId: 1 },  // 10 kg @ ₱450/kg
-    { id: 14, name: 'Milk',                  category: 'Dairy',    baseUnitId: 6,  stockQty: 50,  avgCostPerBaseUnit: 85,   vendorId: 1 },  // 50 L @ ₱85/L
+  // --- Purchase variants for RAW ingredients ---
+  const rawVariants = [
+    { ingredientId: porkBelly.id,     label: '1kg pack',         contentQty: 1000, contentUnitId: 1,  packageQty: 1, packageUnitId: 17, costPerVariant: 380,  baseUnitsPerVariant: 1000, isDefault: true },
+    { ingredientId: brownSugar.id,    label: '1kg bag',          contentQty: 1000, contentUnitId: 1,  packageQty: 1, packageUnitId: 20, costPerVariant: 60,   baseUnitsPerVariant: 1000, isDefault: true },
+    { ingredientId: soySauce.id,      label: '1L bottle',        contentQty: 1000, contentUnitId: 5,  packageQty: 1, packageUnitId: 15, costPerVariant: 80,   baseUnitsPerVariant: 1000, isDefault: true },
+    { ingredientId: garlic.id,        label: '250g pack',        contentQty: 250,  contentUnitId: 1,  packageQty: 1, packageUnitId: 17, costPerVariant: 50,   baseUnitsPerVariant: 250,  isDefault: true },
+    { ingredientId: pineappleJuice.id,label: '1L carton',        contentQty: 1000, contentUnitId: 5,  packageQty: 1, packageUnitId: 18, costPerVariant: 100,  baseUnitsPerVariant: 1000, isDefault: true },
+    { ingredientId: tocinoSticks.id,  label: '20pcs batch',      contentQty: 20,   contentUnitId: 12, packageQty: 1, packageUnitId: 17, costPerVariant: 0,    baseUnitsPerVariant: 20,   isDefault: true },
   ]
 
-  for (const ing of ingredients) {
-    await prisma.ingredient.upsert({
-      where: { id: ing.id },
-      update: { stockQty: ing.stockQty },
-      create: ing,
-    })
-  }
-
-  console.log(`Created ${ingredients.length} ingredients`)
-
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // PURCHASE VARIANTS - Default variant per ingredient
-  // ═══════════════════════════════════════════════════════════════════════════════
-
-  const variants = [
-    // Proteins
-    { id: 1,  ingredientId: 1,  label: 'kg',         contentQty: 1,   contentUnitId: 2,  packageUnitId: 2,  costPerVariant: 280,  baseUnitsPerVariant: 1 },
-    { id: 2,  ingredientId: 2,  label: 'kg',         contentQty: 1,   contentUnitId: 2,  packageUnitId: 2,  costPerVariant: 220,  baseUnitsPerVariant: 1 },
-    { id: 3,  ingredientId: 3,  label: 'each',       contentQty: 1,   contentUnitId: 12, packageUnitId: 13, costPerVariant: 8,    baseUnitsPerVariant: 1 },
-    { id: 4,  ingredientId: 4,  label: 'kg',         contentQty: 1,   contentUnitId: 2,  packageUnitId: 2,  costPerVariant: 350,  baseUnitsPerVariant: 1 },
-    // Produce & Dry Goods
-    { id: 5,  ingredientId: 5,  label: 'kg',         contentQty: 1,   contentUnitId: 2,  packageUnitId: 2,  costPerVariant: 55,   baseUnitsPerVariant: 1 },
-    { id: 6,  ingredientId: 6,  label: 'kg',         contentQty: 1,   contentUnitId: 2,  packageUnitId: 2,  costPerVariant: 45,   baseUnitsPerVariant: 1 },
-    { id: 7,  ingredientId: 7,  label: 'kg',         contentQty: 1,   contentUnitId: 2,  packageUnitId: 2,  costPerVariant: 60,   baseUnitsPerVariant: 1 },
-    { id: 8,  ingredientId: 8,  label: 'kg',         contentQty: 1,   contentUnitId: 2,  packageUnitId: 2,  costPerVariant: 380,  baseUnitsPerVariant: 1 },
-    // Condiments
-    { id: 9,  ingredientId: 9,  label: 'liter',      contentQty: 1,   contentUnitId: 6,  packageUnitId: 6,  costPerVariant: 120,  baseUnitsPerVariant: 1 },
-    { id: 10, ingredientId: 10, label: 'kg',         contentQty: 1,   contentUnitId: 2,  packageUnitId: 2,  costPerVariant: 280,  baseUnitsPerVariant: 1 },
-    // Beverages
-    { id: 11, ingredientId: 11, label: 'bottle',     contentQty: 1,   contentUnitId: 13, packageUnitId: 15, costPerVariant: 28,   baseUnitsPerVariant: 1 },
-    { id: 12, ingredientId: 12, label: 'bottle',     contentQty: 1,   contentUnitId: 13, packageUnitId: 15, costPerVariant: 30,   baseUnitsPerVariant: 1 },
-    { id: 13, ingredientId: 13, label: 'kg',         contentQty: 1,   contentUnitId: 2,  packageUnitId: 2,  costPerVariant: 450,  baseUnitsPerVariant: 1 },
-    { id: 14, ingredientId: 14, label: 'liter',      contentQty: 1,   contentUnitId: 6,  packageUnitId: 6,  costPerVariant: 85,   baseUnitsPerVariant: 1 },
-  ]
-
-  for (const v of variants) {
+  for (const variant of rawVariants) {
     await prisma.purchaseVariant.upsert({
-      where: { id: v.id },
+      where: { id: rawVariants.indexOf(variant) + 1 },
       update: {},
-      create: { ...v, isDefault: true },
+      create: variant,
     })
   }
 
-  console.log(`Created ${variants.length} purchase variants`)
-
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // RECIPE ITEMS - Link products to ingredients for cost calculation
-  // ═══════════════════════════════════════════════════════════════════════════════
-
-  const allRecipes = [
-    // Burger Steak (productId: 1)
-    { productId: 1, ingredientId: 1, quantity: 0.15, baseQuantity: 0.15 },   // 150g ground beef
-    { productId: 1, ingredientId: 3, quantity: 1, baseQuantity: 1 },         // 1 egg
-    { productId: 1, ingredientId: 5, quantity: 0.15, baseQuantity: 0.15 },   // 150g garlic rice
-    { productId: 1, ingredientId: 7, quantity: 0.03, baseQuantity: 0.03 },   // 30g onions
-    { productId: 1, ingredientId: 9, quantity: 0.05, baseQuantity: 0.05 },   // 50ml gravy
-    // Tocilog (productId: 2)
-    { productId: 2, ingredientId: 2, quantity: 0.12, baseQuantity: 0.12 },   // 120g tocino
-    { productId: 2, ingredientId: 3, quantity: 1, baseQuantity: 1 },         // 1 egg
-    { productId: 2, ingredientId: 5, quantity: 0.15, baseQuantity: 0.15 },   // 150g garlic rice
-    // Loaded Fries (productId: 3)
-    { productId: 3, ingredientId: 6, quantity: 0.2, baseQuantity: 0.2 },     // 200g potatoes
-    { productId: 3, ingredientId: 4, quantity: 0.03, baseQuantity: 0.03 },   // 30g bacon bits
-    { productId: 3, ingredientId: 8, quantity: 0.05, baseQuantity: 0.05 },   // 50g cheese
-    { productId: 3, ingredientId: 10, quantity: 0.03, baseQuantity: 0.03 },  // 30g sour cream
-    // Gatorade (productId: 4)
-    { productId: 4, ingredientId: 11, quantity: 1, baseQuantity: 1 },        // 1 bottle
-    // Pocari (productId: 5)
-    { productId: 5, ingredientId: 12, quantity: 1, baseQuantity: 1 },        // 1 bottle
-    // Iced Coffee (productId: 6)
-    { productId: 6, ingredientId: 13, quantity: 0.02, baseQuantity: 0.02 },  // 20g coffee beans
-    { productId: 6, ingredientId: 14, quantity: 0.05, baseQuantity: 0.05 },  // 50ml milk
+  // --- Production recipe for Tocino Sticks (per batch of 20 sticks) ---
+  // Recipe: 500g pork belly, 100g brown sugar, 60mL soy sauce, 20g garlic, 30mL pineapple juice
+  const productionRecipe = [
+    { outputIngredientId: tocinoSticks.id, inputIngredientId: porkBelly.id,      quantity: 500, baseQuantity: 500, unitId: 1, note: 'Sliced thin, about 25g per stick' },
+    { outputIngredientId: tocinoSticks.id, inputIngredientId: brownSugar.id,     quantity: 100, baseQuantity: 100, unitId: 1, note: null },
+    { outputIngredientId: tocinoSticks.id, inputIngredientId: soySauce.id,       quantity: 60,  baseQuantity: 60,  unitId: 5, note: null },
+    { outputIngredientId: tocinoSticks.id, inputIngredientId: garlic.id,         quantity: 20,  baseQuantity: 20,  unitId: 1, note: 'Minced' },
+    { outputIngredientId: tocinoSticks.id, inputIngredientId: pineappleJuice.id, quantity: 30,  baseQuantity: 30,  unitId: 5, note: 'For tenderizing' },
   ]
 
-  for (const recipe of allRecipes) {
-    await prisma.recipeItem.upsert({
+  for (const item of productionRecipe) {
+    await prisma.productionRecipeItem.upsert({
       where: {
-        productId_ingredientId: {
-          productId: recipe.productId,
-          ingredientId: recipe.ingredientId,
+        outputIngredientId_inputIngredientId: {
+          outputIngredientId: item.outputIngredientId,
+          inputIngredientId: item.inputIngredientId,
         },
       },
-      update: { quantity: recipe.quantity, baseQuantity: recipe.baseQuantity },
-      create: recipe,
+      update: { quantity: item.quantity, baseQuantity: item.baseQuantity, unitId: item.unitId, note: item.note },
+      create: item,
     })
   }
 
-  console.log(`Created ${allRecipes.length} recipe items`)
-
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // SAMPLE CUSTOMERS
-  // ═══════════════════════════════════════════════════════════════════════════════
-
-  await prisma.customer.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1, name: 'Walk-in Customer', phone: '', email: '', customerType: 'Walk-in', visitCount: 0, lifetimeSpend: 0, isRegular: false },
-  })
-
-  await prisma.customer.upsert({
-    where: { id: 2 },
-    update: {},
-    create: {
-      id: 2, name: 'Juan Dela Cruz', phone: '09171234567', email: 'juan@email.com',
-      customerType: 'Pickleball Player', trafficSource: 'Court Regular',
-      visitCount: 12, lifetimeSpend: 1250, avgTicket: 104.17, usualOrder: 'Tocilog + Gatorade',
-      isRegular: true, firstVisit: new Date('2026-01-10'), lastVisit: new Date('2026-01-24'),
-      notes: 'Plays every morning. Prefers extra egg.',
-    },
-  })
-
-  console.log('Created sample customers')
+  console.log('Seeded 5 RAW ingredients + 1 PREPARED ingredient (Tocino Sticks) with production recipe')
 
   console.log('')
   console.log('═══════════════════════════════════════════════════════════════')
@@ -438,13 +353,8 @@ async function main() {
   console.log('  - 1 admin user (admin/admin)')
   console.log('  - Settings with 10-Lever benchmark targets')
   console.log('  - 12 industry benchmarks')
-  console.log('  - 2 categories (Food, Beverages)')
-  console.log('  - 6 products with true cost fields')
-  console.log('  - 3 vendors')
-  console.log('  - 14 ingredients with unified base-unit stock')
-  console.log('  - 14 default purchase variants')
-  console.log('  - Recipe items linking products to ingredients')
-  console.log('  - 2 sample customers')
+  console.log('  - 5 RAW ingredients + 1 PREPARED ingredient (Tocino Sticks)')
+  console.log('  - 6 purchase variants + 5 production recipe items')
   console.log('')
 }
 
