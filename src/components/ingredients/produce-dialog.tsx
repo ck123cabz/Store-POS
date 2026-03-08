@@ -96,7 +96,7 @@ export function ProduceDialog({
     fetchRecipe()
   }, [open, ingredient.id])
 
-  const canProduce = !producing && recipe && recipe.inputs.length > 0 && batchCount >= 1
+  const canProduce = !producing && recipe && recipe.inputs.length > 0 && batchCount > 0
 
   async function handleProduce() {
     if (!recipe || !canProduce) return
@@ -162,13 +162,13 @@ export function ProduceDialog({
               <Input
                 id="batch-count"
                 type="number"
-                min="1"
-                step="1"
+                min="0.25"
+                step="0.25"
                 className="h-10 font-mono tabular-nums"
                 value={batchCount}
                 onChange={(e) => {
-                  const val = parseInt(e.target.value)
-                  if (!isNaN(val) && val >= 1) setBatchCount(val)
+                  const val = parseFloat(e.target.value)
+                  if (!isNaN(val) && val > 0) setBatchCount(val)
                   else if (e.target.value === "") setBatchCount(1)
                 }}
               />
@@ -252,7 +252,7 @@ export function ProduceDialog({
             {producing ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            Produce {batchCount} Batch{batchCount > 1 ? "es" : ""}
+            Produce {batchCount % 1 === 0 ? batchCount : batchCount.toFixed(2)} Batch{batchCount !== 1 ? "es" : ""}
           </Button>
         </DialogFooter>
       </DialogContent>
