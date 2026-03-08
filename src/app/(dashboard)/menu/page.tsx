@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { LayoutGrid, List, Plus, ArrowUpDown } from "lucide-react"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { LayoutGrid, List, Plus, Menu } from "lucide-react"
 import { MenuSidebar } from "./components/menu-sidebar"
 import { ProductCards } from "./components/product-cards"
 import { ProductsTab } from "./components/products-tab"
@@ -93,6 +94,7 @@ export default function MenuPage() {
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [productStatusFilter, setProductStatusFilter] = useState<string>("ACTIVE")
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -216,11 +218,16 @@ export default function MenuPage() {
     ? categories.find(c => c.id === selectedCategoryId)?.name ?? "Products"
     : "All Products"
 
+  const handleSelectCategoryMobile = (id: number | null) => {
+    setSelectedCategoryId(id)
+    setSidebarOpen(false)
+  }
+
   return (
     <div className="flex h-full">
-      {/* Sidebar */}
+      {/* Desktop Sidebar */}
       {loading ? (
-        <aside className="flex flex-col w-64 shrink-0 border-r bg-muted/30 p-5 gap-5">
+        <aside className="hidden md:flex flex-col w-64 shrink-0 border-r bg-muted/30 p-5 gap-5">
           <div className="space-y-1">
             <Skeleton className="h-6 w-20" />
             <Skeleton className="h-3 w-36" />
@@ -234,28 +241,59 @@ export default function MenuPage() {
           </div>
         </aside>
       ) : (
-        <MenuSidebar
-          categories={categories}
-          selectedCategoryId={selectedCategoryId}
-          onSelectCategory={setSelectedCategoryId}
-          totalProducts={products.filter(p => (p.status ?? "ACTIVE") === (productStatusFilter === "all" ? (p.status ?? "ACTIVE") : productStatusFilter)).length}
-          search={search}
-          onSearchChange={setSearch}
-        />
+        <>
+          <div className="hidden md:flex h-full">
+            <MenuSidebar
+              categories={categories}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={setSelectedCategoryId}
+              totalProducts={products.filter(p => (p.status ?? "ACTIVE") === (productStatusFilter === "all" ? (p.status ?? "ACTIVE") : productStatusFilter)).length}
+              search={search}
+              onSearchChange={setSearch}
+            />
+          </div>
+
+          {/* Mobile Sidebar Sheet */}
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetContent side="left" className="w-72 p-0" showCloseButton={false}>
+              <SheetHeader className="sr-only">
+                <SheetTitle>Menu Categories</SheetTitle>
+              </SheetHeader>
+              <MenuSidebar
+                categories={categories}
+                selectedCategoryId={selectedCategoryId}
+                onSelectCategory={handleSelectCategoryMobile}
+                totalProducts={products.filter(p => (p.status ?? "ACTIVE") === (productStatusFilter === "all" ? (p.status ?? "ACTIVE") : productStatusFilter)).length}
+                search={search}
+                onSearchChange={setSearch}
+              />
+            </SheetContent>
+          </Sheet>
+        </>
       )}
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header bar */}
-        <div className="flex items-center justify-between border-b px-6 h-14 shrink-0">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold tracking-tight">{selectedCategoryName}</h2>
-            <span className="text-[11px] font-mono tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+        <div className="flex items-center justify-between border-b px-3 md:px-6 h-14 shrink-0 gap-2">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            {/* Mobile sidebar toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden h-8 w-8 p-0 shrink-0"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu sidebar"
+            >
+              <Menu className="size-4" />
+            </Button>
+            <h2 className="text-base md:text-lg font-semibold tracking-tight truncate">{selectedCategoryName}</h2>
+            <span className="text-[11px] font-mono tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">
               {filteredProducts.length}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
             {/* View toggle */}
             <ToggleGroup
               type="single"
@@ -272,9 +310,9 @@ export default function MenuPage() {
               </ToggleGroupItem>
             </ToggleGroup>
 
-            {/* Stock status filter */}
+            {/* Stock status filter - hidden on mobile */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32 h-8 text-xs" aria-label="Filter by stock status">
+              <SelectTrigger className="hidden sm:flex w-32 h-8 text-xs" aria-label="Filter by stock status">
                 <SelectValue placeholder="Stock" />
               </SelectTrigger>
               <SelectContent>
@@ -286,9 +324,9 @@ export default function MenuPage() {
               </SelectContent>
             </Select>
 
-            {/* Lifecycle filter */}
+            {/* Lifecycle filter - hidden on mobile */}
             <Select value={productStatusFilter} onValueChange={setProductStatusFilter}>
-              <SelectTrigger className="w-32 h-8 text-xs" aria-label="Filter by lifecycle">
+              <SelectTrigger className="hidden sm:flex w-32 h-8 text-xs" aria-label="Filter by lifecycle">
                 <SelectValue placeholder="Lifecycle" />
               </SelectTrigger>
               <SelectContent>
@@ -302,14 +340,14 @@ export default function MenuPage() {
 
             {/* Add Product */}
             <Button size="sm" className="h-8" onClick={handleAddProduct}>
-              <Plus className="size-3.5 mr-1.5" />
-              Add Product
+              <Plus className="size-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Add Product</span>
             </Button>
           </div>
         </div>
 
         {/* Content area */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-3 md:p-6">
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (

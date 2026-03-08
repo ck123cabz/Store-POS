@@ -6,21 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@/components/ui/responsive-dialog"
 import { Combobox } from "@/components/ui/combobox"
 import { toast } from "sonner"
-import { Package } from "lucide-react"
+import { Folder, Package } from "lucide-react"
 
 interface Category {
   id: number
@@ -163,11 +156,11 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{product ? "Edit Product" : "Add Product"}</DialogTitle>
-        </DialogHeader>
+    <ResponsiveDialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <ResponsiveDialogContent>
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>{product ? "Edit Product" : "Add Product"}</ResponsiveDialogTitle>
+        </ResponsiveDialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
@@ -180,22 +173,19 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="product-category">Category</Label>
-            <Select
-              value={watch("categoryId")?.toString() || ""}
-              onValueChange={(v) => setValue("categoryId", parseInt(v))}
-            >
-              <SelectTrigger id="product-category">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id.toString()}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Category</Label>
+            <Combobox<number>
+              options={categories.map((cat) => ({
+                value: cat.id,
+                label: cat.name,
+              }))}
+              value={watch("categoryId")}
+              onChange={(v) => setValue("categoryId", v)}
+              placeholder="Select category"
+              searchPlaceholder="Search categories..."
+              emptyMessage="No categories found."
+              icon={<Folder className="size-4" />}
+            />
           </div>
 
           <div className="space-y-2">
@@ -236,7 +226,7 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
