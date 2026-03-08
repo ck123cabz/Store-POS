@@ -77,6 +77,11 @@ enum ProductStatus {
   DISCONTINUED
 }
 
+enum IngredientType {
+  RAW
+  PREPARED
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PRODUCT - Enhanced for Lever 1 (Unit Economics) & Lever 4 (Menu Focus)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -309,6 +314,7 @@ model Unit {
   recipeItemUnits       RecipeItem[]
   ingredientUnitAliases IngredientUnitAlias[]
   wasteLogUnits         WasteLog[]
+  productionRecipeItems ProductionRecipeItem[]
 
   @@index([dimension])
   @@map("units")
@@ -357,6 +363,9 @@ model Ingredient {
   name     String
   category String // Protein, Produce, Dairy, Dry Goods, Frozen, Beverage, Condiments
 
+  type       IngredientType @default(RAW) @map("type")
+  batchYield Decimal?       @map("batch_yield") @db.Decimal(12, 4) // base units produced per batch (PREPARED only)
+
   // ─── CANONICAL BASE UNIT (FK → Unit) ───
   baseUnitId Int @map("base_unit_id")
 
@@ -394,6 +403,11 @@ model Ingredient {
   wasteLogs        WasteLog[]
   history          IngredientHistory[]
   unitAliases      IngredientUnitAlias[]
+
+  // Production recipe: this ingredient is PRODUCED from these inputs
+  productionInputs  ProductionRecipeItem[] @relation("ProductionOutput")
+  // This ingredient is USED as input in these production recipes
+  productionOutputs ProductionRecipeItem[] @relation("ProductionInput")
 
   @@map("ingredients")
 }
@@ -537,6 +551,29 @@ model RecipeItem {
 
   @@unique([productId, ingredientId])
   @@map("recipe_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRODUCTION RECIPE - Semi-finished products made from other ingredients
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model ProductionRecipeItem {
+  id                 Int      @id @default(autoincrement())
+  outputIngredientId Int      @map("output_ingredient_id")
+  inputIngredientId  Int      @map("input_ingredient_id")
+  quantity           Decimal  @db.Decimal(10, 3) // amount in chosen unit
+  baseQuantity       Decimal  @default(0) @map("base_quantity") @db.Decimal(10, 3) // converted to input ingredient's base units
+  unitId             Int?     @map("unit_id") // FK → Unit (null = input ingredient's baseUnit)
+  note               String?  // e.g., "marinate overnight"
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  // Relations
+  outputIngredient Ingredient @relation("ProductionOutput", fields: [outputIngredientId], references: [id], onDelete: Cascade)
+  inputIngredient  Ingredient @relation("ProductionInput", fields: [inputIngredientId], references: [id], onDelete: Restrict)
+  unit             Unit?      @relation(fields: [unitId], references: [id])
+
+  @@unique([outputIngredientId, inputIngredientId])
+  @@map("production_recipe_items")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
