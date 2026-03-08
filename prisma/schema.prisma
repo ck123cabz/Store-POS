@@ -573,6 +573,7 @@ model ProductionRecipeItem {
   unit             Unit?      @relation(fields: [unitId], references: [id])
 
   @@unique([outputIngredientId, inputIngredientId])
+  @@index([inputIngredientId])
   @@map("production_recipe_items")
 }
 
