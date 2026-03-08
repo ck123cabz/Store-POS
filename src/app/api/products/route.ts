@@ -141,6 +141,7 @@ export async function GET(request: NextRequest) {
         linkedVariantId: p.linkedVariantId,
         needsPricing: p.needsPricing,
         status: p.status,
+        requiresKitchen: p.requiresKitchen,
         linkedIngredient: p.linkedVariant
           ? {
               id: p.linkedVariant.ingredient.id,

@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/responsive-dialog"
 import { Combobox } from "@/components/ui/combobox"
 import { toast } from "sonner"
-import { Folder, Package } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Folder, Package, ChefHat } from "lucide-react"
 
 interface Category {
   id: number
@@ -32,6 +33,7 @@ interface ProductFormData {
   price: string
   categoryId: number | null
   linkedVariantId: number | null
+  requiresKitchen: boolean
 }
 
 interface ProductFormProps {
@@ -60,6 +62,7 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
       price: "",
       categoryId: null,
       linkedVariantId: null,
+      requiresKitchen: false,
     },
   })
 
@@ -104,6 +107,7 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         price: "",
         categoryId: null,
         linkedVariantId: null,
+        requiresKitchen: false,
       })
     }
     setImageFile(null)
@@ -129,6 +133,7 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         price: parseFloat(data.price),
         categoryId: data.categoryId,
         linkedVariantId: data.linkedVariantId || null,
+        requiresKitchen: data.requiresKitchen || null,
         ...(imageFilename && { image: imageFilename }),
       }
 
@@ -214,6 +219,23 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
               type="file"
               accept="image/*"
               onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+            <div className="flex items-center gap-2">
+              <ChefHat className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <Label htmlFor="requiresKitchen" className="text-sm font-medium">Send to Kitchen</Label>
+                <p className="text-xs text-muted-foreground">
+                  Create a kitchen order when sold
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="requiresKitchen"
+              checked={watch("requiresKitchen")}
+              onCheckedChange={(checked) => setValue("requiresKitchen", checked)}
             />
           </div>
 

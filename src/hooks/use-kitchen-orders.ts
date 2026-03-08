@@ -44,6 +44,8 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
 
   const lastFetchTime = useRef<string | null>(null)
   const audioContext = useRef<AudioContext | null>(null)
+  const ordersRef = useRef<KitchenOrder[]>(orders)
+  ordersRef.current = orders
 
   // Play notification sound using Web Audio API
   const playSound = useCallback(() => {
@@ -101,9 +103,22 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
     }
   }, [playSound])
 
-  // Update order status
+  // Update order status (optimistic)
   const updateStatus = useCallback(
     async (orderId: number, status: string) => {
+      // Optimistic update: move/remove immediately
+      const previousOrders = ordersRef.current
+      setOrders((prev) => {
+        if (status === "served" || status === "cancelled") {
+          return prev.filter((o) => o.id !== orderId)
+        }
+        return prev.map((o) =>
+          o.id === orderId
+            ? { ...o, status: status as KitchenOrder["status"], secondsInStatus: 0 }
+            : o
+        )
+      })
+
       try {
         const response = await fetch(`/api/kitchen-orders/${orderId}`, {
           method: "PATCH",
@@ -111,22 +126,32 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
           body: JSON.stringify({ status }),
         })
 
-        if (!response.ok) throw new Error("Failed to update status")
+        if (!response.ok) {
+          // Rollback on failure
+          setOrders(previousOrders)
+          return false
+        }
 
-        // Refresh orders to get updated state
-        await fetchOrders()
+        // Background sync to get accurate server state (non-blocking)
+        fetchOrders()
         return true
       } catch (err) {
         console.error("Failed to update status:", err)
+        setOrders(previousOrders)
         return false
       }
     },
     [fetchOrders]
   )
 
-  // Toggle rush flag
+  // Toggle rush flag (optimistic)
   const toggleRush = useCallback(
     async (orderId: number, isRush: boolean) => {
+      const previousOrders = ordersRef.current
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, isRush } : o))
+      )
+
       try {
         const response = await fetch(`/api/kitchen-orders/${orderId}`, {
           method: "PATCH",
@@ -134,12 +159,16 @@ export function useKitchenOrders(options: UseKitchenOrdersOptions = {}) {
           body: JSON.stringify({ isRush }),
         })
 
-        if (!response.ok) throw new Error("Failed to toggle rush")
+        if (!response.ok) {
+          setOrders(previousOrders)
+          return false
+        }
 
-        await fetchOrders()
+        fetchOrders()
         return true
       } catch (err) {
         console.error("Failed to toggle rush:", err)
+        setOrders(previousOrders)
         return false
       }
     },

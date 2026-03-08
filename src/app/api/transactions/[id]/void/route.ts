@@ -11,7 +11,8 @@ import {
 /**
  * PATCH /api/transactions/[id]/void
  *
- * Marks a transaction as voided.
+ * Voids a transaction, restores stock/ingredients, reverses customer metrics,
+ * and creates audit trail records.
  * Requires permVoid permission.
  * Transaction must be within 7-day window and not already voided.
  */
@@ -41,9 +42,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid transaction ID" }, { status: 400 })
     }
 
-    // Find transaction
+    // Find transaction with items
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },
+      include: { items: true },
     })
 
     if (!transaction) {
@@ -75,37 +77,177 @@ export async function PATCH(
       return NextResponse.json({ error: reasonCheck.error }, { status: 400 })
     }
 
-    // Perform void
-    const voidedTransaction = await prisma.transaction.update({
-      where: { id: transactionId },
-      data: {
-        isVoided: true,
-        voidedAt: new Date(),
-        voidedById: parseInt(session.user.id, 10),
-        voidedByName: session.user.name || session.user.username,
-        voidReason: formatVoidReason(reason, customReason),
-      },
-      include: {
-        customer: {
-          select: { id: true, name: true },
-        },
-        user: {
-          select: { id: true, fullname: true },
-        },
-        items: true,
-      },
-    })
+    const formattedReason = formatVoidReason(reason, customReason)
+    const { nanoid } = await import("nanoid")
+    const voidChangeId = nanoid(10)
+    const userId = parseInt(session.user.id, 10)
+    const userName = session.user.name || session.user.username || "Unknown"
 
-    // Cancel any associated kitchen orders (don't change already served orders)
-    await prisma.kitchenOrder.updateMany({
-      where: {
-        transactionId: transactionId,
-        status: { not: "served" },
-      },
-      data: {
-        status: "cancelled",
-      },
-    })
+    // Perform void + stock restoration atomically
+    const voidedTransaction = await prisma.$transaction(async (tx) => {
+      // 1. Mark transaction as voided
+      const updated = await tx.transaction.update({
+        where: { id: transactionId },
+        data: {
+          isVoided: true,
+          voidedAt: new Date(),
+          voidedById: userId,
+          voidedByName: userName,
+          voidReason: formattedReason,
+        },
+        include: {
+          customer: { select: { id: true, name: true } },
+          user: { select: { id: true, fullname: true } },
+          items: true,
+        },
+      })
+
+      // 2. Cancel non-served kitchen orders
+      await tx.kitchenOrder.updateMany({
+        where: {
+          transactionId: transactionId,
+          status: { not: "served" },
+        },
+        data: { status: "cancelled" },
+      })
+
+      // 3. Restore stock if transaction was paid (status=1)
+      if (transaction.status === 1) {
+        const orderNumber = transaction.orderNumber
+
+        for (const item of transaction.items) {
+          const product = await tx.product.findUnique({
+            where: { id: item.productId },
+            include: {
+              linkedVariant: {
+                include: {
+                  ingredient: {
+                    include: { baseUnit: true },
+                  },
+                },
+              },
+              recipeItems: {
+                include: {
+                  ingredient: {
+                    include: { baseUnit: true },
+                  },
+                },
+              },
+            },
+          })
+
+          if (!product) continue
+
+          // 3a. Restore product stock if tracked
+          if (product.trackStock) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                quantity: { increment: item.quantity },
+                weeklyUnitsSold: { decrement: item.quantity },
+              },
+            })
+          }
+
+          // 3b. Restore linked variant ingredient stock
+          if (product.linkedVariantId && product.linkedVariant) {
+            const ingredient = product.linkedVariant.ingredient
+            const baseUnitsToRestore = Number(product.linkedVariant.baseUnitsPerVariant) * item.quantity
+            const oldStockQty = Number(ingredient.stockQty)
+            const newStockQty = oldStockQty + baseUnitsToRestore
+
+            await tx.ingredient.update({
+              where: { id: ingredient.id },
+              data: {
+                stockQty: newStockQty,
+                lastUpdated: new Date(),
+              },
+            })
+
+            await tx.ingredientHistory.create({
+              data: {
+                ingredientId: ingredient.id,
+                ingredientName: ingredient.name,
+                changeId: voidChangeId,
+                field: "stockQty",
+                oldValue: oldStockQty.toString(),
+                newValue: newStockQty.toString(),
+                source: "void_reversal",
+                reason: "transaction_void",
+                reasonNote: `Voided ${item.quantity}x ${product.name} (Order #${orderNumber}) — ${formattedReason}`,
+                purchaseVariantId: product.linkedVariant.id,
+                userId,
+                userName,
+              },
+            })
+          }
+
+          // 3c. Restore recipe ingredient stock
+          if (product.recipeItems.length > 0) {
+            for (const recipeItem of product.recipeItems) {
+              const ingredient = recipeItem.ingredient
+              const baseUnitsToRestore = Number(recipeItem.baseQuantity) * item.quantity
+              const oldStockQty = Number(ingredient.stockQty)
+              const newStockQty = oldStockQty + baseUnitsToRestore
+
+              await tx.ingredient.update({
+                where: { id: ingredient.id },
+                data: {
+                  stockQty: newStockQty,
+                  lastUpdated: new Date(),
+                },
+              })
+
+              await tx.ingredientHistory.create({
+                data: {
+                  ingredientId: ingredient.id,
+                  ingredientName: ingredient.name,
+                  changeId: voidChangeId,
+                  field: "stockQty",
+                  oldValue: oldStockQty.toString(),
+                  newValue: newStockQty.toString(),
+                  source: "void_reversal",
+                  reason: "transaction_void",
+                  reasonNote: `Voided ${item.quantity}x ${product.name} restored ${baseUnitsToRestore} ${ingredient.baseUnit.name} (Order #${orderNumber})`,
+                  userId,
+                  userName,
+                },
+              })
+            }
+          }
+        }
+
+        // 4. Reverse customer metrics if customer was associated
+        if (transaction.customerId) {
+          const customer = await tx.customer.findUnique({
+            where: { id: transaction.customerId },
+          })
+
+          if (customer && customer.visitCount > 0) {
+            const newVisitCount = customer.visitCount - 1
+            const newLifetimeSpend = Math.max(
+              0,
+              Number(customer.lifetimeSpend) - Number(transaction.total)
+            )
+            const newAvgTicket = newVisitCount > 0
+              ? newLifetimeSpend / newVisitCount
+              : 0
+
+            await tx.customer.update({
+              where: { id: transaction.customerId },
+              data: {
+                visitCount: newVisitCount,
+                lifetimeSpend: newLifetimeSpend,
+                avgTicket: Math.round(newAvgTicket * 100) / 100,
+                isRegular: newVisitCount >= 5,
+              },
+            })
+          }
+        }
+      }
+
+      return updated
+    }, { timeout: 15000 })
 
     return NextResponse.json(voidedTransaction)
   } catch (error) {

@@ -320,6 +320,10 @@ export default function TransactionsPage() {
       ))
       setViewTransaction({ ...viewTransaction, ...voidedTx })
 
+      toast.success("Transaction voided", {
+        description: "Stock and ingredients have been restored.",
+      })
+
       // Close void modal
       setShowVoidModal(false)
       setVoidReason("")
@@ -842,6 +846,7 @@ export default function TransactionsPage() {
                     {viewTransaction.voidedAt && (
                       <p>On: {format(new Date(viewTransaction.voidedAt), "MMM d, yyyy h:mm a")}</p>
                     )}
+                    <p className="text-xs mt-1 opacity-75">Stock and ingredients were restored.</p>
                   </AlertDescription>
                 </Alert>
               )}
@@ -883,7 +888,7 @@ export default function TransactionsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              This action cannot be undone. The transaction will be marked as voided and excluded from revenue calculations.
+              This action cannot be undone. The transaction will be marked as voided, stock and ingredients will be restored, and it will be excluded from revenue calculations.
             </p>
 
             <div className="space-y-2">

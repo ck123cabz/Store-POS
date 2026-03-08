@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Pencil, Loader2, Info, Minus } from "lucide-react"
+import { Pencil, Loader2, Info, Minus, ChefHat } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -72,6 +73,7 @@ interface Product {
     lowIngredients: IngredientShortage[]
   }
   status?: string
+  requiresKitchen?: boolean | null
 }
 
 interface Category {
@@ -250,6 +252,7 @@ export function ProductPanel({
     name: product.name,
     price: product.price.toString(),
     categoryId: product.categoryId,
+    requiresKitchen: product.requiresKitchen ?? null as boolean | null,
   })
   const [recipeIngredients, setRecipeIngredients] = useState<RecipeIngredient[]>([])
   const [prepTime, setPrepTime] = useState<number>(product.prepTime ?? 0)
@@ -344,12 +347,13 @@ export function ProductPanel({
         name: product.name,
         price: product.price.toString(),
         categoryId: product.categoryId,
+        requiresKitchen: product.requiresKitchen ?? null,
       })
       setImageFile(null)
       setImagePreview(null)
       void fetchEditData()
     }
-  }, [editMode, product.name, product.price, product.categoryId, fetchEditData])
+  }, [editMode, product.name, product.price, product.categoryId, product.requiresKitchen, fetchEditData])
 
   // Calculate costs whenever recipe changes in edit mode
   useEffect(() => {
@@ -500,6 +504,7 @@ export function ProductPanel({
         name: formData.name,
         price: parseFloat(formData.price),
         categoryId: formData.categoryId,
+        requiresKitchen: formData.requiresKitchen,
         ...(imageFilename && { image: imageFilename }),
       }
 
@@ -646,6 +651,32 @@ export function ProductPanel({
                   </div>
                 </div>
               </div>
+            </div>
+
+            <Separator />
+
+            {/* ── Section: Kitchen Order ── */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <ChefHat className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div>
+                  <Label className="text-sm font-medium">Send to Kitchen</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.requiresKitchen === null
+                      ? "Using category default"
+                      : formData.requiresKitchen
+                        ? "Always sent to kitchen"
+                        : "Never sent to kitchen"}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={formData.requiresKitchen === true}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, requiresKitchen: checked }))
+                }
+                aria-label="Send to kitchen"
+              />
             </div>
 
             <Separator />
