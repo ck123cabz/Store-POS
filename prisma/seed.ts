@@ -343,6 +343,11 @@ async function main() {
 
   console.log('Seeded 5 RAW ingredients + 1 PREPARED ingredient (Tocino Sticks) with production recipe')
 
+  // Reset auto-increment sequences after seeding with explicit IDs
+  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('ingredients', 'id'), COALESCE((SELECT MAX(id) FROM ingredients), 0) + 1, false)`)
+  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('purchase_variants', 'id'), COALESCE((SELECT MAX(id) FROM purchase_variants), 0) + 1, false)`)
+  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('production_recipe_items', 'id'), COALESCE((SELECT MAX(id) FROM production_recipe_items), 0) + 1, false)`)
+
   console.log('')
   console.log('═══════════════════════════════════════════════════════════════')
   console.log('Database seeded successfully!')
