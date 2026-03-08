@@ -17,7 +17,7 @@ test.describe('Transaction Currency Display', () => {
 
     // Navigate to transactions page
     await page.goto('/transactions')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // The page heading should be visible (proves the page loaded)
     await expect(page.getByRole('heading', { name: /Transactions/i })).toBeVisible()
@@ -60,7 +60,7 @@ test.describe('Transaction Currency Display', () => {
 
     // Navigate to transactions page
     await page.goto('/transactions')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Click the first data row in the table to open transaction detail dialog
     const dataRow = page.locator('table tbody tr').first()
@@ -101,7 +101,7 @@ test.describe('Transaction Currency Display', () => {
 
     // Navigate to transactions page
     await page.goto('/transactions')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // The "Total" column cells use data-testid="transaction-total" and should contain peso symbol
     const totalCells = page.locator('[data-testid="transaction-total"]')

@@ -123,19 +123,32 @@ export async function PUT(
           ingredientId: number
           quantity: number
           unitId?: number | null
+          unitName?: string
           baseQuantity?: number
           portionNote?: string
         }
 
+        // Resolve unitName → unitId for ingredients that have a name but no id
+        const ingredientsWithUnits = await Promise.all(
+          body.ingredients.map(async (ing: RecipeIngredientInput) => {
+            let unitId = ing.unitId || null
+            if (!unitId && ing.unitName) {
+              const unit = await prisma.unit.findUnique({ where: { name: ing.unitName } })
+              unitId = unit?.id ?? null
+            }
+            return {
+              productId: id,
+              ingredientId: ing.ingredientId,
+              quantity: ing.quantity,
+              unitId,
+              baseQuantity: ing.baseQuantity ?? ing.quantity,
+              portionNote: ing.portionNote || null,
+            }
+          })
+        )
+
         await prisma.recipeItem.createMany({
-          data: body.ingredients.map((ing: RecipeIngredientInput) => ({
-            productId: id,
-            ingredientId: ing.ingredientId,
-            quantity: ing.quantity,
-            unitId: ing.unitId || null,
-            baseQuantity: ing.baseQuantity ?? ing.quantity,
-            portionNote: ing.portionNote || null,
-          })),
+          data: ingredientsWithUnits,
         })
       }
     }

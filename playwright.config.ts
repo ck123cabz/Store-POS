@@ -9,7 +9,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1, // Retry once locally for flaky tests
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 1 : 2, // Limit workers to avoid overwhelming dev server
   timeout: 60000, // 60 second test timeout for slow pages
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
@@ -22,6 +22,8 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    // Use domcontentloaded to avoid hangs from dev-server HMR WebSocket
+    navigationTimeout: 30000,
   },
 
   projects: [
@@ -29,6 +31,7 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
+      timeout: 120000, // 2 minutes for auth setup (includes compilation)
     },
 
     // Main test project

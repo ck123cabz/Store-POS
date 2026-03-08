@@ -8,8 +8,9 @@ import { test as setup, expect } from '@playwright/test'
 const authFile = 'tests/e2e/.auth/user.json'
 
 setup('authenticate', async ({ page }) => {
-  // Navigate to login page and wait for it to fully load
-  await page.goto('/login', { waitUntil: 'networkidle', timeout: 90000 })
+  // Navigate to login page and wait for DOM to be ready
+  // (networkidle hangs with dev-server HMR WebSocket connections)
+  await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 90000 })
 
   // Pre-set onboarding complete in localStorage to skip the tour
   await page.evaluate(() => {
@@ -41,12 +42,12 @@ setup('authenticate', async ({ page }) => {
   }
 
   // Wait a bit for the page to settle after compilation
-  await page.waitForLoadState('networkidle', { timeout: 30000 })
+  await page.waitForLoadState('domcontentloaded', { timeout: 30000 })
 
   // Verify we're logged in by checking for POS elements (like the "All" button) or sidebar elements
   // The user name display varies, so let's check for a key element that proves we're on the main app
   await expect(
-    page.getByRole('button', { name: 'All' }).or(page.getByText(/Dashboard|POS|Products/i).first())
+    page.getByRole('button', { name: /^All/ }).or(page.getByText(/Dashboard|POS|Products/i).first())
   ).toBeVisible({ timeout: 30000 })
 
   // Wait a bit to ensure all cookies are set by NextAuth
@@ -56,7 +57,7 @@ setup('authenticate', async ({ page }) => {
   // This is needed because NextAuth v5 sets the session cookie asynchronously
   await page.reload()
   await expect(
-    page.getByRole('button', { name: 'All' }).or(page.getByText(/Dashboard|POS|Products/i).first())
+    page.getByRole('button', { name: /^All/ }).or(page.getByText(/Dashboard|POS|Products/i).first())
   ).toBeVisible({ timeout: 30000 })
 
   // Save authentication state

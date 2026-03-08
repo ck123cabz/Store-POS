@@ -14,7 +14,7 @@ test.describe("T081: Calendar Day Vibe Color Coding", () => {
 
     // Navigate to calendar page
     await page.goto("/calendar")
-    await page.waitForLoadState("networkidle")
+    await page.waitForLoadState("domcontentloaded")
   })
 
   test("Calendar page loads with month view", async ({ page }) => {

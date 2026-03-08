@@ -139,7 +139,7 @@ interface TestFixtures {
 
 export const test = base.extend<TestFixtures>({
   posPage: async ({ page }, use) => {
-    await page.goto('/pos')
+    await page.goto('/pos', { waitUntil: 'domcontentloaded' })
 
     // Ensure onboarding is marked complete (backup in case auth setup didn't persist it)
     await page.evaluate(() => {
@@ -156,8 +156,9 @@ export const test = base.extend<TestFixtures>({
       }, { timeout: 5000 }).catch(() => {})
     }
 
-    // Wait for products to load (either products or "All" category button)
-    await expect(page.getByRole('button', { name: 'All' })).toBeVisible()
+    // Wait for products to load - the "All" category pill includes a count suffix (e.g. "All 5")
+    // Increase timeout for slow API calls (remote database)
+    await expect(page.getByRole('button', { name: /^All/ })).toBeVisible({ timeout: 30000 })
     await use()
   },
 
@@ -166,14 +167,14 @@ export const test = base.extend<TestFixtures>({
   },
 
   productsPage: async ({ page }, use) => {
-    await page.goto('/products')
+    await page.goto('/products', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: /products/i })).toBeVisible()
     await use()
   },
 
   inventoryCountPage: async ({ page }, use) => {
     // Inventory count page can be slow due to database queries
-    await page.goto('/ingredients/count', { timeout: 60000 })
+    await page.goto('/ingredients/count', { waitUntil: 'domcontentloaded', timeout: 60000 })
     // Wait for the page to fully load by checking for the main heading
     await expect(
       page.getByRole('heading', { name: 'Inventory Count', exact: true })
@@ -182,18 +183,18 @@ export const test = base.extend<TestFixtures>({
   },
 
   customersPage: async ({ page }, use) => {
-    await page.goto('/customers')
+    await page.goto('/customers', { waitUntil: 'domcontentloaded' })
     // Wait for the customers page to load
     await expect(page.getByRole('heading', { name: /customers/i })).toBeVisible()
     await use()
   },
 
   menuPage: async ({ page }, use) => {
-    await page.goto('/menu')
-    // Wait for Products tab to be visible (default active tab)
-    await expect(page.getByRole('tab', { name: 'Products' })).toBeVisible()
-    // Wait for loading to finish - the page fetches products, categories, and settings
-    await expect(page.getByText('Loading...')).not.toBeVisible({ timeout: 10000 })
+    await page.goto('/menu', { waitUntil: 'domcontentloaded' })
+    // Wait for the menu page header to appear (shows "All Products" with a count badge)
+    await expect(page.getByText('All Products')).toBeVisible({ timeout: 15000 })
+    // Wait for Add Product button to confirm page is interactive
+    await expect(page.getByRole('button', { name: /Add Product/ })).toBeVisible({ timeout: 10000 })
     await use()
   },
 })

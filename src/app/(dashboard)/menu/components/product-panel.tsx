@@ -99,6 +99,7 @@ interface RecipeIngredient {
   ingredientId: number
   ingredientName: string
   quantity: number        // amount in chosen unit
+  unitId?: number | null  // unit record id (for persistence)
   unit: string            // chosen unit name
   baseUnit: string        // ingredient's base unit
   baseQuantity: number    // converted to base units
@@ -273,12 +274,53 @@ export function ProductPanel({
         fetch("/api/ingredients"),
       ])
 
-      const ingredientsData: Ingredient[] = await ingredientsRes.json()
+      const ingredientsRaw = await ingredientsRes.json()
+      // Map API field names to component's Ingredient interface
+      const ingredientsData: Ingredient[] = (ingredientsRaw || []).map((i: {
+        id: number; name: string; baseUnitName?: string; baseUnit?: string;
+        avgCostPerBaseUnit?: number; costPerBaseUnit?: number;
+        category: string; yieldFactor: number | null;
+        unitAliases?: UnitAlias[];
+      }) => ({
+        id: i.id,
+        name: i.name,
+        baseUnit: i.baseUnitName ?? i.baseUnit ?? '',
+        costPerBaseUnit: i.avgCostPerBaseUnit ?? i.costPerBaseUnit ?? 0,
+        category: i.category,
+        yieldFactor: i.yieldFactor,
+        unitAliases: i.unitAliases || [],
+      }))
       setAvailableIngredients(ingredientsData)
 
       if (recipeRes.ok) {
         const recipeData = await recipeRes.json()
-        setRecipeIngredients(recipeData.ingredients || [])
+        // Map API field names to RecipeIngredient interface
+        const mapped = (recipeData.ingredients || []).map((ri: {
+          ingredientId: number
+          ingredientName: string
+          quantity: number
+          unitId?: number | null
+          unitName?: string
+          baseUnitName: string
+          baseQuantity: number
+          costPerBaseUnit: number
+          lineCost: number
+          yieldFactor: number | null
+          unitAliases: UnitAlias[]
+        }) => ({
+          ingredientId: ri.ingredientId,
+          ingredientName: ri.ingredientName,
+          quantity: ri.quantity,
+          unitId: ri.unitId ?? null,
+          unit: ri.unitName ?? ri.baseUnitName,
+          baseUnit: ri.baseUnitName,
+          baseQuantity: ri.baseQuantity,
+          costPerBaseUnit: ri.costPerBaseUnit,
+          lineCost: ri.lineCost,
+          yieldFactor: ri.yieldFactor,
+          unitAliases: ri.unitAliases || [],
+        }))
+        setRecipeIngredients(mapped)
         setPrepTime(recipeData.prepTime ?? 0)
         setOverheadCost(recipeData.overheadAllocation ?? 0)
       } else {
@@ -477,7 +519,8 @@ export function ProductPanel({
           ingredients: recipeIngredients.map((item) => ({
             ingredientId: item.ingredientId,
             quantity: item.quantity,
-            unit: item.unit,
+            unitId: item.unitId ?? null,
+            unitName: item.unit,  // fallback: API resolves name → id
             baseQuantity: item.baseQuantity,
           })),
           prepTime: prepTime || null,
@@ -780,7 +823,7 @@ export function ProductPanel({
                   <Label className="text-xs text-muted-foreground mb-1.5 block">
                     Add Ingredient
                   </Label>
-                  <Select onValueChange={handleAddIngredient} value="">
+                  <Select key={recipeIngredients.length} onValueChange={handleAddIngredient}>
                     <SelectTrigger className="w-full h-10" aria-label="Add ingredient">
                       <SelectValue placeholder="Select ingredient to add..." />
                     </SelectTrigger>

@@ -83,7 +83,7 @@ test.describe('Void Transaction Workflow', () => {
 
   test('can void a recent transaction with valid reason', async ({ page }) => {
     await page.goto('/transactions')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Click the first transaction row to open the detail dialog
     await clickFirstTransactionRow(page)
@@ -119,7 +119,7 @@ test.describe('Void Transaction Workflow', () => {
 
   test('shows voided badge and strikethrough for voided transactions', async ({ page }) => {
     await page.goto('/transactions')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Click the first transaction row
     await clickFirstTransactionRow(page)
@@ -149,7 +149,7 @@ test.describe('Void Transaction Workflow', () => {
 
     // Reload and check for voided styling on the transactions page
     await page.goto('/transactions')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Enable "Include voided transactions" filter since voided txs may be hidden by default
     // Open the advanced filters collapsible
@@ -161,7 +161,7 @@ test.describe('Void Transaction Workflow', () => {
 
     // Click Search to apply the filter
     await page.getByRole('button', { name: /Search/i }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // The "Voided" status dot label should appear in the table
     const voidedStatus = page.getByText('Voided').first()
@@ -170,7 +170,7 @@ test.describe('Void Transaction Workflow', () => {
 
   test('prevents voiding already voided transactions', async ({ page }) => {
     await page.goto('/transactions')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Click the first transaction row
     await clickFirstTransactionRow(page)
@@ -202,7 +202,7 @@ test.describe('Void Transaction Workflow', () => {
 
   test('user without permVoid cannot see void button', async ({ page }) => {
     await page.goto('/transactions')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Verify the transactions page loads successfully for admin
     await expect(page.getByRole('heading', { name: /Transactions/i })).toBeVisible()

@@ -53,7 +53,7 @@ test.describe('Accessibility @a11y', () => {
 
   test('Transactions page passes axe-core AA scan', async ({ page }) => {
     await page.goto('/transactions')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const results = await createAxeBuilder(page).analyze()
     expect(results.violations).toEqual([])
@@ -62,7 +62,7 @@ test.describe('Accessibility @a11y', () => {
   test('Analytics page passes axe-core AA scan', async ({ page }) => {
     await page.goto('/analytics')
     await dismissTour(page)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(1000) // Extra time for charts to render
 
     const results = await createAxeBuilder(page)
@@ -74,7 +74,7 @@ test.describe('Accessibility @a11y', () => {
 
   test('Ingredients page passes axe-core AA scan', async ({ page }) => {
     await page.goto('/ingredients')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const results = await createAxeBuilder(page).analyze()
     expect(results.violations).toEqual([])
@@ -86,7 +86,7 @@ test.describe('Accessibility @a11y', () => {
     const page = await context.newPage()
 
     await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const results = await createAxeBuilder(page).analyze()
     await context.close()

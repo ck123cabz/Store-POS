@@ -14,7 +14,7 @@ test.describe("T054: Employee Dashboard Timeline Visual States", () => {
 
     // Navigate to employee dashboard
     await page.goto("/employee")
-    await page.waitForLoadState("networkidle")
+    await page.waitForLoadState("domcontentloaded")
   })
 
   test("Employee dashboard loads with timeline", async ({ page }) => {

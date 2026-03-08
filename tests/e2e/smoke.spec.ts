@@ -25,10 +25,10 @@ async function ensureTourDismissed(page: import('@playwright/test').Page) {
 
 test.describe('Smoke Tests @smoke @p0', () => {
   test('app loads without errors', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    // Should redirect to /pos (default dashboard)
-    await expect(page).toHaveURL(/\/pos/)
+    // Should redirect to /pos (default dashboard) - allow time for redirect
+    await expect(page).toHaveURL(/\/pos/, { timeout: 15000 })
 
     // Dismiss tour if visible
     await ensureTourDismissed(page)
@@ -56,25 +56,25 @@ test.describe('Smoke Tests @smoke @p0', () => {
   })
 
   test('user is authenticated', async ({ page }) => {
-    await page.goto('/pos')
+    await page.goto('/pos', { waitUntil: 'domcontentloaded' })
     await ensureTourDismissed(page)
 
-    // User info should be visible in header
-    await expect(page.getByText(/Administrator/i)).toBeVisible()
+    // User info should be visible in sidebar or header (use .first() since it appears in both)
+    await expect(page.getByText(/Administrator/i).first()).toBeVisible({ timeout: 15000 })
   })
 
   test('POS page displays products', async ({ page, posPage: _posPage }) => {
     // posPage fixture navigates to /pos and dismisses tour
 
-    // Category filter should be visible
-    await expect(page.getByRole('button', { name: 'All' })).toBeVisible()
+    // Category filter should be visible (the "All" pill includes a count, e.g. "All 5")
+    await expect(page.getByRole('button', { name: /^All/ })).toBeVisible()
 
     // Products should be visible (look for product names or prices)
     await expect(page.getByText(/Burger Steak|Gatorade|Tocilog|Iced Coffee/i).first()).toBeVisible()
   })
 
   test('navigation sidebar works', async ({ page }) => {
-    await page.goto('/pos')
+    await page.goto('/pos', { waitUntil: 'domcontentloaded' })
     await ensureTourDismissed(page)
 
     // Test navigation to key pages (sidebar uses "Menu" not "Products")

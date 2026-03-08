@@ -3,7 +3,7 @@ import { test, expect } from "./fixtures/base"
 test.describe("Transaction Quick Filters", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/transactions")
-    await page.waitForLoadState("networkidle")
+    await page.waitForLoadState("domcontentloaded")
   })
 
   test("T067: Quick filter toggle behavior", async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe("Transaction Quick Filters", () => {
     // DataTable shows loading state (skeleton rows) while fetching
     // The fetch is fast so we just verify the filter activated and data loads
     await expect(todayButton).toHaveAttribute("aria-pressed", "true")
-    await page.waitForLoadState("networkidle")
+    await page.waitForLoadState("domcontentloaded")
   })
 
   test("Clicking different filter replaces active filter", async ({ page }) => {
@@ -68,7 +68,7 @@ test.describe("Transaction Quick Filters", () => {
     // Apply Yesterday filter — may return no results in test DB
     const yesterdayButton = page.getByRole("button", { name: "Yesterday" })
     await yesterdayButton.click()
-    await page.waitForLoadState("networkidle")
+    await page.waitForLoadState("domcontentloaded")
 
     // Either shows data rows or the empty state — verify page doesn't error
     const table = page.locator("table")

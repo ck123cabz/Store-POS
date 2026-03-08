@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +17,8 @@ import { OfflineIndicator } from "@/components/pos/offline-indicator"
 
 export function Header() {
   const { data: session } = useSession()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   return (
     <header className="sticky top-0 z-40 h-16 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex items-center justify-between px-4">
@@ -26,7 +29,7 @@ export function Header() {
 
       <nav aria-label="User menu" className="flex items-center gap-4">
         <span className="text-sm font-medium text-muted-foreground">
-          {session?.user?.name}
+          {mounted ? session?.user?.name : null}
         </span>
 
         <OfflineIndicator compact />
@@ -38,7 +41,7 @@ export function Header() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 [box-shadow:var(--shadow-float)]">
-            {session?.user?.permSettings && (
+            {mounted && session?.user?.permSettings && (
               <DropdownMenuItem asChild>
                 <Link href="/settings">
                   <Settings className="mr-2 h-4 w-4" />

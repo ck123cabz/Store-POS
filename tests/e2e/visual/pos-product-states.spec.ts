@@ -14,7 +14,7 @@ test.describe("T025: POS Product Tile Visual States", () => {
 
     // Navigate to POS
     await page.goto("/pos")
-    await page.waitForLoadState("networkidle")
+    await page.waitForLoadState("domcontentloaded")
   })
 
   test("POS page loads with product grid", async ({ page }) => {
