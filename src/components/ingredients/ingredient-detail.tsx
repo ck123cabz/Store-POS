@@ -243,14 +243,16 @@ export function IngredientDetail({
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Edit
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onRestock(ingredient)}
-          >
-            <Package className="mr-1.5 h-3.5 w-3.5" />
-            Restock
-          </Button>
+          {ingredient.type !== "PREPARED" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onRestock(ingredient)}
+            >
+              <Package className="mr-1.5 h-3.5 w-3.5" />
+              Restock
+            </Button>
+          )}
           {ingredient.type === "PREPARED" && (
             <Button
               variant="outline"
@@ -296,13 +298,15 @@ export function IngredientDetail({
         </div>
       )}
 
-      {/* Purchase variants */}
-      <div className="space-y-3">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Purchase Variants
-        </h3>
-        <VariantsTable variants={ingredient.purchaseVariants} />
-      </div>
+      {/* Purchase variants (RAW only) */}
+      {ingredient.type !== "PREPARED" && (
+        <div className="space-y-3">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Purchase Variants
+          </h3>
+          <VariantsTable variants={ingredient.purchaseVariants} />
+        </div>
+      )}
 
       {/* Produce dialog for PREPARED ingredients */}
       {ingredient.type === "PREPARED" && (

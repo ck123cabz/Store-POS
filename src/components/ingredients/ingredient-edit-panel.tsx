@@ -873,8 +873,8 @@ export function IngredientEditPanel({
               )}
             </FormSection>
 
-            {/* Section 3: Purchase Variants (edit only) */}
-            {isEdit && (
+            {/* Section 3: Purchase Variants (edit only, RAW only) */}
+            {isEdit && ingredientType !== "PREPARED" && (
               <FormSection
                 icon={ShoppingCart}
                 title="Purchase Variants"
