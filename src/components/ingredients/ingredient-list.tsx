@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Search } from "lucide-react"
+import { FlaskConical, Search } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -145,8 +145,11 @@ function IngredientList({
                     }
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
+                    <p className="truncate text-sm font-medium flex items-center gap-1.5">
                       {ingredient.name}
+                      {ingredient.type === "PREPARED" && (
+                        <FlaskConical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
                       {ingredient.category}

@@ -1,10 +1,12 @@
 "use client"
 
-import { Pencil, Package, ArrowLeft } from "lucide-react"
+import { useState } from "react"
+import { Pencil, Package, ArrowLeft, FlaskConical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/ingredient-utils"
+import { ProduceDialog } from "@/components/ingredients/produce-dialog"
 import type { Ingredient, PurchaseVariant } from "@/types/ingredient"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,6 +18,7 @@ interface IngredientDetailProps {
   onEdit: (ingredient: Ingredient) => void
   onRestock: (ingredient: Ingredient) => void
   onBack?: () => void
+  onRefresh?: () => void
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,7 +191,9 @@ export function IngredientDetail({
   onEdit,
   onRestock,
   onBack,
+  onRefresh,
 }: IngredientDetailProps) {
+  const [produceDialogOpen, setProduceDialogOpen] = useState(false)
   if (!ingredient) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
@@ -246,6 +251,16 @@ export function IngredientDetail({
             <Package className="mr-1.5 h-3.5 w-3.5" />
             Restock
           </Button>
+          {ingredient.type === "PREPARED" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setProduceDialogOpen(true)}
+            >
+              <FlaskConical className="mr-1.5 h-3.5 w-3.5" />
+              Produce
+            </Button>
+          )}
         </div>
       </div>
 
@@ -271,6 +286,16 @@ export function IngredientDetail({
         onEdit={() => onEdit(ingredient)}
       />
 
+      {/* Prepared ingredient info */}
+      {ingredient.type === "PREPARED" && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <FlaskConical className="h-4 w-4" />
+          <span>
+            Prepared ingredient — {ingredient.productionInputs.length} input{ingredient.productionInputs.length !== 1 ? "s" : ""} in recipe
+          </span>
+        </div>
+      )}
+
       {/* Purchase variants */}
       <div className="space-y-3">
         <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -278,6 +303,16 @@ export function IngredientDetail({
         </h3>
         <VariantsTable variants={ingredient.purchaseVariants} />
       </div>
+
+      {/* Produce dialog for PREPARED ingredients */}
+      {ingredient.type === "PREPARED" && (
+        <ProduceDialog
+          open={produceDialogOpen}
+          onOpenChange={setProduceDialogOpen}
+          ingredient={ingredient}
+          onSuccess={() => onRefresh?.()}
+        />
+      )}
     </div>
   )
 }

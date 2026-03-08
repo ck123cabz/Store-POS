@@ -119,6 +119,7 @@ export default function IngredientsPage() {
             onEdit={(ing) => openPanel(ing)}
             onRestock={setRestockIngredient}
             onBack={isMobile ? () => setMobileView("list") : undefined}
+            onRefresh={fetchData}
           />
         </div>
       )}
