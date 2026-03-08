@@ -52,6 +52,9 @@ function formatIngredient(i: {
     contentUnit?: { name: string }
     packageUnit?: { name: string }
   }>
+  type?: string
+  batchYield?: { toNumber?: () => number } | number | null
+  _count?: { productionInputs: number }
   unitAliases?: Array<{
     id: number
     name: string
@@ -75,6 +78,12 @@ function formatIngredient(i: {
     id: i.id,
     name: i.name,
     category: i.category,
+
+    // Type
+    type: (i.type as string) || "RAW",
+    batchYield: i.batchYield ? num(i.batchYield) : null,
+    productionInputCount: i._count?.productionInputs ?? 0,
+    productionInputs: [],
 
     // Unit system
     baseUnitId: i.baseUnitId,
@@ -153,6 +162,7 @@ const ingredientInclude = {
     orderBy: { isDefault: "desc" as const },
   },
   unitAliases: { orderBy: { createdAt: "asc" as const } },
+  _count: { select: { productionInputs: true } },
 }
 
 export async function GET() {
@@ -255,6 +265,8 @@ export async function POST(request: NextRequest) {
           overheadPerTransaction: data.overheadPerTransaction,
           yieldFactor: data.yieldFactor,
           vendorId: data.vendorId,
+          type: body.type || "RAW",
+          batchYield: body.batchYield || null,
           lastUpdated: new Date(),
         },
       })

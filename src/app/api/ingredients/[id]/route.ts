@@ -40,6 +40,10 @@ function formatIngredient(i: Record<string, unknown>) {
     overheadPerTransaction: i.overheadPerTransaction ? num(i.overheadPerTransaction) : null,
     yieldFactor: i.yieldFactor ? num(i.yieldFactor) : null,
     vendorId: i.vendorId,
+    type: (i.type as string) || "RAW",
+    batchYield: i.batchYield ? num(i.batchYield) : null,
+    productionInputCount: ((i as Record<string, unknown>)._count as { productionInputs: number })?.productionInputs ?? 0,
+    productionInputs: [],
     vendorName: vendor?.name || null,
     lastUpdated: i.lastUpdated ? (i.lastUpdated as Date).toISOString() : null,
     lastRestockDate: i.lastRestockDate ? (i.lastRestockDate as Date).toISOString() : null,
@@ -97,6 +101,7 @@ const ingredientInclude = {
   },
   unitAliases: { orderBy: { createdAt: "asc" as const } },
   recipeItems: { include: { product: true } },
+  _count: { select: { productionInputs: true } },
 }
 
 export async function GET(
@@ -190,17 +195,29 @@ export async function PUT(
     if (body.isOverhead !== undefined) updateData.isOverhead = body.isOverhead
     if (body.overheadPerTransaction !== undefined) updateData.overheadPerTransaction = body.overheadPerTransaction
     if (body.yieldFactor !== undefined) updateData.yieldFactor = body.yieldFactor === null ? null : parseFloat(String(body.yieldFactor))
+    if (body.type !== undefined) updateData.type = body.type
+    if (body.batchYield !== undefined) updateData.batchYield = body.batchYield === null ? null : parseFloat(String(body.batchYield))
 
-    const [ingredient] = await prisma.$transaction([
-      prisma.ingredient.update({
+    const ingredient = await prisma.$transaction(async (tx) => {
+      // If changing from PREPARED to RAW, clean up production recipe
+      if (body.type === "RAW" && current.type === "PREPARED") {
+        await tx.productionRecipeItem.deleteMany({
+          where: { outputIngredientId: ingredientId },
+        })
+      }
+
+      const updated = await tx.ingredient.update({
         where: { id: ingredientId },
         data: updateData,
         include: ingredientInclude,
-      }),
-      ...historyEntries.map((entry) =>
-        prisma.ingredientHistory.create({ data: entry })
-      ),
-    ])
+      })
+
+      for (const entry of historyEntries) {
+        await tx.ingredientHistory.create({ data: entry })
+      }
+
+      return updated
+    })
 
     return NextResponse.json(formatIngredient(ingredient as unknown as Record<string, unknown>))
   } catch (error) {
