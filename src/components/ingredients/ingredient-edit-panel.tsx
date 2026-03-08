@@ -48,6 +48,7 @@ import {
   Utensils,
   Flame,
   ChefHat,
+  FlaskConical,
   ChevronDown,
   Trash2,
   Pencil,
@@ -86,7 +87,19 @@ interface IngredientEditPanelProps {
   ingredient: Ingredient | null
   vendors: Vendor[]
   units: Unit[]
+  allIngredients: Ingredient[]
   onSaved: () => void
+}
+
+interface ProductionInput {
+  inputIngredientId: number
+  inputIngredientName: string
+  inputBaseUnitName: string
+  quantity: number
+  baseQuantity: number
+  unitName: string | null
+  costPerBaseUnit: number
+  lineCost: number
 }
 
 const INGREDIENT_CATEGORIES = [
@@ -159,6 +172,7 @@ export function IngredientEditPanel({
   ingredient,
   vendors,
   units,
+  allIngredients,
   onSaved,
 }: IngredientEditPanelProps) {
   const isEdit = !!ingredient
@@ -174,6 +188,17 @@ export function IngredientEditPanel({
   const [isOverhead, setIsOverhead] = useState(false)
   const [overheadPerTransaction, setOverheadPerTransaction] = useState("")
   const [yieldFactor, setYieldFactor] = useState("")
+  const [ingredientType, setIngredientType] = useState<"RAW" | "PREPARED">("RAW")
+  const [batchYield, setBatchYield] = useState("")
+
+  // Production recipe
+  const [productionInputs, setProductionInputs] = useState<ProductionInput[]>([])
+  const [productionCosts, setProductionCosts] = useState<{ totalInputCost: number; costPerUnit: number } | null>(null)
+  const [loadingRecipe, setLoadingRecipe] = useState(false)
+  const [productionRecipeOpen, setProductionRecipeOpen] = useState(false)
+  const [newInputIngredientId, setNewInputIngredientId] = useState("")
+  const [newInputQty, setNewInputQty] = useState("")
+  const [savingRecipe, setSavingRecipe] = useState(false)
 
   // Unit aliases
   const [unitAliases, setUnitAliases] = useState<UnitAlias[]>([])
@@ -215,6 +240,8 @@ export function IngredientEditPanel({
       setIsOverhead(ingredient.isOverhead)
       setOverheadPerTransaction(ingredient.overheadPerTransaction?.toString() || "")
       setYieldFactor(ingredient.yieldFactor?.toString() || "")
+      setIngredientType(ingredient.type || "RAW")
+      setBatchYield(ingredient.batchYield?.toString() || "")
       setUnitAliases(ingredient.unitAliases)
       setVariants(ingredient.purchaseVariants)
       // Expand sections that have data
@@ -237,6 +264,10 @@ export function IngredientEditPanel({
     setIsOverhead(false)
     setOverheadPerTransaction("")
     setYieldFactor("")
+    setIngredientType("RAW")
+    setBatchYield("")
+    setProductionInputs([])
+    setProductionCosts(null)
     setUnitAliases([])
     setVariants([])
     setNewAliasName("")
@@ -249,6 +280,28 @@ export function IngredientEditPanel({
     setOverheadOpen(false)
     setYieldOpen(false)
   }
+
+  // Fetch production recipe for PREPARED ingredients
+  useEffect(() => {
+    if (!open || !ingredient || ingredient.type !== "PREPARED") {
+      setProductionInputs([])
+      setProductionCosts(null)
+      return
+    }
+
+    setLoadingRecipe(true)
+    fetch(`/api/ingredients/${ingredient.id}/production-recipe`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          setProductionInputs(data.inputs || [])
+          setProductionCosts(data.costs || null)
+          setProductionRecipeOpen(data.inputs?.length > 0)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingRecipe(false))
+  }, [open, ingredient])
 
   const selectedBaseUnitName = useMemo(() => {
     if (!baseUnitId) return "unit"
@@ -285,6 +338,8 @@ export function IngredientEditPanel({
             ? parseFloat(overheadPerTransaction)
             : null,
         yieldFactor: yieldFactor ? parseFloat(yieldFactor) : null,
+        type: ingredientType,
+        batchYield: ingredientType === "PREPARED" && batchYield ? parseFloat(batchYield) : null,
       }
 
       if (!ingredient) {
@@ -417,6 +472,67 @@ export function IngredientEditPanel({
     }
   }
 
+  // ─── Production Recipe Handlers ─────────────────────────────────────────────
+
+  async function saveProductionRecipe(inputs: ProductionInput[]) {
+    if (!ingredient) return
+    setSavingRecipe(true)
+    try {
+      const res = await fetch(`/api/ingredients/${ingredient.id}/production-recipe`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchYield: parseFloat(batchYield) || null,
+          inputs: inputs.map(i => ({
+            inputIngredientId: i.inputIngredientId,
+            quantity: i.quantity,
+            baseQuantity: i.baseQuantity,
+          })),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to save recipe")
+      }
+
+      // Refresh recipe data
+      const recipeRes = await fetch(`/api/ingredients/${ingredient.id}/production-recipe`)
+      if (recipeRes.ok) {
+        const data = await recipeRes.json()
+        setProductionInputs(data.inputs || [])
+        setProductionCosts(data.costs || null)
+      }
+
+      toast.success("Production recipe updated")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save")
+    } finally {
+      setSavingRecipe(false)
+    }
+  }
+
+  async function handleAddProductionInput() {
+    if (!newInputIngredientId || !newInputQty) return
+
+    const qty = parseFloat(newInputQty)
+    if (qty <= 0) return
+
+    const newInputs = [...productionInputs, {
+      inputIngredientId: parseInt(newInputIngredientId),
+      inputIngredientName: "",
+      inputBaseUnitName: "",
+      quantity: qty,
+      baseQuantity: qty,
+      unitName: null,
+      costPerBaseUnit: 0,
+      lineCost: 0,
+    }]
+
+    await saveProductionRecipe(newInputs)
+    setNewInputIngredientId("")
+    setNewInputQty("")
+  }
+
   // ─── Computed badges ────────────────────────────────────────────────────────
 
   const identityBadge = !identityOpen && name ? (
@@ -450,6 +566,12 @@ export function IngredientEditPanel({
       className={`text-xs font-normal ${isOverhead ? "bg-status-warning/15 text-status-warning" : ""}`}
     >
       {isOverhead ? "On" : "Off"}
+    </Badge>
+  ) : null
+
+  const productionRecipeBadge = !productionRecipeOpen && productionInputs.length > 0 ? (
+    <Badge variant="secondary" className="text-xs font-normal">
+      {productionInputs.length} input{productionInputs.length !== 1 ? "s" : ""}
     </Badge>
   ) : null
 
@@ -574,6 +696,49 @@ export function IngredientEditPanel({
                   </Select>
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label>Ingredient Type</Label>
+                <Select value={ingredientType} onValueChange={(v) => setIngredientType(v as "RAW" | "PREPARED")}>
+                  <SelectTrigger aria-label="Ingredient Type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RAW">Raw (purchased)</SelectItem>
+                    <SelectItem value="PREPARED">Prepared (made in-house)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {ingredientType === "PREPARED"
+                    ? "This ingredient is produced from other ingredients"
+                    : "This ingredient is purchased from vendors"}
+                </p>
+              </div>
+
+              {ingredientType === "PREPARED" && (
+                <div className="space-y-2">
+                  <Label htmlFor="batch-yield">Batch Yield *</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="batch-yield"
+                      type="number"
+                      min="0.001"
+                      step="any"
+                      value={batchYield}
+                      onChange={(e) => setBatchYield(e.target.value)}
+                      placeholder="e.g., 20"
+                      required
+                      className="flex-1"
+                    />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      {selectedBaseUnitName} per batch
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    How many {selectedBaseUnitName} one batch produces
+                  </p>
+                </div>
+              )}
             </FormSection>
 
             {/* Section 2: Units & Stock */}
@@ -1008,7 +1173,105 @@ export function IngredientEditPanel({
               )}
             </FormSection>
 
-            {/* Section 6: Cooking Yield */}
+            {/* Section 6: Production Recipe (PREPARED + edit only) */}
+            {ingredientType === "PREPARED" && isEdit && (
+              <FormSection
+                icon={FlaskConical}
+                title="Production Recipe"
+                badge={productionRecipeBadge}
+                open={productionRecipeOpen}
+                onOpenChange={setProductionRecipeOpen}
+              >
+                {loadingRecipe ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading recipe...
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Current inputs */}
+                    {productionInputs.length > 0 ? (
+                      <div className="space-y-2">
+                        {productionInputs.map((input, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm bg-muted/50 rounded-md px-3 py-2">
+                            <span className="flex-1 font-medium">{input.inputIngredientName}</span>
+                            <span className="text-muted-foreground">
+                              {input.quantity} {input.unitName || input.inputBaseUnitName}
+                            </span>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {formatCurrency(input.lineCost)}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => {
+                                const updated = productionInputs.filter((_, i) => i !== idx)
+                                saveProductionRecipe(updated)
+                              }}
+                              disabled={savingRecipe}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+
+                        {/* Cost summary */}
+                        {productionCosts && (
+                          <div className="flex justify-between text-xs pt-2 border-t">
+                            <span className="text-muted-foreground">
+                              Batch cost: {formatCurrency(productionCosts.totalInputCost)}
+                            </span>
+                            <span className="font-medium">
+                              Cost per {selectedBaseUnitName}: {formatCurrency(productionCosts.costPerUnit)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No inputs defined yet.</p>
+                    )}
+
+                    {/* Add input form */}
+                    <div className="flex gap-2">
+                      <Select value={newInputIngredientId} onValueChange={setNewInputIngredientId}>
+                        <SelectTrigger className="flex-1" aria-label="Select ingredient">
+                          <SelectValue placeholder="Add ingredient..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allIngredients
+                            .filter(i => i.id !== ingredient?.id && !productionInputs.some(pi => pi.inputIngredientId === i.id))
+                            .map(i => (
+                              <SelectItem key={i.id} value={i.id.toString()}>{i.name}</SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        min="0.001"
+                        step="any"
+                        value={newInputQty}
+                        onChange={(e) => setNewInputQty(e.target.value)}
+                        placeholder="Qty"
+                        className="w-24"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddProductionInput}
+                        disabled={!newInputIngredientId || !newInputQty || savingRecipe}
+                      >
+                        {savingRecipe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </FormSection>
+            )}
+
+            {/* Section 7: Cooking Yield */}
             <FormSection
               icon={ChefHat}
               title="Cooking Yield"

@@ -130,6 +130,7 @@ export default function IngredientsPage() {
         ingredient={editIngredient}
         vendors={vendors}
         units={units}
+        allIngredients={ingredients}
         onSaved={fetchData}
       />
 
