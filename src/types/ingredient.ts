@@ -99,6 +99,62 @@ export interface UnitAliasInput {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Production Recipe Types (PREPARED ingredients)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export type IngredientType = "RAW" | "PREPARED"
+
+/** An input ingredient in a production recipe */
+export interface ProductionRecipeItem {
+  id: number
+  outputIngredientId: number
+  inputIngredientId: number
+  inputIngredientName: string
+  inputBaseUnitName: string
+  inputBaseUnitAbbr: string
+  quantity: number          // amount in chosen unit
+  baseQuantity: number      // converted to input's base units
+  unitId: number | null
+  unitName: string | null   // chosen unit name (null = base unit)
+  note: string | null
+  costPerBaseUnit: number   // input ingredient's avgCostPerBaseUnit
+  lineCost: number          // baseQuantity * costPerBaseUnit
+}
+
+export interface ProductionRecipeItemInput {
+  inputIngredientId: number
+  quantity: number
+  unitId?: number | null
+  unitName?: string
+  baseQuantity?: number
+  note?: string
+}
+
+/** Result of a production run */
+export interface ProductionRunResult {
+  outputIngredient: {
+    id: number
+    name: string
+    baseUnitName: string
+    previousStockQty: number
+    addedBaseUnits: number
+    newStockQty: number
+    previousAvgCost: number
+    newAvgCost: number
+  }
+  inputDeductions: Array<{
+    ingredientId: number
+    ingredientName: string
+    baseUnitName: string
+    deductedBaseUnits: number
+    previousStockQty: number
+    newStockQty: number
+  }>
+  batchCount: number
+  changeId: string
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Stock Status Types
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -137,6 +193,11 @@ export interface Ingredient {
   // Yield factor
   yieldFactor: number | null
 
+  // Production recipe (PREPARED ingredients only)
+  type: IngredientType
+  batchYield: number | null  // base units produced per batch
+  productionInputs: ProductionRecipeItem[]  // what goes into making this
+
   // Metadata
   vendorId: number | null
   vendorName: string | null
@@ -162,6 +223,8 @@ export interface IngredientFormInput {
   isOverhead: boolean
   overheadPerTransaction: number | null
   yieldFactor: number | null
+  type: IngredientType
+  batchYield: number | null
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
