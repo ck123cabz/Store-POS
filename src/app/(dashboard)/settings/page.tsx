@@ -8,11 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Loader2, Save, Upload, RotateCcw, Check } from "lucide-react"
+import { Loader2, Save, Upload, RotateCcw, Check, Calendar, Wallet, Trash2, Pencil, Plus } from "lucide-react"
 import { useOnboarding } from "@/hooks/use-onboarding"
 import { useColorTheme } from "@/components/providers/color-theme-provider"
 import { useTheme } from "next-themes"
@@ -29,6 +32,17 @@ interface SettingsFormData {
   taxPercentage: string
   chargeTax: boolean
   receiptFooter: string
+  payPeriodType: string
+  payPeriodStartDay: string
+}
+
+interface ShiftTemplate {
+  id: number
+  name: string
+  startTime: string
+  endTime: string
+  color: string
+  isActive: boolean
 }
 
 const initialFormData: SettingsFormData = {
@@ -42,6 +56,8 @@ const initialFormData: SettingsFormData = {
   taxPercentage: "0",
   chargeTax: false,
   receiptFooter: "",
+  payPeriodType: "custom",
+  payPeriodStartDay: "1",
 }
 
 export default function SettingsPage() {
@@ -54,6 +70,12 @@ export default function SettingsPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string>("")
   const [formData, setFormData] = useState<SettingsFormData>(initialFormData)
+
+  // Shift Templates state (separate from main settings form)
+  const [templates, setTemplates] = useState<ShiftTemplate[]>([])
+  const [templateFormOpen, setTemplateFormOpen] = useState(false)
+  const [editTemplate, setEditTemplate] = useState<ShiftTemplate | null>(null)
+  const [templateForm, setTemplateForm] = useState({ name: "", startTime: "", endTime: "", color: "#3B82F6", isActive: true })
 
   useEffect(() => {
     async function loadSettings() {
@@ -72,6 +94,8 @@ export default function SettingsPage() {
             taxPercentage: String(data.taxPercentage || "0"),
             chargeTax: data.chargeTax || false,
             receiptFooter: data.receiptFooter || "",
+            payPeriodType: data.payPeriodType || "custom",
+            payPeriodStartDay: String(data.payPeriodStartDay || "1"),
           })
           setCurrentLogo(data.logo || "")
         }
@@ -82,7 +106,68 @@ export default function SettingsPage() {
       }
     }
     loadSettings()
+    loadTemplates()
   }, [])
+
+  async function loadTemplates() {
+    try {
+      const res = await fetch("/api/shift-templates")
+      const data = await res.json()
+      if (Array.isArray(data)) setTemplates(data)
+    } catch {
+      // silently fail - templates are non-critical
+    }
+  }
+
+  function openAddTemplate() {
+    setEditTemplate(null)
+    setTemplateForm({ name: "", startTime: "", endTime: "", color: "#3B82F6", isActive: true })
+    setTemplateFormOpen(true)
+  }
+
+  function openEditTemplate(t: ShiftTemplate) {
+    setEditTemplate(t)
+    setTemplateForm({ name: t.name, startTime: t.startTime, endTime: t.endTime, color: t.color, isActive: t.isActive })
+    setTemplateFormOpen(true)
+  }
+
+  async function handleTemplateSave() {
+    try {
+      if (editTemplate) {
+        const res = await fetch(`/api/shift-templates/${editTemplate.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(templateForm),
+        })
+        if (!res.ok) throw new Error()
+        toast.success("Template updated")
+      } else {
+        const res = await fetch("/api/shift-templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(templateForm),
+        })
+        if (!res.ok) throw new Error()
+        toast.success("Template created")
+      }
+      setTemplateFormOpen(false)
+      loadTemplates()
+    } catch {
+      toast.error("Failed to save template")
+    }
+  }
+
+  async function handleTemplateDelete(id: number) {
+    if (!confirm("Delete this shift template?")) return
+    try {
+      const res = await fetch(`/api/shift-templates/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error()
+      toast.success("Template deleted")
+      loadTemplates()
+    } catch {
+      toast.error("Failed to delete template")
+    }
+  }
 
   function handleInputChange(field: keyof SettingsFormData, value: string | boolean) {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -129,6 +214,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           ...formData,
           taxPercentage: parseFloat(formData.taxPercentage) || 0,
+          payPeriodStartDay: parseInt(formData.payPeriodStartDay) || 1,
           ...(logoFilename && { logo: logoFilename }),
         }),
       })
@@ -482,6 +568,62 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Payroll Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              <CardTitle>Payroll Settings</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="payPeriodType">Pay Period Type</Label>
+              <Select
+                value={formData.payPeriodType}
+                onValueChange={(value) => handleInputChange("payPeriodType", value)}
+              >
+                <SelectTrigger id="payPeriodType">
+                  <SelectValue placeholder="Select pay period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">Custom</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                How often employees are paid. Custom allows flexible date ranges.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payPeriodStartDay">Pay Period Start Day</Label>
+              <Select
+                value={formData.payPeriodStartDay}
+                onValueChange={(value) => handleInputChange("payPeriodStartDay", value)}
+                disabled={formData.payPeriodType === "custom" || formData.payPeriodType === "monthly"}
+              >
+                <SelectTrigger id="payPeriodStartDay">
+                  <SelectValue placeholder="Select start day" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Monday</SelectItem>
+                  <SelectItem value="2">Tuesday</SelectItem>
+                  <SelectItem value="3">Wednesday</SelectItem>
+                  <SelectItem value="4">Thursday</SelectItem>
+                  <SelectItem value="5">Friday</SelectItem>
+                  <SelectItem value="6">Saturday</SelectItem>
+                  <SelectItem value="7">Sunday</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                The day of the week each pay period begins. Not applicable for custom or monthly periods.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Button type="submit" disabled={submitting} className="w-full" size="lg">
           {submitting ? (
             <>
@@ -496,6 +638,125 @@ export default function SettingsPage() {
           )}
         </Button>
       </form>
+
+      {/* Shift Templates (separate from settings form) */}
+      <Card className="mt-6">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            <CardTitle>Shift Templates</CardTitle>
+          </div>
+          <Button size="sm" onClick={openAddTemplate}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Template
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {templates.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No shift templates yet. Add one to get started.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {templates.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between rounded-md border px-3 py-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="h-3 w-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: t.color }}
+                    />
+                    <div>
+                      <span className="font-medium">{t.name}</span>
+                      <span className="ml-2 font-mono text-sm text-muted-foreground tabular-nums">
+                        {t.startTime} - {t.endTime}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={t.isActive ? "default" : "secondary"}>
+                      {t.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                    <Button variant="ghost" size="icon" onClick={() => openEditTemplate(t)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleTemplateDelete(t.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Shift Template Dialog */}
+      <Dialog open={templateFormOpen} onOpenChange={setTemplateFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editTemplate ? "Edit Template" : "Add Template"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="templateName">Name</Label>
+              <Input
+                id="templateName"
+                value={templateForm.name}
+                onChange={(e) => setTemplateForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Morning Shift"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="templateStart">Start Time</Label>
+                <Input
+                  id="templateStart"
+                  type="time"
+                  value={templateForm.startTime}
+                  onChange={(e) => setTemplateForm((f) => ({ ...f, startTime: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="templateEnd">End Time</Label>
+                <Input
+                  id="templateEnd"
+                  type="time"
+                  value={templateForm.endTime}
+                  onChange={(e) => setTemplateForm((f) => ({ ...f, endTime: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="templateColor">Color</Label>
+              <Input
+                id="templateColor"
+                type="color"
+                value={templateForm.color}
+                onChange={(e) => setTemplateForm((f) => ({ ...f, color: e.target.value }))}
+                className="h-10 w-20 p-1"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={templateForm.isActive}
+                onCheckedChange={(checked) => setTemplateForm((f) => ({ ...f, isActive: checked }))}
+              />
+              <Label>Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateFormOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleTemplateSave}>
+              {editTemplate ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
