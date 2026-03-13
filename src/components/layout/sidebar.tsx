@@ -43,6 +43,7 @@ import {
   ChefHat,
   Sun,
   Moon,
+  Briefcase,
 } from "lucide-react"
 
 interface NavItem {
@@ -89,6 +90,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/customers", label: "Customers", icon: UserCircle, permission: null },
       { href: "/users", label: "Users", icon: Users, permission: "permUsers" },
+      { href: "/employees", label: "Employees", icon: Briefcase, permission: "permUsers" },
       { href: "/employee", label: "Tasks", icon: CheckSquare, permission: null, badgeKey: "employee" },
       { href: "/settings", label: "Settings", icon: Settings, permission: "permSettings" },
     ],
