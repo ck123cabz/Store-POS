@@ -53,7 +53,8 @@ export function useSidebarBadges() {
         consecutiveFailuresRef.current++
       }
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
+      // Ignore abort errors (cleanup / stale request cancellation)
+      if (abortControllerRef.current?.signal.aborted) {
         return
       }
       // T050, T051: Log error but keep last known badges (EC-09, EC-10)
