@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   try {
@@ -27,6 +28,8 @@ export async function GET() {
       logo: settings.logo,
       targetTrueMarginPercent: settings.targetTrueMarginPercent ? Number(settings.targetTrueMarginPercent) : null,
       avgHourlyLaborCost: settings.avgHourlyLaborCost ? Number(settings.avgHourlyLaborCost) : 75,
+      payPeriodType: settings.payPeriodType,
+      payPeriodStartDay: settings.payPeriodStartDay,
     })
   } catch {
     return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 })
@@ -53,6 +56,8 @@ export async function POST(request: NextRequest) {
         chargeTax: body.chargeTax ?? false,
         receiptFooter: body.receiptFooter ?? "",
         logo: body.logo ?? "",
+        payPeriodType: body.payPeriodType ?? "custom",
+        payPeriodStartDay: body.payPeriodStartDay ?? 1,
       },
       update: {
         appMode: body.appMode,
@@ -66,7 +71,15 @@ export async function POST(request: NextRequest) {
         chargeTax: body.chargeTax,
         receiptFooter: body.receiptFooter,
         ...(body.logo !== undefined && { logo: body.logo }),
+        ...(body.payPeriodType !== undefined && { payPeriodType: body.payPeriodType }),
+        ...(body.payPeriodStartDay !== undefined && { payPeriodStartDay: body.payPeriodStartDay }),
       },
+    })
+
+    await logAudit({
+      entity: "setting", entityId: null, action: "update",
+      summary: "Updated store settings",
+      userId: null, userName: null,
     })
 
     return NextResponse.json({
@@ -81,6 +94,8 @@ export async function POST(request: NextRequest) {
       chargeTax: settings.chargeTax,
       receiptFooter: settings.receiptFooter,
       logo: settings.logo,
+      payPeriodType: settings.payPeriodType,
+      payPeriodStartDay: settings.payPeriodStartDay,
     })
   } catch (error) {
     console.error("Settings save error:", error)
