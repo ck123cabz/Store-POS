@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { computeBaseUnitsPerVariant } from "@/lib/ingredient-utils"
 
 /**
@@ -70,6 +71,12 @@ export async function PUT(
       include: { contentUnit: true, packageUnit: true },
     })
 
+    await logAudit({
+      entity: "purchase_variant", entityId: vid, action: "update",
+      summary: `Updated variant '${updated.label}' for ingredient #${ingredientId}`,
+      userId: null, userName: null,
+    })
+
     return NextResponse.json({
       id: updated.id,
       ingredientId: updated.ingredientId,
@@ -124,6 +131,12 @@ export async function DELETE(
     await prisma.purchaseVariant.update({
       where: { id: vid },
       data: { isActive: false },
+    })
+
+    await logAudit({
+      entity: "purchase_variant", entityId: vid, action: "delete",
+      summary: `Deactivated variant '${variant.label}' for ingredient #${ingredientId}`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json({ success: true })

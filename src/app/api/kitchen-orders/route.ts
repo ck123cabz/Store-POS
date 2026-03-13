@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 
 export async function GET(request: NextRequest) {
   try {
@@ -105,6 +106,12 @@ export async function POST(request: NextRequest) {
       include: {
         items: true,
       },
+    })
+
+    await logAudit({
+      entity: "kitchen_order", entityId: kitchenOrder.id, action: "create",
+      summary: `Created kitchen order #${body.orderNumber} (${body.items.length} items)`,
+      ...auditUser(session),
     })
 
     return NextResponse.json(kitchenOrder)

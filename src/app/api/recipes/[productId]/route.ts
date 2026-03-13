@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 // Get recipe for a product (ingredients and quantities)
 export async function GET(
@@ -186,6 +187,12 @@ export async function PUT(
         trueMargin: Math.round(trueMargin * 100) / 100,
         trueMarginPercent: Math.round(trueMarginPercent * 10) / 10,
       },
+    })
+
+    await logAudit({
+      entity: "recipe", entityId: id, action: "update",
+      summary: `Updated recipe for product (id: ${id})`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json({

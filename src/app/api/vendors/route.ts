@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit, auditUser } from "@/lib/audit"
 
 export async function GET() {
   try {
@@ -47,6 +48,12 @@ export async function POST(request: NextRequest) {
         accountNumber: body.accountNumber || null,
         notes: body.notes || null,
       },
+    })
+
+    await logAudit({
+      entity: "vendor", entityId: vendor.id, action: "create",
+      summary: `Created vendor '${vendor.name}'`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json(vendor, { status: 201 })

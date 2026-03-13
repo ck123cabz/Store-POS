@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 
 /**
  * DELETE /api/ingredients/:id/unit-aliases/:aliasId
@@ -35,6 +36,12 @@ export async function DELETE(
 
     await prisma.ingredientUnitAlias.delete({
       where: { id: aliasIdInt },
+    })
+
+    await logAudit({
+      entity: "unit_alias", entityId: aliasIdInt, action: "delete",
+      summary: `Deleted unit alias '${alias.name}' for ingredient #${ingredientId}`,
+      ...auditUser(session),
     })
 
     return NextResponse.json({

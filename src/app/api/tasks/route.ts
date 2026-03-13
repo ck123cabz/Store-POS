@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit, auditUser } from "@/lib/audit"
 
 export async function GET() {
   try {
@@ -117,6 +118,12 @@ export async function POST(request: NextRequest) {
         createdBy: { select: { id: true, fullname: true } },
         assignedTo: { select: { id: true, fullname: true } },
       },
+    })
+
+    await logAudit({
+      entity: "task", entityId: task.id, action: "create",
+      summary: `Created task '${task.name}' (${task.type})`,
+      ...auditUser(session),
     })
 
     return NextResponse.json({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { productionRecipeItemSchema } from "@/lib/ingredient-utils"
 import { z } from "zod"
 
@@ -186,6 +187,12 @@ export async function PUT(
         ? [prisma.productionRecipeItem.createMany({ data: resolvedInputs })]
         : []),
     ])
+
+    await logAudit({
+      entity: "production_recipe", entityId: ingredientId, action: "update",
+      summary: `Updated production recipe for ingredient #${ingredientId} (${inputs.length} inputs)`,
+      userId: null, userName: null,
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

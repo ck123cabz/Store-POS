@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 
 export async function GET(
   request: NextRequest,
@@ -73,6 +74,12 @@ export async function PUT(
       },
     })
 
+    await logAudit({
+      entity: "product", entityId: product.id, action: "update",
+      summary: `Updated product '${product.name}'`,
+      ...auditUser(session),
+    })
+
     return NextResponse.json({
       id: product.id,
       name: product.name,
@@ -137,6 +144,13 @@ export async function DELETE(
 
     // Safe to hard delete — no transaction/kitchen history
     await prisma.product.delete({ where: { id: productId } })
+
+    await logAudit({
+      entity: "product", entityId: productId, action: "delete",
+      summary: `Deleted product (id: ${productId})`,
+      ...auditUser(session),
+    })
+
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: "Failed to delete product" }, { status: 500 })

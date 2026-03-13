@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import bcrypt from "bcryptjs"
+import { logAudit, auditUser } from "@/lib/audit"
 
 export async function GET(
   request: NextRequest,
@@ -112,6 +113,12 @@ export async function PUT(
       },
     })
 
+    await logAudit({
+      entity: "user", entityId: user.id, action: "update",
+      summary: `Updated user '${user.fullname}'`,
+      ...auditUser(session),
+    })
+
     return NextResponse.json(user)
   } catch (error) {
     // Check if it's a "record not found" error
@@ -162,6 +169,13 @@ export async function DELETE(
     }
 
     await prisma.user.delete({ where: { id: userId } })
+
+    await logAudit({
+      entity: "user", entityId: userId, action: "delete",
+      summary: `Deleted user '${user.fullname}' (${user.username})`,
+      ...auditUser(session),
+    })
+
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: "Failed to delete user" }, { status: 500 })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { nanoid } from "nanoid"
 import {
   productionRunSchema,
@@ -227,6 +228,13 @@ export async function POST(
         inputDeductions,
       }
     }, { timeout: 15000 })
+
+    await logAudit({
+      entity: "ingredient", entityId: ingredientId, action: "produce",
+      changes: { stockQty: { old: result.oldOutputStockQty, new: result.newOutputStockQty } },
+      summary: `Produced ${batchCount} batch(es) of ${outputIngredient.name} (+${addedBaseUnits} ${outputIngredient.baseUnit.name})`,
+      userId, userName,
+    })
 
     const parLevel = Number(outputIngredient.parLevel)
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 import { unitAliasSchema } from "@/lib/ingredient-utils"
 
 /**
@@ -118,6 +119,12 @@ export async function POST(
         description: description || null,
         isDefault: isDefault || false,
       },
+    })
+
+    await logAudit({
+      entity: "unit_alias", entityId: alias.id, action: "create",
+      summary: `Created unit alias '${alias.name}' for ingredient #${ingredientId}`,
+      ...auditUser(session),
     })
 
     return NextResponse.json(

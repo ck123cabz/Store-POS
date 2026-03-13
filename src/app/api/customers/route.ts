@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   try {
@@ -39,6 +40,12 @@ export async function POST(request: NextRequest) {
         address: typeof body.address === "string" ? body.address.trim() : "",
         creditLimit,
       },
+    })
+
+    await logAudit({
+      entity: "customer", entityId: customer.id, action: "create",
+      summary: `Created customer '${customer.name}'`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json(customer, { status: 201 })

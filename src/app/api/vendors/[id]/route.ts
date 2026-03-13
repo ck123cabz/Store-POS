@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit, auditUser } from "@/lib/audit"
 
 export async function GET(
   request: NextRequest,
@@ -64,6 +65,12 @@ export async function PUT(
       },
     })
 
+    await logAudit({
+      entity: "vendor", entityId: vendor.id, action: "update",
+      summary: `Updated vendor '${vendor.name}'`,
+      userId: null, userName: null,
+    })
+
     return NextResponse.json(vendor)
   } catch {
     return NextResponse.json({ error: "Failed to update vendor" }, { status: 500 })
@@ -78,6 +85,12 @@ export async function DELETE(
     const { id } = await params
     await prisma.vendor.delete({
       where: { id: parseInt(id) },
+    })
+
+    await logAudit({
+      entity: "vendor", entityId: parseInt(id), action: "delete",
+      summary: `Deleted vendor (id: ${id})`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json({ success: true })

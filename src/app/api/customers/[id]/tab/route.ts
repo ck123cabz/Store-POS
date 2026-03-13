@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 
 /**
  * GET /api/customers/[id]/tab
@@ -190,6 +191,13 @@ export async function POST(
       })
 
       return { settlement, newBalance }
+    })
+
+    await logAudit({
+      entity: "customer", entityId: customerId, action: "settle_tab",
+      changes: { tabBalance: { old: currentBalance, new: result.newBalance } },
+      summary: `Tab settlement: ${customer.name} paid ${parsedAmount} via ${paymentMethod} (balance: ${currentBalance} → ${result.newBalance})`,
+      ...auditUser(session),
     })
 
     return NextResponse.json({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { nanoid } from "nanoid"
 import {
   calculateStockStatus,
@@ -136,6 +137,13 @@ export async function POST(
         prisma.ingredientHistory.create({ data: entry })
       ),
     ])
+
+    await logAudit({
+      entity: "ingredient", entityId: ingredientId, action: "restock",
+      changes: { stockQty: { old: oldStockQty, new: newStockQty } },
+      summary: `Restocked ${ingredient.name}: +${addedBaseUnits} ${ingredient.baseUnit.name} (${body.quantity}x ${variant.label})`,
+      userId: body.userId || null, userName: body.userName || null,
+    })
 
     return NextResponse.json({
       ingredient: {

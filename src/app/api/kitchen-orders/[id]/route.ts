@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 
 export async function GET(
   request: NextRequest,
@@ -88,6 +89,12 @@ export async function PATCH(
       where: { id: parseInt(id) },
       data: updateData,
       include: { items: true },
+    })
+
+    await logAudit({
+      entity: "kitchen_order", entityId: parseInt(id), action: "update",
+      summary: `Updated kitchen order #${kitchenOrder.orderNumber}${body.status ? ` → ${body.status}` : ''}`,
+      ...auditUser(session),
     })
 
     return NextResponse.json(kitchenOrder)

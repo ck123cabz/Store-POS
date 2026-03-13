@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import {
   purchaseVariantSchema,
   computeBaseUnitsPerVariant,
@@ -118,6 +119,12 @@ export async function POST(
         isDefault: false,
       },
       include: { contentUnit: true, packageUnit: true },
+    })
+
+    await logAudit({
+      entity: "purchase_variant", entityId: variant.id, action: "create",
+      summary: `Created variant '${variant.label}' for ingredient #${ingredientId}`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import {
   calculateStockStatus,
   calculateStockRatio,
@@ -298,6 +299,12 @@ export async function POST(request: NextRequest) {
         where: { id: created.id },
         include: ingredientInclude,
       })
+    })
+
+    await logAudit({
+      entity: "ingredient", entityId: ingredient.id, action: "create",
+      summary: `Created ingredient '${data.name}'`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json(formatIngredient(ingredient), { status: 201 })

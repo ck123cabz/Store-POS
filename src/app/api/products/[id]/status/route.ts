@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 import { ProductStatus } from "@prisma/client"
 
 const VALID_TRANSITIONS: Record<ProductStatus, ProductStatus[]> = {
@@ -70,6 +71,13 @@ export async function PATCH(
         statusChangedAt: true,
         statusChangedBy: true,
       },
+    })
+
+    await logAudit({
+      entity: "product", entityId: productId, action: "status_change",
+      changes: { status: { old: product.status, new: newStatus } },
+      summary: `Changed product '${product.name}' status: ${product.status} → ${newStatus}`,
+      ...auditUser(session),
     })
 
     return NextResponse.json(updated)

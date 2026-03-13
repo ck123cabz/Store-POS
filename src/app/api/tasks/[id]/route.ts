@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit, auditUser } from "@/lib/audit"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -131,6 +132,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       },
     })
 
+    await logAudit({
+      entity: "task", entityId: task.id, action: "update",
+      summary: `Updated task '${task.name}'`,
+      ...auditUser(session),
+    })
+
     return NextResponse.json({
       id: task.id,
       name: task.name,
@@ -174,6 +181,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     await prisma.employeeTask.update({
       where: { id: taskId },
       data: { isActive: false },
+    })
+
+    await logAudit({
+      entity: "task", entityId: taskId, action: "delete",
+      summary: `Deactivated task (id: ${taskId})`,
+      ...auditUser(session),
     })
 
     return NextResponse.json({ success: true })

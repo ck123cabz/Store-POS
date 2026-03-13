@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import bcrypt from "bcryptjs"
+import { logAudit, auditUser } from "@/lib/audit"
 
 export async function GET() {
   try {
@@ -99,6 +100,12 @@ export async function POST(request: NextRequest) {
         permVoid: true,
         status: true,
       },
+    })
+
+    await logAudit({
+      entity: "user", entityId: user.id, action: "create",
+      summary: `Created user '${user.fullname}' (${user.username})`,
+      ...auditUser(session),
     })
 
     return NextResponse.json(user, { status: 201 })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit, auditUser } from "@/lib/audit"
 
 export async function GET(request: NextRequest) {
   try {
@@ -96,6 +97,12 @@ export async function POST(request: NextRequest) {
         ingredient: { include: { baseUnit: true } },
         unit: true,
       },
+    })
+
+    await logAudit({
+      entity: "waste_log", entityId: wasteLog.id, action: "create",
+      summary: `Logged waste: ${Number(wasteLog.quantity)} ${wasteLog.unit.name} of ${wasteLog.ingredient.name} (${wasteLog.reason})`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit, auditUser } from "@/lib/audit"
 
 // GET: Retrieve current user's draft
 export async function GET() {
@@ -94,6 +95,12 @@ export async function DELETE() {
 
     await prisma.inventoryCountDraft.deleteMany({
       where: { userId: Number(session.user.id) },
+    })
+
+    await logAudit({
+      entity: "inventory_count_draft", entityId: null, action: "delete",
+      summary: "Discarded inventory count draft",
+      ...auditUser(session),
     })
 
     return NextResponse.json({ success: true })

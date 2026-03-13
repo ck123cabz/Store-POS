@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 
 /**
  * PUT /api/categories/reorder
@@ -54,6 +55,12 @@ export async function PUT(request: NextRequest) {
         })
       )
     )
+
+    await logAudit({
+      entity: "category", entityId: null, action: "reorder",
+      summary: `Reordered ${body.orders.length} categories`,
+      ...auditUser(session),
+    })
 
     return NextResponse.json({ message: "Categories reordered successfully" })
   } catch (error) {

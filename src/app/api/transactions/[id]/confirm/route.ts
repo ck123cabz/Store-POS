@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 
 /**
  * POST /api/transactions/[id]/confirm
@@ -78,6 +79,13 @@ export async function POST(
         customer: true,
         user: true,
       },
+    })
+
+    await logAudit({
+      entity: "transaction", entityId: transactionId, action: "confirm",
+      changes: { paymentStatus: { old: "pending", new: "confirmed" } },
+      summary: `Confirmed GCash transaction #${transaction.orderNumber}`,
+      ...auditUser(session),
     })
 
     return NextResponse.json(updatedTransaction)

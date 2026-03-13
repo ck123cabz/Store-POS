@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { nanoid } from "nanoid"
 import {
   calculateStockStatus,
@@ -219,6 +220,12 @@ export async function PUT(
       return updated
     })
 
+    await logAudit({
+      entity: "ingredient", entityId: ingredientId, action: "update",
+      summary: `Updated ingredient '${current.name}'`,
+      userId: body.userId || null, userName: body.userName || null,
+    })
+
     return NextResponse.json(formatIngredient(ingredient as unknown as Record<string, unknown>))
   } catch (error) {
     console.error("Failed to update ingredient:", error)
@@ -245,6 +252,12 @@ export async function DELETE(
     await prisma.ingredient.update({
       where: { id: ingredientId },
       data: { isActive: false, updatedAt: new Date() },
+    })
+
+    await logAudit({
+      entity: "ingredient", entityId: ingredientId, action: "delete",
+      summary: `Deactivated ingredient '${ingredient.name}'`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json({ success: true, message: `${ingredient.name} has been deactivated` })

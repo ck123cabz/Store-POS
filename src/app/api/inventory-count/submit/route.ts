@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { nanoid } from "nanoid"
 import { convertUnits } from "@/lib/ingredient-utils"
 import type { UnitConversion } from "@/types/ingredient"
+import { logAudit, auditUser } from "@/lib/audit"
 
 interface CountItem {
   ingredientId: number
@@ -141,6 +142,12 @@ export async function POST(request: NextRequest) {
 
     // Execute all operations in a transaction
     await prisma.$transaction(operations)
+
+    await logAudit({
+      entity: "inventory_count", entityId: null, action: "inventory_count",
+      summary: `Submitted inventory count: ${counts.length} items, ${discrepancies.length} discrepancies`,
+      ...auditUser(session),
+    })
 
     return NextResponse.json({
       success: true,

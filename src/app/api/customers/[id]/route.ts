@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(
   request: NextRequest,
@@ -52,6 +53,12 @@ export async function PUT(
       },
     })
 
+    await logAudit({
+      entity: "customer", entityId: customer.id, action: "update",
+      summary: `Updated customer '${customer.name}'`,
+      userId: null, userName: null,
+    })
+
     return NextResponse.json(customer)
   } catch (error) {
     // Check if it's a "record not found" error
@@ -99,6 +106,13 @@ export async function DELETE(
     }
 
     await prisma.customer.delete({ where: { id: parseInt(id) } })
+
+    await logAudit({
+      entity: "customer", entityId: parseInt(id), action: "delete",
+      summary: `Deleted customer '${customer.name}'`,
+      userId: null, userName: null,
+    })
+
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: "Failed to delete customer" }, { status: 500 })
