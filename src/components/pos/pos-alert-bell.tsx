@@ -63,7 +63,7 @@ export function POSAlertBell({ currencySymbol, onSetPrice }: POSAlertBellProps) 
   const fetchAlerts = useCallback(async () => {
     // Cancel any in-flight request
     if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
+      abortControllerRef.current.abort("stale request")
     }
     abortControllerRef.current = new AbortController()
 
@@ -80,8 +80,8 @@ export function POSAlertBell({ currencySymbol, onSetPrice }: POSAlertBellProps) 
         setError(true)
       }
     } catch (err) {
-      // Ignore abort errors
-      if (err instanceof Error && err.name === "AbortError") {
+      // Ignore abort errors (cleanup / stale request cancellation)
+      if (err instanceof DOMException && err.name === "AbortError") {
         return
       }
       console.error("Failed to fetch alerts:", err)
@@ -97,7 +97,7 @@ export function POSAlertBell({ currencySymbol, onSetPrice }: POSAlertBellProps) 
     return () => {
       clearInterval(interval)
       if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
+        abortControllerRef.current.abort("cleanup")
       }
     }
   }, [fetchAlerts])

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,9 +13,22 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Volume2, VolumeX, History, ChefHat } from "lucide-react"
+import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { StatusDot } from "@/components/ui/status-dot"
+import {
+  Volume2,
+  VolumeX,
+  History,
+  ChefHat,
+  LayoutDashboard,
+  Columns3,
+  Table as TableIcon,
+  CircleCheckBig,
+} from "lucide-react"
 import { toast } from "sonner"
 import { OrderColumn } from "./order-column"
+import { OrderTable } from "./order-table"
 import {
   useKitchenOrders,
   type KitchenOrder,
@@ -36,9 +49,20 @@ export function OrderBoard() {
   const [completedOrders, setCompletedOrders] = useState<KitchenOrder[]>([])
   const [loadingCompleted, setLoadingCompleted] = useState(false)
   const [activeColumn, setActiveColumn] = useState<ColumnKey>("new")
+  const [viewMode, setViewMode] = useState<"board" | "table">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("kitchen-view") as "board" | "table") || "board"
+    }
+    return "board"
+  })
 
-  const { ordersByStatus, isLoading, error, updateStatus, toggleRush } =
+  const { orders, ordersByStatus, isLoading, error, updateStatus, toggleRush } =
     useKitchenOrders({ soundEnabled })
+
+  // Persist view mode
+  useEffect(() => {
+    localStorage.setItem("kitchen-view", viewMode)
+  }, [viewMode])
 
   const handleCancelOrder = async (orderId: number) => {
     const success = await updateStatus(orderId, "cancelled")
@@ -51,7 +75,6 @@ export function OrderBoard() {
 
   // Offline/online detection with toast notifications
   useEffect(() => {
-    // Check initial state on mount
     if (!navigator.onLine) {
       toast.warning("You're offline", {
         description: "Kitchen orders will sync when connection is restored.",
@@ -100,28 +123,55 @@ export function OrderBoard() {
     }
   }
 
+  // Fetch completed on mount so count is available for metrics + header badge
+  useEffect(() => {
+    fetchCompletedOrders()
+  }, [])
+
   const handleOpenCompleted = () => {
     setCompletedModalOpen(true)
     fetchCompletedOrders()
   }
 
-  const totalOrders =
-    ordersByStatus.new.length +
-    ordersByStatus.cooking.length +
-    ordersByStatus.ready.length
+  // Derived metrics
+  const totalActive = orders.length
+  const avgPrepTime = useMemo(() => {
+    const cooking = ordersByStatus.cooking
+    if (cooking.length === 0) return "—"
+    const avg = cooking.reduce((s, o) => s + o.secondsInStatus, 0) / cooking.length
+    const mins = Math.floor(avg / 60)
+    const secs = Math.floor(avg % 60)
+    return `${mins}:${String(secs).padStart(2, "0")}`
+  }, [ordersByStatus.cooking])
+  const rushCount = orders.filter((o) => o.isRush).length
 
-  const allEmpty = totalOrders === 0
+  const allEmpty = totalActive === 0
 
   if (isLoading) {
     return (
       <div className="space-y-4">
         {/* Header skeleton */}
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-40" />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Skeleton className="h-8 w-56" />
           <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-40" />
+            <Skeleton className="h-6 w-14 rounded-full" />
+            <Skeleton className="h-9 w-36" />
             <Skeleton className="h-9 w-9" />
           </div>
+        </div>
+        {/* Metrics skeleton */}
+        <SummaryCardGrid>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-lg border p-4 space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-12" />
+            </div>
+          ))}
+        </SummaryCardGrid>
+        {/* Section header skeleton */}
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-8 w-20 rounded-md" />
         </div>
         {/* Board columns skeleton */}
         <div className="hidden md:grid md:grid-cols-3 md:gap-4">
@@ -188,12 +238,21 @@ export function OrderBoard() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Kitchen Orders</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <LayoutDashboard className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-2xl font-bold tracking-tight">Order Command Center</h1>
+        </div>
         <div className="flex items-center gap-2">
+          <StatusDot variant="ok" pulse label="LIVE" className="text-status-ok text-xs font-semibold uppercase tracking-wider" />
           <Button variant="outline" size="sm" onClick={handleOpenCompleted}>
-            <History className="h-4 w-4 mr-2" />
-            Today&apos;s Completed
+            <CircleCheckBig className="h-4 w-4 mr-2" />
+            Completed
+            {completedOrders.length > 0 && (
+              <Badge variant="secondary" className="ml-1.5">
+                {completedOrders.length}
+              </Badge>
+            )}
           </Button>
           <Button
             variant="ghost"
@@ -211,14 +270,60 @@ export function OrderBoard() {
         </div>
       </div>
 
-      {/* Board content */}
+      {/* Metrics Row */}
+      <SummaryCardGrid>
+        <SummaryCard label="Total Active" value={String(totalActive)} />
+        <SummaryCard
+          label="Avg Prep Time"
+          value=""
+          valueNode={<span className="text-status-info">{avgPrepTime}</span>}
+        />
+        <SummaryCard
+          label="Completed Today"
+          value=""
+          valueNode={<span className="text-status-ok">{completedOrders.length}</span>}
+        />
+        <SummaryCard
+          label="Rush Orders"
+          value=""
+          valueNode={
+            <span className={cn(rushCount > 0 && "text-status-warning")}>
+              {rushCount}
+            </span>
+          }
+        />
+      </SummaryCardGrid>
+
+      {/* Section header with view toggle */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Active Orders
+        </h2>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={viewMode}
+          onValueChange={(v) => { if (v) setViewMode(v as "board" | "table") }}
+          aria-label="View mode"
+        >
+          <ToggleGroupItem value="board" aria-label="Board view">
+            <Columns3 className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="table" aria-label="Table view">
+            <TableIcon className="h-4 w-4" />
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      {/* Board/Table content */}
       {allEmpty ? (
         <EmptyState
           icon={<ChefHat className="h-12 w-12" />}
           title="Kitchen is clear"
           description="No pending orders right now. New orders will appear here automatically."
         />
-      ) : (
+      ) : viewMode === "board" ? (
         <>
           {/* Mobile: column selector pills */}
           <div className="flex gap-2 md:hidden">
@@ -280,6 +385,13 @@ export function OrderBoard() {
             />
           </div>
         </>
+      ) : (
+        <OrderTable
+          orders={orders}
+          onUpdateStatus={updateStatus}
+          onCancelOrder={handleCancelOrder}
+          onToggleRush={toggleRush}
+        />
       )}
 
       {/* Completed Orders Dialog */}

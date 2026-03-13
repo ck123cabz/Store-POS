@@ -37,7 +37,7 @@ export function useSidebarBadges() {
 
     // T048: Cancel any existing in-flight request
     if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
+      abortControllerRef.current.abort("stale request")
     }
     abortControllerRef.current = new AbortController()
 
@@ -64,12 +64,12 @@ export function useSidebarBadges() {
 
   useEffect(() => {
     // Initial fetch (T045: non-blocking, NFR-P05)
-    fetchBadges()
+    fetchBadges().catch(() => {})
 
     // T046: Poll every 30 seconds for updates (FR-017)
     const interval = setInterval(() => {
       if (!isPollingPausedRef.current) {
-        fetchBadges()
+        fetchBadges().catch(() => {})
       }
     }, POLL_INTERVAL_MS)
 
@@ -79,7 +79,7 @@ export function useSidebarBadges() {
         isPollingPausedRef.current = true
       } else {
         isPollingPausedRef.current = false
-        fetchBadges()
+        fetchBadges().catch(() => {})
       }
     }
     document.addEventListener("visibilitychange", handleVisibilityChange)
@@ -88,7 +88,7 @@ export function useSidebarBadges() {
       clearInterval(interval)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
+        abortControllerRef.current.abort("cleanup")
       }
     }
   }, [fetchBadges])
