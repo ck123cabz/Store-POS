@@ -92,8 +92,8 @@ export function POSAlertBell({ currencySymbol, onSetPrice }: POSAlertBellProps) 
   }, [])
 
   useEffect(() => {
-    fetchAlerts()
-    const interval = setInterval(fetchAlerts, 60 * 1000)
+    fetchAlerts().catch(() => {})
+    const interval = setInterval(() => { fetchAlerts().catch(() => {}) }, 60 * 1000)
     return () => {
       clearInterval(interval)
       if (abortControllerRef.current) {
