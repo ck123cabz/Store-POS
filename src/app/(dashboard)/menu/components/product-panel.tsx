@@ -162,6 +162,7 @@ function StatusActions({
       break
     case "DISCONTINUED":
       actions.push({ label: "Reactivate", targetStatus: "ACTIVE", variant: "default" })
+      actions.push({ label: "Delete", isDelete: true, variant: "destructive" })
       break
   }
 
