@@ -348,6 +348,26 @@ async function main() {
   await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('purchase_variants', 'id'), COALESCE((SELECT MAX(id) FROM purchase_variants), 0) + 1, false)`)
   await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('production_recipe_items', 'id'), COALESCE((SELECT MAX(id) FROM production_recipe_items), 0) + 1, false)`)
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DEFAULT SHIFT TEMPLATES
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  const defaultTemplates = [
+    { name: "Morning", startTime: "06:00", endTime: "14:00", color: "#F59E0B" },
+    { name: "Evening", startTime: "14:00", endTime: "22:00", color: "#3B82F6" },
+    { name: "Night", startTime: "22:00", endTime: "06:00", color: "#6366F1" },
+  ]
+
+  for (const template of defaultTemplates) {
+    await prisma.shiftTemplate.upsert({
+      where: { id: defaultTemplates.indexOf(template) + 1 },
+      update: {},
+      create: template,
+    })
+  }
+
+  console.log("Seeded default shift templates")
+
   console.log('')
   console.log('═══════════════════════════════════════════════════════════════')
   console.log('Database seeded successfully!')
@@ -360,6 +380,7 @@ async function main() {
   console.log('  - 12 industry benchmarks')
   console.log('  - 5 RAW ingredients + 1 PREPARED ingredient (Tocino Sticks)')
   console.log('  - 6 purchase variants + 5 production recipe items')
+  console.log('  - 3 default shift templates')
   console.log('')
 }
 
