@@ -54,7 +54,11 @@ export function useSidebarBadges() {
       }
     } catch (error) {
       // Ignore abort errors (cleanup / stale request cancellation)
-      if (abortControllerRef.current?.signal.aborted) {
+      if (
+        error instanceof DOMException && error.name === "AbortError" ||
+        abortControllerRef.current?.signal.aborted ||
+        error === "cleanup" || error === "stale request"
+      ) {
         return
       }
       // T050, T051: Log error but keep last known badges (EC-09, EC-10)

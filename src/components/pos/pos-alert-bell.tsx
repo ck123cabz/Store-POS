@@ -81,7 +81,11 @@ export function POSAlertBell({ currencySymbol, onSetPrice }: POSAlertBellProps) 
       }
     } catch (err) {
       // Ignore abort errors (cleanup / stale request cancellation)
-      if (abortControllerRef.current?.signal.aborted) {
+      if (
+        err instanceof DOMException && err.name === "AbortError" ||
+        abortControllerRef.current?.signal.aborted ||
+        err === "cleanup" || err === "stale request"
+      ) {
         return
       }
       console.error("Failed to fetch alerts:", err)
