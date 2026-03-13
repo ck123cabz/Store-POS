@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
 import {
   calculateProductAvailability,
   AvailabilityStatus,
@@ -36,6 +37,7 @@ interface CategoryResponse {
   name: string
   displayOrder: number
   requiresKitchen: boolean
+  isBeverage: boolean
   createdAt: Date
   updatedAt: Date
   productCount: number
@@ -146,6 +148,7 @@ export async function GET() {
         name: category.name,
         displayOrder: category.displayOrder,
         requiresKitchen: category.requiresKitchen,
+        isBeverage: category.isBeverage,
         createdAt: category.createdAt,
         updatedAt: category.updatedAt,
         productCount: category._count.products,
@@ -181,7 +184,14 @@ export async function POST(request: NextRequest) {
       data: {
         name: body.name.trim(),
         requiresKitchen: body.requiresKitchen ?? false,
+        isBeverage: body.isBeverage ?? false,
       },
+    })
+
+    await logAudit({
+      entity: "category", entityId: category.id, action: "create",
+      summary: `Created category '${category.name}'`,
+      ...auditUser(session),
     })
 
     return NextResponse.json(category, { status: 201 })

@@ -62,6 +62,7 @@ model Category {
   name            String
   displayOrder    Int       @default(0) @map("display_order")
   requiresKitchen Boolean   @default(false) @map("requires_kitchen")
+  isBeverage      Boolean   @default(false) @map("is_beverage")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   products        Product[]
@@ -289,6 +290,31 @@ model Settings {
   // Payroll Settings
   payPeriodType     String @default("custom") @map("pay_period_type")
   payPeriodStartDay Int    @default(1) @map("pay_period_start_day")
+
+  // Business Rules
+  voidWindowDays         Int     @default(7) @map("void_window_days")
+  voidReasons            Json    @default("[\"Wrong Items\",\"Test Transaction\",\"Customer Dispute\",\"Duplicate Entry\",\"Other\"]") @map("void_reasons")
+  wasteReasons           Json    @default("[\"Expired\",\"Spoiled\",\"Overproduction\",\"Prep Waste\",\"Dropped/Spilled\",\"Quality Issue\",\"Customer Return\",\"Other\"]") @map("waste_reasons")
+
+  // Daypart Boundaries (hour 0-23)
+  daypartMorningStart   Int @default(6) @map("daypart_morning_start")
+  daypartMiddayStart    Int @default(10) @map("daypart_midday_start")
+  daypartAfternoonStart Int @default(14) @map("daypart_afternoon_start")
+  daypartEveningStart   Int @default(18) @map("daypart_evening_start")
+
+  // Kitchen Alerts (minutes)
+  kitchenWarningMinutes Int @default(5) @map("kitchen_warning_minutes")
+  kitchenDangerMinutes  Int @default(10) @map("kitchen_danger_minutes")
+
+  // Inventory Thresholds
+  lowStockCriticalRatio Decimal @default(0.25) @map("low_stock_critical_ratio") @db.Decimal(3, 2)
+  lowStockWarningRatio  Decimal @default(0.50) @map("low_stock_warning_ratio") @db.Decimal(3, 2)
+  stockCriticalMax      Int     @default(5) @map("stock_critical_max")
+  stockLowMax           Int     @default(20) @map("stock_low_max")
+
+  // Financial Rules
+  creditWarningThreshold Decimal @default(0.80) @map("credit_warning_threshold") @db.Decimal(3, 2)
+  suggestedPriceMarkup   Decimal @default(1.50) @map("suggested_price_markup") @db.Decimal(4, 2)
 
   @@map("settings")
 }

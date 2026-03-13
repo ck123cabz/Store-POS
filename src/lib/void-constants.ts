@@ -1,13 +1,13 @@
 /**
- * Void transaction constants
- * Part of feature 003-transaction-fixes
+ * Void transaction defaults
+ * These values are used as fallbacks when settings haven't been loaded.
+ * Runtime values come from Settings (see getSettings()).
  */
 
 /**
- * Valid reasons for voiding a transaction.
- * "Other" requires a custom reason to be provided.
+ * Default valid reasons for voiding a transaction.
  */
-export const VALID_VOID_REASONS = [
+export const DEFAULT_VOID_REASONS = [
   "Wrong Items",
   "Test Transaction",
   "Customer Dispute",
@@ -15,14 +15,24 @@ export const VALID_VOID_REASONS = [
   "Other",
 ] as const
 
-export type VoidReason = (typeof VALID_VOID_REASONS)[number]
-
 /**
- * Number of days after transaction creation during which it can be voided.
+ * @deprecated Use settings.voidReasons instead. Kept for backward compatibility.
  */
-export const VOID_WINDOW_DAYS = 7
+export const VALID_VOID_REASONS = DEFAULT_VOID_REASONS
+
+export type VoidReason = string
 
 /**
- * Milliseconds in the void window (7 days).
+ * Default number of days after transaction creation during which it can be voided.
+ */
+export const DEFAULT_VOID_WINDOW_DAYS = 7
+
+/**
+ * @deprecated Use settings.voidWindowDays instead. Kept for backward compatibility.
+ */
+export const VOID_WINDOW_DAYS = DEFAULT_VOID_WINDOW_DAYS
+
+/**
+ * @deprecated Compute from settings.voidWindowDays instead.
  */
 export const VOID_WINDOW_MS = VOID_WINDOW_DAYS * 24 * 60 * 60 * 1000

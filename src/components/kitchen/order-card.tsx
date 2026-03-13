@@ -15,6 +15,8 @@ interface OrderCardProps {
   onCancel: () => void
   onToggleRush: () => void
   actionLabel: string
+  warningMinutes?: number
+  dangerMinutes?: number
 }
 
 /** Max items to show before expanding */
@@ -26,10 +28,14 @@ function formatTime(seconds: number): string {
   return `${minutes}m`
 }
 
-function getTimeAlertLevel(seconds: number): "normal" | "warning" | "danger" {
+function getTimeAlertLevel(
+  seconds: number,
+  warningMin = 5,
+  dangerMin = 10
+): "normal" | "warning" | "danger" {
   const minutes = seconds / 60
-  if (minutes >= 10) return "danger"
-  if (minutes >= 5) return "warning"
+  if (minutes >= dangerMin) return "danger"
+  if (minutes >= warningMin) return "warning"
   return "normal"
 }
 
@@ -39,10 +45,12 @@ export function OrderCard({
   onCancel,
   onToggleRush,
   actionLabel,
+  warningMinutes = 5,
+  dangerMinutes = 10,
 }: OrderCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [confirmingCancel, setConfirmingCancel] = useState(false)
-  const alertLevel = getTimeAlertLevel(order.secondsInStatus)
+  const alertLevel = getTimeAlertLevel(order.secondsInStatus, warningMinutes, dangerMinutes)
   const hasMoreItems = order.items.length > COLLAPSED_ITEM_LIMIT
   const visibleItems = expanded
     ? order.items

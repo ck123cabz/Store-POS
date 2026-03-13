@@ -49,6 +49,8 @@ export function OrderBoard() {
   const [completedOrders, setCompletedOrders] = useState<KitchenOrder[]>([])
   const [loadingCompleted, setLoadingCompleted] = useState(false)
   const [activeColumn, setActiveColumn] = useState<ColumnKey>("new")
+  const [kitchenWarningMinutes, setKitchenWarningMinutes] = useState(5)
+  const [kitchenDangerMinutes, setKitchenDangerMinutes] = useState(10)
   const [viewMode, setViewMode] = useState<"board" | "table">(() => {
     if (typeof window !== "undefined") {
       return (localStorage.getItem("kitchen-view") as "board" | "table") || "board"
@@ -126,6 +128,17 @@ export function OrderBoard() {
   // Fetch completed on mount so count is available for metrics + header badge
   useEffect(() => {
     fetchCompletedOrders()
+  }, [])
+
+  // Load kitchen alert thresholds from settings
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.kitchenWarningMinutes) setKitchenWarningMinutes(data.kitchenWarningMinutes)
+        if (data.kitchenDangerMinutes) setKitchenDangerMinutes(data.kitchenDangerMinutes)
+      })
+      .catch(() => { /* use defaults */ })
   }, [])
 
   const handleOpenCompleted = () => {
@@ -357,6 +370,8 @@ export function OrderBoard() {
               onUpdateStatus={updateStatus}
               onCancelOrder={handleCancelOrder}
               onToggleRush={toggleRush}
+              warningMinutes={kitchenWarningMinutes}
+              dangerMinutes={kitchenDangerMinutes}
             />
           </div>
 
@@ -368,6 +383,8 @@ export function OrderBoard() {
               onUpdateStatus={updateStatus}
               onCancelOrder={handleCancelOrder}
               onToggleRush={toggleRush}
+              warningMinutes={kitchenWarningMinutes}
+              dangerMinutes={kitchenDangerMinutes}
             />
             <OrderColumn
               status="cooking"
@@ -375,6 +392,8 @@ export function OrderBoard() {
               onUpdateStatus={updateStatus}
               onCancelOrder={handleCancelOrder}
               onToggleRush={toggleRush}
+              warningMinutes={kitchenWarningMinutes}
+              dangerMinutes={kitchenDangerMinutes}
             />
             <OrderColumn
               status="ready"
@@ -382,6 +401,8 @@ export function OrderBoard() {
               onUpdateStatus={updateStatus}
               onCancelOrder={handleCancelOrder}
               onToggleRush={toggleRush}
+              warningMinutes={kitchenWarningMinutes}
+              dangerMinutes={kitchenDangerMinutes}
             />
           </div>
         </>

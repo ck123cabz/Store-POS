@@ -129,13 +129,17 @@ export function isCreditLimitExceeded(balance: number, creditLimit: number): boo
 
 /**
  * Get the warning level for current credit usage
- * - "ok": Under 80% usage
- * - "warning": 80-99% usage
+ * @param balance - Current tab balance
+ * @param creditLimit - Customer's credit limit
+ * @param warningPercent - Warning threshold percentage (default 80)
+ * - "ok": Under warningPercent% usage
+ * - "warning": warningPercent-99% usage
  * - "exceeded": At or over 100% usage
  */
 export function getCreditWarningLevel(
   balance: number,
-  creditLimit: number
+  creditLimit: number,
+  warningPercent: number = 80
 ): CreditWarningLevel {
   if (creditLimit === 0) {
     return balance > 0 ? "exceeded" : "ok"
@@ -147,7 +151,7 @@ export function getCreditWarningLevel(
     return "exceeded"
   }
 
-  if (usage >= 80) {
+  if (usage >= warningPercent) {
     return "warning"
   }
 

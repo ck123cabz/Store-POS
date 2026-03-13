@@ -13,6 +13,8 @@ interface OrderColumnProps {
   onCancelOrder: (orderId: number) => void
   onToggleRush: (orderId: number, isRush: boolean) => void
   className?: string
+  warningMinutes?: number
+  dangerMinutes?: number
 }
 
 const statusConfig = {
@@ -43,6 +45,8 @@ export function OrderColumn({
   onCancelOrder,
   onToggleRush,
   className,
+  warningMinutes,
+  dangerMinutes,
 }: OrderColumnProps) {
   const config = statusConfig[status]
 
@@ -74,6 +78,8 @@ export function OrderColumn({
               onCancel={() => onCancelOrder(order.id)}
               onToggleRush={() => onToggleRush(order.id, !order.isRush)}
               actionLabel={config.actionLabel}
+              warningMinutes={warningMinutes}
+              dangerMinutes={dangerMinutes}
             />
           ))
         )}

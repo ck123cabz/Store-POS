@@ -58,7 +58,7 @@ interface Ingredient {
   avgCostPerBaseUnit: number
 }
 
-const WASTE_REASONS = [
+const DEFAULT_WASTE_REASONS = [
   "Expired",
   "Spoiled",
   "Overproduction",
@@ -157,6 +157,7 @@ export default function WastePage() {
   const [reason, setReason] = useState("")
   const [preventable, setPreventable] = useState(false)
   const [notes, setNotes] = useState("")
+  const [wasteReasons, setWasteReasons] = useState<string[]>(DEFAULT_WASTE_REASONS)
 
   const selectedIngredient = ingredients.find((i) => i.id.toString() === ingredientId)
   const estimatedCost = selectedIngredient
@@ -166,12 +167,17 @@ export default function WastePage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [wasteRes, ingredientsRes] = await Promise.all([
+      const [wasteRes, ingredientsRes, settingsRes] = await Promise.all([
         fetch(`/api/waste?dateFrom=${dateFrom}&dateTo=${dateTo}`),
         fetch("/api/ingredients"),
+        fetch("/api/settings"),
       ])
       setData(await wasteRes.json())
       setIngredients(await ingredientsRes.json())
+      const settingsData = await settingsRes.json()
+      if (Array.isArray(settingsData.wasteReasons) && settingsData.wasteReasons.length > 0) {
+        setWasteReasons(settingsData.wasteReasons)
+      }
     } catch (error) {
       console.error("Failed to fetch data", error)
       toast.error("Failed to load waste logs")
@@ -411,7 +417,7 @@ export default function WastePage() {
                   <SelectValue placeholder="Select reason" />
                 </SelectTrigger>
                 <SelectContent>
-                  {WASTE_REASONS.map((r) => (
+                  {wasteReasons.map((r) => (
                     <SelectItem key={r} value={r}>
                       {r}
                     </SelectItem>

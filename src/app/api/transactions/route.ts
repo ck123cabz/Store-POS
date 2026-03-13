@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth"
 import { Prisma } from "@prisma/client"
 import { validateCashPayment } from "@/lib/payment-validation"
 import { validateTabPayment } from "@/lib/credit-limit-validation"
+import { logAudit, auditUser } from "@/lib/audit"
+import { getSettings } from "@/lib/settings-server"
 
 interface TransactionItem {
   id: number
@@ -35,12 +37,15 @@ async function productRequiresKitchen(productId: number): Promise<boolean> {
   return product.category?.requiresKitchen ?? false
 }
 
-// Determine daypart based on hour
-function getDaypart(date: Date): string {
+// Determine daypart based on hour using configurable boundaries
+function getDaypart(
+  date: Date,
+  boundaries = { morning: 6, midday: 10, afternoon: 14, evening: 18 }
+): string {
   const hour = date.getHours()
-  if (hour >= 6 && hour < 10) return "Morning"
-  if (hour >= 10 && hour < 14) return "Midday"
-  if (hour >= 14 && hour < 18) return "Afternoon"
+  if (hour >= boundaries.morning && hour < boundaries.midday) return "Morning"
+  if (hour >= boundaries.midday && hour < boundaries.afternoon) return "Midday"
+  if (hour >= boundaries.afternoon && hour < boundaries.evening) return "Afternoon"
   return "Evening"
 }
 
@@ -71,8 +76,7 @@ function validateGCashPhoto(base64Data: string): string | null {
   return base64Data
 }
 
-// Check if category is beverage (categoryId 2 in our seed data)
-const BEVERAGE_CATEGORY_ID = 2
+// Beverage detection now uses category.isBeverage flag instead of hardcoded ID
 
 export async function GET(request: Request) {
   try {
@@ -306,31 +310,37 @@ export async function POST(request: Request) {
     // 10-LEVER ENHANCEMENTS
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // LEVER 5: Daypart Economics - Determine daypart
-    const daypart = body.daypart || getDaypart(now)
+    // Load configurable settings
+    const settings = await getSettings()
+
+    // LEVER 5: Daypart Economics - Determine daypart using configurable boundaries
+    const daypart = body.daypart || getDaypart(now, {
+      morning: settings.daypartMorningStart,
+      midday: settings.daypartMiddayStart,
+      afternoon: settings.daypartAfternoonStart,
+      evening: settings.daypartEveningStart,
+    })
     const dayType = body.dayType || getDayType(now)
 
-    // Get product categories for ticket analysis
+    // Get product categories for ticket analysis (including isBeverage flag)
     const productIds = body.items.map((item: TransactionItem) => item.id)
     const products = await prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, categoryId: true },
+      select: { id: true, categoryId: true, category: { select: { isBeverage: true } } },
     })
-    const productCategoryMap = new Map(products.map((p) => [p.id, p.categoryId]))
+    const productBeverageMap = new Map(products.map((p) => [p.id, p.category.isBeverage]))
 
     // LEVER 3: Ticket Size Analysis
     const itemCount = body.items.reduce((sum: number, item: TransactionItem) => sum + item.quantity, 0)
 
-    // Check if all items are beverages (drink-only)
+    // Check if all items are beverages (drink-only) using category.isBeverage flag
     const isDrinkOnly = body.items.every((item: TransactionItem) => {
-      const categoryId = item.categoryId || productCategoryMap.get(item.id)
-      return categoryId === BEVERAGE_CATEGORY_ID
+      return productBeverageMap.get(item.id) === true
     })
 
-    // Check if any item is food
+    // Check if any item is food (non-beverage)
     const hasFoodAttached = body.items.some((item: TransactionItem) => {
-      const categoryId = item.categoryId || productCategoryMap.get(item.id)
-      return categoryId !== BEVERAGE_CATEGORY_ID
+      return productBeverageMap.get(item.id) !== true
     })
 
     // Group order: 3+ items or total >= 250
@@ -573,6 +583,12 @@ export async function POST(request: Request) {
 
       return { ...newTransaction, kitchenOrderId }
     }, { timeout: 15000 })
+
+    await logAudit({
+      entity: "transaction", entityId: transaction.id, action: "create",
+      summary: `Created transaction #${orderNumber} — ${body.paymentType || "N/A"} — total: ${body.total}`,
+      ...auditUser(session),
+    })
 
     return NextResponse.json({
       ...transaction,

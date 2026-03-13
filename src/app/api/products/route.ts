@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
+import { getSettings } from "@/lib/settings-server"
 import { type ProductStatus } from "@prisma/client"
 import {
   calculateProductAvailability,
@@ -43,6 +45,10 @@ export async function GET(request: NextRequest) {
       orderBy: { name: "asc" },
     })
 
+    const settings = await getSettings()
+    const criticalRatio = Number(settings.lowStockCriticalRatio)
+    const warningRatio = Number(settings.lowStockWarningRatio)
+
     const formatted = products.map((p) => {
       // Calculate ingredient stock status if linked via variant
       let ingredientStockStatus: "ok" | "low" | "critical" | "out" | null = null
@@ -55,8 +61,8 @@ export async function GET(request: NextRequest) {
         const ratio = par > 0 ? stockQty / par : 1
 
         if (stockQty <= 0) ingredientStockStatus = "out"
-        else if (ratio <= 0.25) ingredientStockStatus = "critical"
-        else if (ratio <= 0.5) ingredientStockStatus = "low"
+        else if (ratio <= criticalRatio) ingredientStockStatus = "critical"
+        else if (ratio <= warningRatio) ingredientStockStatus = "low"
         else ingredientStockStatus = "ok"
 
         ingredientStockRatio = par > 0 ? Math.round(ratio * 100) : null
@@ -202,6 +208,12 @@ export async function POST(request: NextRequest) {
         needsPricing: body.needsPricing || false,
         requiresKitchen: body.requiresKitchen ?? null,
       },
+    })
+
+    await logAudit({
+      entity: "product", entityId: product.id, action: "create",
+      summary: `Created product '${product.name}'`,
+      ...auditUser(session),
     })
 
     return NextResponse.json(

@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getSettings } from "@/lib/settings-server"
 
 export async function GET() {
   try {
+    const settings = await getSettings()
+    const criticalRatio = Number(settings.lowStockCriticalRatio)
+    const warningRatio = Number(settings.lowStockWarningRatio)
+    const markup = Number(settings.suggestedPriceMarkup)
+
     // Get low-stock ingredients
     const ingredients = await prisma.ingredient.findMany({
       where: { isActive: true },
@@ -16,8 +22,8 @@ export async function GET() {
         const ratio = parLevel > 0 ? stockQty / parLevel : 1
 
         let priority: "critical" | "high" | "medium" | null = null
-        if (stockQty <= 0 || ratio <= 0.25) priority = "critical"
-        else if (ratio <= 0.5) priority = "high"
+        if (stockQty <= 0 || ratio <= criticalRatio) priority = "critical"
+        else if (ratio <= warningRatio) priority = "high"
         else if (ratio < 1) priority = "medium"
 
         if (!priority) return null
@@ -65,7 +71,7 @@ export async function GET() {
         name: p.name,
         currentPrice: Number(p.price),
         suggestedPrice: variantCostPerUnit
-          ? Math.ceil(variantCostPerUnit * 1.5 * 100) / 100
+          ? Math.ceil(variantCostPerUnit * markup * 100) / 100
           : null,
         ingredientCost: variantCostPerUnit,
       }

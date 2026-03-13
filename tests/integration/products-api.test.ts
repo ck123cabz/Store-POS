@@ -25,6 +25,16 @@ vi.mock('@/lib/prisma', () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    settings: {
+      findUnique: vi.fn().mockResolvedValue({
+        id: 1,
+        lowStockCriticalRatio: 0.25,
+        lowStockWarningRatio: 0.50,
+        stockCriticalMax: 5,
+        stockLowMax: 20,
+      }),
+      create: vi.fn(),
+    },
   },
 }))
 

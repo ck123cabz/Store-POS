@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { logAudit, auditUser } from "@/lib/audit"
+import { getSettings } from "@/lib/settings-server"
 import {
   validateVoidReason,
   validateVoidWindow,
@@ -58,8 +60,11 @@ export async function PATCH(
       return NextResponse.json({ error: voidedCheck.error }, { status: 400 })
     }
 
+    // Load settings for configurable void window and reasons
+    const settings = await getSettings()
+
     // Validate within void window
-    const windowCheck = validateVoidWindow(transaction.createdAt)
+    const windowCheck = validateVoidWindow(transaction.createdAt, settings.voidWindowDays)
     if (!windowCheck.valid) {
       return NextResponse.json({ error: windowCheck.error }, { status: 400 })
     }
@@ -72,7 +77,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Reason is required" }, { status: 400 })
     }
 
-    const reasonCheck = validateVoidReason(reason, customReason)
+    const voidReasons = settings.voidReasons as string[]
+    const reasonCheck = validateVoidReason(reason, customReason, voidReasons)
     if (!reasonCheck.valid) {
       return NextResponse.json({ error: reasonCheck.error }, { status: 400 })
     }
@@ -248,6 +254,13 @@ export async function PATCH(
 
       return updated
     }, { timeout: 15000 })
+
+    await logAudit({
+      entity: "transaction", entityId: transactionId, action: "void",
+      changes: { isVoided: { old: false, new: true }, voidReason: { old: null, new: formattedReason } },
+      summary: `Voided transaction #${transaction.orderNumber} — ${formattedReason}`,
+      ...auditUser(session),
+    })
 
     return NextResponse.json(voidedTransaction)
   } catch (error) {

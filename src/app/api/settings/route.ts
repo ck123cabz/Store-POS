@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
+import { businessRulesSchema } from "@/lib/validations/settings"
 
 export async function GET() {
   try {
@@ -30,6 +31,22 @@ export async function GET() {
       avgHourlyLaborCost: settings.avgHourlyLaborCost ? Number(settings.avgHourlyLaborCost) : 75,
       payPeriodType: settings.payPeriodType,
       payPeriodStartDay: settings.payPeriodStartDay,
+      // Business Rules
+      voidWindowDays: settings.voidWindowDays,
+      voidReasons: settings.voidReasons,
+      wasteReasons: settings.wasteReasons,
+      daypartMorningStart: settings.daypartMorningStart,
+      daypartMiddayStart: settings.daypartMiddayStart,
+      daypartAfternoonStart: settings.daypartAfternoonStart,
+      daypartEveningStart: settings.daypartEveningStart,
+      kitchenWarningMinutes: settings.kitchenWarningMinutes,
+      kitchenDangerMinutes: settings.kitchenDangerMinutes,
+      lowStockCriticalRatio: Number(settings.lowStockCriticalRatio),
+      lowStockWarningRatio: Number(settings.lowStockWarningRatio),
+      stockCriticalMax: settings.stockCriticalMax,
+      stockLowMax: settings.stockLowMax,
+      creditWarningThreshold: Number(settings.creditWarningThreshold),
+      suggestedPriceMarkup: Number(settings.suggestedPriceMarkup),
     })
   } catch {
     return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 })
@@ -40,7 +57,48 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Upsert settings (create if not exists, update if exists)
+    // Detect if this is a business rules update
+    if (body.section === "businessRules") {
+      const parsed = businessRulesSchema.safeParse(body)
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: parsed.error.issues[0]?.message || "Invalid business rules" },
+          { status: 400 }
+        )
+      }
+
+      const settings = await prisma.settings.upsert({
+        where: { id: 1 },
+        create: { id: 1, ...parsed.data },
+        update: parsed.data,
+      })
+
+      await logAudit({
+        entity: "setting", entityId: null, action: "update",
+        summary: "Updated business rules settings",
+        userId: null, userName: null,
+      })
+
+      return NextResponse.json({
+        voidWindowDays: settings.voidWindowDays,
+        voidReasons: settings.voidReasons,
+        wasteReasons: settings.wasteReasons,
+        daypartMorningStart: settings.daypartMorningStart,
+        daypartMiddayStart: settings.daypartMiddayStart,
+        daypartAfternoonStart: settings.daypartAfternoonStart,
+        daypartEveningStart: settings.daypartEveningStart,
+        kitchenWarningMinutes: settings.kitchenWarningMinutes,
+        kitchenDangerMinutes: settings.kitchenDangerMinutes,
+        lowStockCriticalRatio: Number(settings.lowStockCriticalRatio),
+        lowStockWarningRatio: Number(settings.lowStockWarningRatio),
+        stockCriticalMax: settings.stockCriticalMax,
+        stockLowMax: settings.stockLowMax,
+        creditWarningThreshold: Number(settings.creditWarningThreshold),
+        suggestedPriceMarkup: Number(settings.suggestedPriceMarkup),
+      })
+    }
+
+    // General settings update (existing behavior)
     const settings = await prisma.settings.upsert({
       where: { id: 1 },
       create: {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(
   request: NextRequest,
@@ -36,17 +37,26 @@ export async function PUT(
   }
 
   // Build update data
-  const updateData: { name: string; requiresKitchen?: boolean } = { name }
+  const updateData: { name: string; requiresKitchen?: boolean; isBeverage?: boolean } = { name }
 
   // Add requiresKitchen if provided
   if (body.requiresKitchen !== undefined) {
     updateData.requiresKitchen = body.requiresKitchen
+  }
+  if (body.isBeverage !== undefined) {
+    updateData.isBeverage = body.isBeverage
   }
 
   try {
     const category = await prisma.category.update({
       where: { id: parseInt(id) },
       data: updateData,
+    })
+
+    await logAudit({
+      entity: "category", entityId: category.id, action: "update",
+      summary: `Updated category '${category.name}'`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json(category)
@@ -63,7 +73,7 @@ export async function PATCH(
   const body = await request.json()
 
   // Build update data for partial updates
-  const updateData: { name?: string; requiresKitchen?: boolean } = {}
+  const updateData: { name?: string; requiresKitchen?: boolean; isBeverage?: boolean } = {}
 
   if (body.name !== undefined) {
     const name = typeof body.name === "string" ? body.name.trim() : ""
@@ -76,6 +86,9 @@ export async function PATCH(
   if (body.requiresKitchen !== undefined) {
     updateData.requiresKitchen = body.requiresKitchen
   }
+  if (body.isBeverage !== undefined) {
+    updateData.isBeverage = body.isBeverage
+  }
 
   // Ensure at least one field is being updated
   if (Object.keys(updateData).length === 0) {
@@ -86,6 +99,12 @@ export async function PATCH(
     const category = await prisma.category.update({
       where: { id: parseInt(id) },
       data: updateData,
+    })
+
+    await logAudit({
+      entity: "category", entityId: category.id, action: "update",
+      summary: `Updated category '${category.name}'`,
+      userId: null, userName: null,
     })
 
     return NextResponse.json(category)
@@ -117,6 +136,13 @@ export async function DELETE(
     // If there are products, this will fail - which is safer
 
     await prisma.category.delete({ where: { id: parseInt(id) } })
+
+    await logAudit({
+      entity: "category", entityId: parseInt(id), action: "delete",
+      summary: `Deleted category '${category.name}'`,
+      userId: null, userName: null,
+    })
+
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json(

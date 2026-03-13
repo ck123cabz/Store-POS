@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getSettings } from "@/lib/settings-server"
 
 /**
  * GET /api/ingredients/low-stock
  * Compare stockQty vs parLevel (both in base units)
+ * Uses configurable thresholds from Settings.
  */
 export async function GET() {
   try {
+    const settings = await getSettings()
+    const criticalRatio = Number(settings.lowStockCriticalRatio)
+    const warningRatio = Number(settings.lowStockWarningRatio)
+
     const ingredients = await prisma.ingredient.findMany({
       where: {
         isActive: true,
@@ -24,8 +30,8 @@ export async function GET() {
 
         let priority: "critical" | "high" | "medium" | "low" | null
         if (stockQty <= 0) priority = "critical"
-        else if (ratio <= 0.25) priority = "critical"
-        else if (ratio <= 0.5) priority = "high"
+        else if (ratio <= criticalRatio) priority = "critical"
+        else if (ratio <= warningRatio) priority = "high"
         else if (ratio < 1) priority = "medium"
         else priority = null
 

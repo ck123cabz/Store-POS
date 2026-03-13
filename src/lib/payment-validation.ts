@@ -19,7 +19,8 @@ export const TAB_STATUS = ['active', 'suspended', 'frozen'] as const;
 export type TabStatus = (typeof TAB_STATUS)[number];
 
 export const GCASH_REF_MIN_LENGTH = 10;
-export const CREDIT_WARNING_THRESHOLD = 0.8; // 80% of credit limit
+/** @deprecated Use settings.creditWarningThreshold instead */
+export const CREDIT_WARNING_THRESHOLD = 0.8; // 80% of credit limit (default)
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SCHEMAS
@@ -126,17 +127,19 @@ export function validateGCashReference(reference: string): {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Check if customer is approaching credit limit (80% threshold)
+ * Check if customer is approaching credit limit
  * @param currentBalance - Current tab balance
  * @param creditLimit - Customer's credit limit
+ * @param threshold - Warning threshold ratio (default 0.8 = 80%)
  * @returns True if at or above warning threshold
  */
 export function isNearCreditLimit(
   currentBalance: number,
-  creditLimit: number
+  creditLimit: number,
+  threshold: number = CREDIT_WARNING_THRESHOLD
 ): boolean {
   if (creditLimit <= 0) return false;
-  return currentBalance / creditLimit >= CREDIT_WARNING_THRESHOLD;
+  return currentBalance / creditLimit >= threshold;
 }
 
 /**

@@ -37,6 +37,16 @@ vi.mock('@/lib/prisma', () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    settings: {
+      findUnique: vi.fn().mockResolvedValue({
+        id: 1,
+        daypartMorningStart: 6,
+        daypartMiddayStart: 10,
+        daypartAfternoonStart: 14,
+        daypartEveningStart: 18,
+      }),
+      create: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }))
@@ -175,9 +185,9 @@ describe('Transactions API - /api/transactions', () => {
       const session = createMockSession()
       vi.mocked(auth).mockResolvedValue(session as unknown as ReturnType<typeof auth>)
 
-      // Mock product lookup for category analysis
+      // Mock product lookup for category analysis (includes isBeverage flag)
       vi.mocked(prisma.product.findMany).mockResolvedValue([
-        { id: 1, categoryId: 1 },
+        { id: 1, categoryId: 1, category: { isBeverage: false } },
       ] as never)
 
       // Mock the $transaction to execute the callback and return the result
@@ -198,6 +208,8 @@ describe('Transactions API - /api/transactions', () => {
               trackStock: false,
               linkedIngredientId: null,
               linkedIngredient: null,
+              linkedVariantId: null,
+              linkedVariant: null,
               recipeItems: [],
             }),
             update: vi.fn(),
@@ -211,6 +223,9 @@ describe('Transactions API - /api/transactions', () => {
           customer: {
             findUnique: vi.fn().mockResolvedValue(null),
             update: vi.fn(),
+          },
+          kitchenOrder: {
+            create: vi.fn(),
           },
         }
         return callback(mockTx as never)
@@ -241,7 +256,7 @@ describe('Transactions API - /api/transactions', () => {
       // Arrange
       const session = createMockSession()
       vi.mocked(auth).mockResolvedValue(session as unknown as ReturnType<typeof auth>)
-      vi.mocked(prisma.product.findMany).mockResolvedValue([{ id: 1, categoryId: 1 }] as never)
+      vi.mocked(prisma.product.findMany).mockResolvedValue([{ id: 1, categoryId: 1, category: { isBeverage: false } }] as never)
       vi.mocked(prisma.$transaction).mockRejectedValue(new Error('Database error'))
 
       const request = createTestRequest('/api/transactions', {

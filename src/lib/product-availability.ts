@@ -104,18 +104,22 @@ export interface AvailabilityProduct {
  * Determine availability status from max producible count
  *
  * @param maxProducible - Number of products that can be made
+ * @param thresholds - Optional configurable thresholds (from Settings)
  * @returns AvailabilityStatus based on thresholds
  *
- * Thresholds:
+ * Default thresholds:
  * - 0 = "out"
  * - 1-5 = "critical"
  * - 6-20 = "low"
  * - 21+ = "available"
  */
-export function getStatusFromCount(maxProducible: number): AvailabilityStatus {
+export function getStatusFromCount(
+  maxProducible: number,
+  thresholds: { critical: number; low: number } = { critical: 5, low: 20 }
+): AvailabilityStatus {
   if (maxProducible <= 0) return "out";
-  if (maxProducible <= 5) return "critical";
-  if (maxProducible <= 20) return "low";
+  if (maxProducible <= thresholds.critical) return "critical";
+  if (maxProducible <= thresholds.low) return "low";
   return "available";
 }
 
