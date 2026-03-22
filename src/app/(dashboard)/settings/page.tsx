@@ -415,7 +415,7 @@ export default function SettingsPage() {
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-6">Store Settings</h1>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2 overflow-x-auto">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="business-rules">Business Rules</TabsTrigger>
         </TabsList>

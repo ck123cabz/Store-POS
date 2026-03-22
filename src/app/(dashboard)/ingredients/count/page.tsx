@@ -230,7 +230,7 @@ export default function InventoryCountPage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Breadcrumb skeleton */}
         <Skeleton className="h-4 w-48" />
         {/* Header skeleton */}
@@ -281,7 +281,7 @@ export default function InventoryCountPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
@@ -296,10 +296,10 @@ export default function InventoryCountPage() {
       </Breadcrumb>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Inventory Count</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl md:text-2xl font-bold">Inventory Count</h1>
+          <p className="text-sm text-muted-foreground">
             {countedItems} of {totalItems} items counted
             {discrepancyCount > 0 && (
               <span className="text-status-warning ml-2">
@@ -314,15 +314,17 @@ export default function InventoryCountPage() {
             size="sm"
             onClick={() => setShowDiscardDialog(true)}
             disabled={entries.size === 0}
+            className="min-h-[44px] md:min-h-0"
           >
             <X className="h-4 w-4 mr-1" />
-            Discard
+            <span className="hidden sm:inline">Discard</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={saveDraft}
             disabled={entries.size === 0}
+            className="min-h-[44px] md:min-h-0"
           >
             <Save className="h-4 w-4 mr-1" />
             Save Draft
@@ -331,6 +333,7 @@ export default function InventoryCountPage() {
             size="sm"
             onClick={() => setShowSubmitDialog(true)}
             disabled={countedItems === 0}
+            className="min-h-[44px] md:min-h-0 flex-1 sm:flex-none"
           >
             <Send className="h-4 w-4 mr-1" />
             Submit Count
@@ -340,18 +343,23 @@ export default function InventoryCountPage() {
 
       {/* Stepper + Progress */}
       <Card>
-        <CardContent className="pt-4 space-y-3">
-          <Stepper activeStep={
-            submitting ? 3 :
-            countedItems === totalItems && totalItems > 0 ? 2 :
-            countedItems > 0 ? 1 : 0
-          }>
-            <StepperItem step={1} label="Prepare" description="Load ingredients" />
-            <StepperItem step={2} label="Count" description={`${countedItems}/${totalItems}`} />
-            <StepperItem step={3} label="Review" description="Check discrepancies" />
-            <StepperItem step={4} label="Submit" description="Save counts" />
-          </Stepper>
+        <CardContent className="pt-4 space-y-3 px-3 md:px-6">
+          <div className="hidden md:block">
+            <Stepper activeStep={
+              submitting ? 3 :
+              countedItems === totalItems && totalItems > 0 ? 2 :
+              countedItems > 0 ? 1 : 0
+            }>
+              <StepperItem step={1} label="Prepare" description="Load ingredients" />
+              <StepperItem step={2} label="Count" description={`${countedItems}/${totalItems}`} />
+              <StepperItem step={3} label="Review" description="Check discrepancies" />
+              <StepperItem step={4} label="Submit" description="Save counts" />
+            </Stepper>
+          </div>
           <Progress value={progress} className="h-2" />
+          <p className="text-xs text-muted-foreground text-center md:hidden font-mono tabular-nums">
+            {Math.round(progress)}% complete
+          </p>
         </CardContent>
       </Card>
 

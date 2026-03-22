@@ -49,7 +49,7 @@ export default defineConfig({
       name: 'mobile',
       use: {
         ...devices['Desktop Chrome'],
-        viewport: { width: 375, height: 667 }, // iPhone SE viewport
+        viewport: { width: 375, height: 812 }, // iPhone 12 Mini viewport
         isMobile: true,
         hasTouch: true,
         storageState: 'tests/e2e/.auth/user.json',

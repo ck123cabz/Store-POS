@@ -29,7 +29,7 @@ export function CountItemRow({
   return (
     <div
       className={cn(
-        "flex items-center justify-between p-3 rounded-lg border",
+        "flex items-center justify-between p-3 rounded-lg border min-h-[56px]",
         isConfirmed && !hasDiscrepancy && "bg-status-ok/10 border-status-ok/30",
         isConfirmed && hasDiscrepancy && "bg-status-warning/10 border-status-warning/30",
         !isConfirmed && "bg-background"
@@ -37,8 +37,8 @@ export function CountItemRow({
     >
       {/* Left: Item info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium truncate">{item.name}</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-medium truncate text-sm md:text-base">{item.name}</span>
           {isConfirmed && !hasDiscrepancy && (
             <Badge variant="outline" className="bg-status-ok/15 text-status-ok border-status-ok/30">
               <Check className="h-3 w-3 mr-1" />
@@ -59,14 +59,14 @@ export function CountItemRow({
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2 ml-4">
+      <div className="flex items-center gap-2 ml-3 md:ml-4">
         {!isConfirmed ? (
           <>
             {/* Quick confirm button (checkmark) */}
             <Button
               size="sm"
               variant="outline"
-              className="h-9 w-9 p-0"
+              className="size-11 md:size-9 p-0"
               onClick={() => onQuickConfirm(item.ingredientId)}
               title="Confirm count matches"
             >
@@ -76,7 +76,7 @@ export function CountItemRow({
             <Button
               size="sm"
               variant="outline"
-              className="h-9 w-9 p-0"
+              className="size-11 md:size-9 p-0"
               onClick={() => onOpenDiscrepancy(item)}
               title="Report discrepancy"
             >
@@ -88,7 +88,7 @@ export function CountItemRow({
           <Button
             size="sm"
             variant="ghost"
-            className="h-9 w-9 p-0"
+            className="size-11 md:size-9 p-0"
             onClick={() => onOpenDiscrepancy(item)}
             title="Edit count"
           >

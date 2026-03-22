@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Table,
   TableHeader,
@@ -64,6 +65,8 @@ interface DataTableProps<T> {
   sortDirection?: "asc" | "desc"
   /** Sort change handler (controlled) */
   onSortChange?: (column: string, direction: "asc" | "desc") => void
+  /** Optional mobile card renderer — when provided and on mobile viewport, renders cards instead of table rows */
+  mobileCardRender?: (row: T) => React.ReactNode
 }
 
 const PRIORITY_CLASSES: Record<number, string> = {
@@ -96,7 +99,9 @@ function DataTable<T>({
   sortColumn,
   sortDirection,
   onSortChange,
+  mobileCardRender,
 }: DataTableProps<T>) {
+  const isMobile = useIsMobile()
   const [currentPage, setCurrentPage] = React.useState(0)
 
   // Reset to first page when data changes
@@ -249,14 +254,62 @@ function DataTable<T>({
     return renderDataRows()
   }
 
+  // Mobile card view — when mobileCardRender is provided and viewport is mobile
+  const useMobileCards = isMobile && !!mobileCardRender
+
+  function renderMobileCards() {
+    if (loading) {
+      return (
+        <div className="space-y-3">
+          {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
+            <div key={`skeleton-${i}`} className="rounded-lg border p-4 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-3 w-1/3" />
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (data.length === 0) {
+      return (
+        <EmptyState
+          icon={emptyIcon}
+          title={emptyTitle}
+          description={emptyDescription}
+          action={emptyAction}
+        />
+      )
+    }
+
+    return (
+      <div className="space-y-2">
+        {paginatedData.map((row) => (
+          <div
+            key={rowKey(row)}
+            className={cn(onRowClick && "cursor-pointer", rowClassName?.(row))}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+          >
+            {mobileCardRender!(row)}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div data-slot="data-table" className="w-full">
-      <Table>
-        <TableHeader>
-          <TableRow>{renderHeaderCells()}</TableRow>
-        </TableHeader>
-        <TableBody>{renderBody()}</TableBody>
-      </Table>
+      {useMobileCards ? (
+        renderMobileCards()
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>{renderHeaderCells()}</TableRow>
+          </TableHeader>
+          <TableBody>{renderBody()}</TableBody>
+        </Table>
+      )}
 
       {showPagination && !loading && (
         <div className="flex items-center justify-between border-t border-border/60 px-3 py-3">

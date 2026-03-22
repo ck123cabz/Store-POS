@@ -34,6 +34,8 @@ import {
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { StatusDot } from "@/components/ui/status-dot"
 import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Plus, Pencil, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
 
@@ -281,6 +283,57 @@ export default function UsersPage() {
             <Plus className="h-4 w-4 mr-2" />Add User
           </Button>
         }
+        mobileCardRender={(u) => {
+          const isOnline = u.status.startsWith("Logged In")
+          const initials = u.fullname
+            .split(" ")
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2)
+          const perms = getActivePermissions(u)
+          return (
+            <Card className="p-3 shadow-none">
+              <div className="flex items-center gap-3">
+                <Avatar size="sm">
+                  <AvatarFallback>{initials}</AvatarFallback>
+                  {isOnline && <AvatarBadge className="bg-status-ok" />}
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium truncate">{u.fullname}</span>
+                    <StatusDot variant={isOnline ? "ok" : "neutral"} label={isOnline ? "Online" : "Offline"} />
+                  </div>
+                  <div className="text-xs text-muted-foreground">{u.username}</div>
+                  {perms.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {perms.slice(0, 3).map((p) => (
+                        <Badge key={p.key} variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {p.label}
+                        </Badge>
+                      ))}
+                      {perms.length > 3 && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          +{perms.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Button size="icon" variant="ghost" aria-label={`Edit ${u.fullname}`} onClick={() => openForm(u)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {u.id !== 1 && (
+                    <Button size="icon" variant="ghost" aria-label={`Delete ${u.fullname}`} onClick={() => setDeleteId(u.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )
+        }}
       />
 
       <Dialog open={formOpen} onOpenChange={closeForm}>

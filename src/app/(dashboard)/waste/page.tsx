@@ -14,16 +14,17 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@/components/ui/responsive-dialog"
 import { Badge } from "@/components/ui/badge"
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { StatusDot } from "@/components/ui/status-dot"
+import { Card } from "@/components/ui/card"
 import { Plus, Trash2 as WasteIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -265,12 +266,12 @@ export default function WastePage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Waste Log</h1>
-          <p className="text-muted-foreground mt-1">Track waste to reduce spoilage costs</p>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Waste Log</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Track waste to reduce spoilage costs</p>
         </div>
-        <Button onClick={openForm}>
+        <Button onClick={openForm} className="shrink-0">
           <Plus className="h-4 w-4 mr-2" /> Log Waste
         </Button>
       </div>
@@ -309,8 +310,8 @@ export default function WastePage() {
           <ToggleGroupItem value="30d">Last 30 Days</ToggleGroupItem>
           <ToggleGroupItem value="month">This Month</ToggleGroupItem>
         </ToggleGroup>
-        <div className="flex gap-4 items-end">
-          <div className="space-y-2">
+        <div className="flex gap-3 md:gap-4 items-end">
+          <div className="space-y-2 flex-1 md:flex-none">
             <Label>From</Label>
             <Input
               type="date"
@@ -319,10 +320,10 @@ export default function WastePage() {
                 setDateFrom(e.target.value)
                 setActiveFilter(null)
               }}
-              className="w-40"
+              className="md:w-40 text-[16px] sm:text-sm"
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 md:flex-none">
             <Label>To</Label>
             <Input
               type="date"
@@ -331,7 +332,7 @@ export default function WastePage() {
                 setDateTo(e.target.value)
                 setActiveFilter(null)
               }}
-              className="w-40"
+              className="md:w-40 text-[16px] sm:text-sm"
             />
           </div>
         </div>
@@ -346,14 +347,39 @@ export default function WastePage() {
         emptyIcon={<WasteIcon className="h-10 w-10" />}
         emptyTitle="No waste recorded"
         emptyDescription="That's a good thing! Log waste here when it happens to track trends."
+        mobileCardRender={(item) => (
+          <Card className="p-3 gap-2">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-sm">{item.ingredientName}</span>
+              <span className="font-mono tabular-nums text-sm text-status-critical">
+                ₱{item.estimatedCost.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{new Date(item.date).toLocaleDateString()}</span>
+              <span className="font-mono tabular-nums">
+                {item.quantity} {item.unit}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <Badge variant="outline" className="text-xs">{item.reason}</Badge>
+              {item.preventable && (
+                <StatusDot variant="critical" label="Preventable" />
+              )}
+            </div>
+            {item.notes && (
+              <p className="text-xs text-muted-foreground truncate">{item.notes}</p>
+            )}
+          </Card>
+        )}
       />
 
       {/* Log Waste Dialog */}
-      <Dialog open={formOpen} onOpenChange={closeForm}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Log Waste</DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog open={formOpen} onOpenChange={closeForm}>
+        <ResponsiveDialogContent className="sm:max-w-md">
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>Log Waste</ResponsiveDialogTitle>
+          </ResponsiveDialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
@@ -457,8 +483,8 @@ export default function WastePage() {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     </div>
   )
 }

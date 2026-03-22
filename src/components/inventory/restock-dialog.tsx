@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@/components/ui/responsive-dialog"
 import {
   Select,
   SelectContent,
@@ -178,17 +178,17 @@ export function RestockDialog({
       : ingredient.stockQty.toFixed(2)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
-        <DialogHeader>
-          <DialogTitle>Restock {ingredient.name}</DialogTitle>
-          <DialogDescription>
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent className="sm:max-w-[480px]">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>Restock {ingredient.name}</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
             Current stock:{" "}
             <span className="font-mono tabular-nums">
               {currentStockFormatted} {pluralizeUnit(ingredient.baseUnitName)}
             </span>
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
 
         {!hasVariants ? (
           <p className="text-sm text-muted-foreground py-4">
@@ -250,7 +250,7 @@ export function RestockDialog({
                   type="number"
                   step="1"
                   min="1"
-                  className="h-10 font-mono tabular-nums"
+                  className="h-10 font-mono tabular-nums text-[16px] sm:text-sm"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   placeholder="0"
@@ -280,7 +280,7 @@ export function RestockDialog({
                   type="number"
                   step="0.01"
                   min="0"
-                  className="h-10 font-mono tabular-nums"
+                  className="h-10 font-mono tabular-nums text-[16px] sm:text-sm"
                   value={costPerVariant}
                   onChange={(e) => setCostPerVariant(e.target.value)}
                   placeholder="0.00"
@@ -313,7 +313,7 @@ export function RestockDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <ResponsiveDialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -327,8 +327,8 @@ export function RestockDialog({
               "Add Stock"
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

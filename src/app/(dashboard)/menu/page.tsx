@@ -12,14 +12,16 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { LayoutGrid, List, Plus, Menu } from "lucide-react"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { LayoutGrid, List, Plus, Menu, ArrowLeft } from "lucide-react"
 import { MenuSidebar } from "./components/menu-sidebar"
+import { CategoryChips } from "./components/category-chips"
 import { ProductCards } from "./components/product-cards"
 import { ProductsTab } from "./components/products-tab"
 import { ProductPanel } from "./components/product-panel"
 import { ProductForm } from "@/components/products/product-form"
 import { DetailPanel } from "@/components/ui/detail-panel"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface IngredientShortage {
   id: number
@@ -39,6 +41,7 @@ interface Product {
   trueCost?: number | null
   trueMarginPercent?: number | null
   recipeItemCount?: number
+  linkedVariantId?: number | null
   availability: {
     status: "available" | "low" | "critical" | "out"
     maxProducible: number | null
@@ -80,6 +83,7 @@ interface Settings {
 }
 
 export default function MenuPage() {
+  const isMobile = useIsMobile()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [settings, setSettings] = useState<Settings>({ targetTrueMarginPercent: 65, currency: "PHP" })
@@ -95,6 +99,9 @@ export default function MenuPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [productStatusFilter, setProductStatusFilter] = useState<string>("ACTIVE")
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Mobile: product detail sheet state
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -157,11 +164,15 @@ export default function MenuPage() {
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product)
     setEditMode(false)
+    if (isMobile) {
+      setMobileDetailOpen(true)
+    }
   }
 
   const handleClosePanel = () => {
     setSelectedProduct(null)
     setEditMode(false)
+    setMobileDetailOpen(false)
   }
 
   const handleAddProduct = () => {
@@ -346,10 +357,19 @@ export default function MenuPage() {
           </div>
         </div>
 
+        {/* Mobile Category Chips */}
+        {!loading && isMobile && (
+          <CategoryChips
+            categories={categories}
+            selectedCategoryId={selectedCategoryId}
+            onSelectCategory={setSelectedCategoryId}
+          />
+        )}
+
         {/* Content area */}
         <div className="flex-1 overflow-auto p-3 md:p-6">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="rounded-lg border overflow-hidden">
                   <Skeleton className="h-32 w-full" />
@@ -384,26 +404,73 @@ export default function MenuPage() {
         </div>
       </main>
 
-      {/* Detail Panel overlay */}
-      <DetailPanel
-        open={!!selectedProduct}
-        onOpenChange={(open) => { if (!open) handleClosePanel() }}
-      >
-        {selectedProduct && (
-          <ProductPanel
-            product={selectedProduct}
-            onClose={handleClosePanel}
-            onEdit={() => setEditMode(true)}
-            onCancelEdit={() => setEditMode(false)}
-            onSaveSuccess={() => { setEditMode(false); void fetchData() }}
-            editMode={editMode}
-            categories={categories.map(c => ({ id: c.id, name: c.name }))}
-            targetMargin={settings.targetTrueMarginPercent}
-            onStatusChange={handleStatusChange}
-            onDelete={handleDeleteProduct}
-          />
-        )}
-      </DetailPanel>
+      {/* Detail Panel - Desktop: Dialog overlay, Mobile: Full-screen Sheet */}
+      {isMobile ? (
+        <Sheet open={mobileDetailOpen} onOpenChange={(open) => { if (!open) handleClosePanel() }}>
+          <SheetContent
+            side="right"
+            className="w-full sm:max-w-full p-0 [&>button]:hidden"
+            showCloseButton={false}
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>{selectedProduct?.name ?? "Product Detail"}</SheetTitle>
+              <SheetDescription>Product details and actions</SheetDescription>
+            </SheetHeader>
+            {/* Mobile back button header */}
+            <div className="flex items-center gap-2 border-b px-3 h-14 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 shrink-0"
+                onClick={handleClosePanel}
+                aria-label="Back to product list"
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
+              <h2 className="text-base font-semibold tracking-tight truncate">
+                {selectedProduct?.name ?? "Product"}
+              </h2>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {selectedProduct && (
+                <ProductPanel
+                  product={selectedProduct}
+                  onClose={handleClosePanel}
+                  onEdit={() => setEditMode(true)}
+                  onCancelEdit={() => setEditMode(false)}
+                  onSaveSuccess={() => { setEditMode(false); void fetchData() }}
+                  editMode={editMode}
+                  categories={categories.map(c => ({ id: c.id, name: c.name }))}
+                  targetMargin={settings.targetTrueMarginPercent}
+                  onStatusChange={handleStatusChange}
+                  onDelete={handleDeleteProduct}
+                  isMobile
+                />
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <DetailPanel
+          open={!!selectedProduct}
+          onOpenChange={(open) => { if (!open) handleClosePanel() }}
+        >
+          {selectedProduct && (
+            <ProductPanel
+              product={selectedProduct}
+              onClose={handleClosePanel}
+              onEdit={() => setEditMode(true)}
+              onCancelEdit={() => setEditMode(false)}
+              onSaveSuccess={() => { setEditMode(false); void fetchData() }}
+              editMode={editMode}
+              categories={categories.map(c => ({ id: c.id, name: c.name }))}
+              targetMargin={settings.targetTrueMarginPercent}
+              onStatusChange={handleStatusChange}
+              onDelete={handleDeleteProduct}
+            />
+          )}
+        </DetailPanel>
+      )}
 
       {/* Add New Product Dialog */}
       <ProductForm

@@ -253,12 +253,12 @@ export function OrderBoard() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
-          <LayoutDashboard className="h-6 w-6 text-muted-foreground" />
-          <h1 className="text-2xl font-bold tracking-tight">Order Command Center</h1>
+          <LayoutDashboard className="h-6 w-6 text-muted-foreground shrink-0" />
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Order Command Center</h1>
         </div>
         <div className="flex items-center gap-2">
           <StatusDot variant="ok" pulse label="LIVE" className="text-status-ok text-xs font-semibold uppercase tracking-wider" />
-          <Button variant="outline" size="sm" onClick={handleOpenCompleted}>
+          <Button variant="outline" size="sm" className="min-h-[44px] md:min-h-0" onClick={handleOpenCompleted}>
             <CircleCheckBig className="h-4 w-4 mr-2" />
             Completed
             {completedOrders.length > 0 && (
@@ -270,6 +270,7 @@ export function OrderBoard() {
           <Button
             variant="ghost"
             size="icon"
+            className="min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
             onClick={() => setSoundEnabled(!soundEnabled)}
             aria-label={soundEnabled ? "Mute sound notifications" : "Enable sound notifications"}
             title={soundEnabled ? "Mute notifications" : "Enable notifications"}
@@ -346,7 +347,7 @@ export function OrderBoard() {
                 type="button"
                 onClick={() => setActiveColumn(tab.key)}
                 className={cn(
-                  "flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex-1 rounded-md px-3 py-2 min-h-[44px] text-sm font-medium transition-colors",
                   activeColumn === tab.key
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:text-foreground"

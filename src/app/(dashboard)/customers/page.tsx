@@ -23,6 +23,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Plus, Pencil, Trash2, Eye, Users } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/format-currency"
@@ -302,6 +304,54 @@ export default function CustomersPage() {
         emptyIcon={<Users className="h-10 w-10" />}
         emptyTitle="No regular customers yet"
         emptyDescription="They'll appear here after their first visit."
+        mobileCardRender={(c) => {
+          const initials = c.name
+            .split(" ")
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2)
+          const balance = Number(c.tabBalance) || 0
+          return (
+            <Card className="p-3 shadow-none">
+              <div className="flex items-center gap-3">
+                <Avatar size="sm">
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium truncate">{c.name}</span>
+                    {balance > 0 && (
+                      <Badge variant="secondary" className="shrink-0 font-mono tabular-nums text-xs">
+                        {fmtCurrency(balance)}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {c.phone || "No phone"}
+                    {c.email && ` \u00B7 ${c.email}`}
+                  </div>
+                  {balance > 0 && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <StatusDot variant="warning" />
+                      <span className="text-xs text-muted-foreground">Active tab</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Link href={`/customers/${c.id}`}>
+                    <Button size="icon" variant="ghost" className="min-h-11 min-w-11" aria-label={`View ${c.name}`}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Button size="icon" variant="ghost" onClick={() => openForm(c)} className="min-h-11 min-w-11" aria-label={`Edit ${c.name}`}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )
+        }}
       />
 
       <Dialog open={formOpen} onOpenChange={closeForm}>

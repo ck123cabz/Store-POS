@@ -19,7 +19,7 @@ export function MobileCartBar({
   if (itemCount === 0) return null
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-30 md:hidden pb-safe">
+    <div data-testid="mobile-cart-bar" className="fixed bottom-0 inset-x-0 z-30 md:hidden pb-safe">
       <div className="mx-3 mb-3 flex items-center justify-between gap-3 rounded-xl bg-primary p-3 shadow-float">
         <div className="flex items-center gap-2 text-primary-foreground min-w-0">
           <ShoppingBag className="h-5 w-5 flex-shrink-0" />

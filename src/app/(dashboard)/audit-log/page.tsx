@@ -30,6 +30,7 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination"
 import { RefreshCw, History, FileText, TableIcon, ListIcon } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Types
@@ -481,12 +482,23 @@ function AuditTimeline({ logs, loading }: { logs: AuditLog[]; loading: boolean }
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function AuditLogPage() {
+  const isMobile = useIsMobile()
   const [data, setData] = useState<AuditData | null>(null)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
 
-  // View mode
+  // View mode — default to timeline on mobile for better readability
   const [viewMode, setViewMode] = useState<"table" | "timeline">("table")
+  const [viewModeInitialized, setViewModeInitialized] = useState(false)
+
+  useEffect(() => {
+    if (!viewModeInitialized && isMobile) {
+      setViewMode("timeline")
+      setViewModeInitialized(true)
+    } else if (!viewModeInitialized) {
+      setViewModeInitialized(true)
+    }
+  }, [isMobile, viewModeInitialized])
 
   // Log type filter
   const [logType, setLogType] = useState<"all" | "ingredient" | "general">("all")
@@ -562,7 +574,7 @@ export default function AuditLogPage() {
       </div>
 
       {/* Log type tabs + View toggle */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <ToggleGroup
           type="single"
           variant="outline"
@@ -612,6 +624,7 @@ export default function AuditLogPage() {
             setPage(1)
           }}
           aria-label="Filter by source"
+          className="flex-wrap"
         >
           {(data?.filters.sources || []).map((s) => (
             <ToggleGroupItem key={s} value={s}>
@@ -632,6 +645,7 @@ export default function AuditLogPage() {
             setPage(1)
           }}
           aria-label="Filter by entity"
+          className="flex-wrap"
         >
           {(data?.filters.entities || []).map((e) => (
             <ToggleGroupItem key={e} value={e}>
@@ -643,10 +657,10 @@ export default function AuditLogPage() {
 
       {/* Date and User filters */}
       <div className="flex flex-wrap items-end gap-4">
-        <div className="space-y-2">
+        <div className="space-y-2 w-full sm:w-auto">
           <Label>User</Label>
           <Select value={userId} onValueChange={(val) => { setUserId(val); setPage(1) }}>
-            <SelectTrigger className="w-[180px]" aria-label="Filter by user">
+            <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by user">
               <SelectValue placeholder="All Users" />
             </SelectTrigger>
             <SelectContent>

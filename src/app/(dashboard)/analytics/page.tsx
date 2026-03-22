@@ -20,6 +20,7 @@ import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
 import type { TrendDirection } from "@/components/ui/summary-card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { BarChart3 } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // ---------- Types ----------
 
@@ -195,6 +196,7 @@ function DashboardSkeleton() {
 // ---------- Main Page ----------
 
 export default function AnalyticsPage() {
+  const isMobile = useIsMobile()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<PeriodValue>("week")
@@ -268,6 +270,7 @@ export default function AnalyticsPage() {
         value={period}
         onValueChange={(v) => { if (v) handlePeriodChange(v) }}
         aria-label="Time period filter"
+        className="flex-wrap"
       >
         {PERIOD_OPTIONS.map((o) => (
           <ToggleGroupItem key={o.value} value={o.value}>{o.label}</ToggleGroupItem>
@@ -406,13 +409,13 @@ export default function AnalyticsPage() {
                       type="category"
                       dataKey="name"
                       tick={{
-                        fontSize: 12,
+                        fontSize: isMobile ? 10 : 12,
                         fontFamily: "var(--font-mono)",
                         fill: "var(--color-muted-foreground)",
                       }}
                       axisLine={false}
                       tickLine={false}
-                      width={100}
+                      width={isMobile ? 70 : 100}
                     />
                     <Tooltip
                       content={<ChartTooltip />}

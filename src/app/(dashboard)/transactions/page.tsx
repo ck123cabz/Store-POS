@@ -20,8 +20,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Card, CardContent } from "@/components/ui/card"
 import { Search, Ban, AlertTriangle, AlertCircle, ChevronsUpDown, ReceiptText, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { formatCurrency } from "@/lib/format-currency"
 import { useSettings } from "@/hooks/use-settings"
 import { useSession } from "next-auth/react"
@@ -115,6 +122,8 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(false)
   const [viewTransaction, setViewTransaction] = useState<Transaction | null>(null)
   const [todayData, setTodayData] = useState<TodayData | null>(null)
+
+  const isMobile = useIsMobile()
 
   // Use settings for currency symbol
   const { currencySymbol } = useSettings()
@@ -486,6 +495,265 @@ export default function TransactionsPage() {
     },
   ]
 
+  // Helper: get status variant and label for a transaction
+  function getStatusInfo(tx: Transaction): { variant: "ok" | "warning" | "critical" | "info"; label: string } {
+    if (tx.isVoided) return { variant: "critical", label: "Voided" }
+    if (tx.paymentStatus === "cancelled") return { variant: "critical", label: "Cancelled" }
+    if (tx.paymentStatus === "pending") return { variant: "warning", label: "GCash Pending" }
+    if (tx.status === 1) return { variant: "ok", label: "Completed" }
+    if (tx.refNumber) return { variant: "info", label: "On Hold" }
+    return { variant: "warning", label: "Pending" }
+  }
+
+  // Mobile card renderer for DataTable
+  function renderTransactionCard(tx: Transaction) {
+    const statusInfo = getStatusInfo(tx)
+    return (
+      <Card className={cn("py-3 gap-2", tx.isVoided && "opacity-60")}>
+        <CardContent className="px-4 py-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-mono tabular-nums font-semibold">#{tx.orderNumber}</span>
+              <StatusDot variant={statusInfo.variant} label={statusInfo.label} />
+            </div>
+            <span
+              className={cn(
+                "font-mono tabular-nums font-semibold",
+                tx.isVoided && "line-through text-muted-foreground"
+              )}
+            >
+              {fmtCurrency(tx.total)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-sm text-muted-foreground truncate max-w-[60%]">
+              {tx.customer?.name || "Walk-in"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {format(new Date(tx.createdAt), "MMM d, h:mm a")}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Transaction detail content (shared between Dialog and Sheet)
+  function renderTransactionDetail(tx: Transaction) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="text-muted-foreground">Date:</div>
+          <div>
+            {format(new Date(tx.createdAt), "MMM d, yyyy h:mm a")}
+          </div>
+          <div className="text-muted-foreground">Customer:</div>
+          <div>{tx.customer?.name || "Walk-in"}</div>
+          <div className="text-muted-foreground">Cashier:</div>
+          <div className="flex items-center gap-2">
+            {tx.user?.fullname && (
+              <Avatar size="sm">
+                <AvatarFallback>
+                  {tx.user.fullname
+                    .split(" ")
+                    .map((w) => w[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+            )}
+            <span>{tx.user?.fullname || "Unknown"}</span>
+          </div>
+          <div className="text-muted-foreground">Till:</div>
+          <div>{tx.tillNumber}</div>
+          <div className="text-muted-foreground">Payment:</div>
+          <div className="flex items-center gap-2">
+            <span>{tx.paymentType || "-"}</span>
+            {tx.paymentStatus === "pending" && (
+              <Badge variant="outline" className="text-status-warning border-status-warning/30 text-xs">
+                Pending
+              </Badge>
+            )}
+            {tx.paymentStatus === "confirmed" && (
+              <Badge variant="outline" className="text-status-ok border-status-ok/30 text-xs">
+                Confirmed
+              </Badge>
+            )}
+            {tx.paymentStatus === "cancelled" && (
+              <Badge variant="outline" className="text-status-critical border-status-critical/30 text-xs">
+                Cancelled
+              </Badge>
+            )}
+          </div>
+          {/* GCash proof photo */}
+          {tx.paymentType === "GCash" && tx.gcashPhotoPath && (
+            <>
+              <div className="text-muted-foreground">Proof:</div>
+              <div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={tx.gcashPhotoPath}
+                  alt="GCash payment proof"
+                  className="rounded border max-h-32 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => window.open(tx.gcashPhotoPath!, "_blank")}
+                />
+              </div>
+            </>
+          )}
+          {/* GCash reference (for legacy/non-photo entries) */}
+          {tx.paymentType === "GCash" && tx.paymentInfo && !tx.paymentInfo.startsWith("photo:") && (
+            <>
+              <div className="text-muted-foreground">Ref:</div>
+              <div className="font-mono text-xs truncate max-w-48">{tx.paymentInfo}</div>
+            </>
+          )}
+          {/* Split payment breakdown */}
+          {tx.paymentType === "Split" && tx.paymentInfo && (
+            <>
+              <div className="text-muted-foreground">Split:</div>
+              <div className="text-xs">
+                {(() => {
+                  try {
+                    const split = JSON.parse(tx.paymentInfo)
+                    return split.components?.map((c: { method: string; amount: number; reference?: string }, i: number) => (
+                      <div key={i}>
+                        {c.method}: {fmtCurrency(c.amount)}
+                        {c.reference && <span className="text-muted-foreground ml-1">({c.reference})</span>}
+                      </div>
+                    ))
+                  } catch {
+                    return tx.paymentInfo
+                  }
+                })()}
+              </div>
+            </>
+          )}
+          {tx.refNumber && (
+            <>
+              <div className="text-muted-foreground">Ref #:</div>
+              <div>{tx.refNumber}</div>
+            </>
+          )}
+        </div>
+
+        <div className="border rounded p-3 space-y-2">
+          <div className="font-medium">Items</div>
+          {tx.items.map((item) => (
+            <div key={item.id} className="flex justify-between text-sm">
+              <span>
+                {item.quantity}x {item.productName}
+              </span>
+              <span>{fmtCurrency(item.price)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t pt-2 space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span>{fmtCurrency(tx.subtotal)}</span>
+          </div>
+          {tx.discount &&
+            parseFloat(tx.discount) > 0 && (
+              <div className="flex justify-between text-status-critical">
+                <span>Discount</span>
+                <span>-{fmtCurrency(tx.discount)}</span>
+              </div>
+            )}
+          {tx.taxAmount &&
+            parseFloat(tx.taxAmount) > 0 && (
+              <div className="flex justify-between">
+                <span>Tax</span>
+                <span>{fmtCurrency(tx.taxAmount)}</span>
+              </div>
+            )}
+          <div className="flex justify-between font-bold text-base pt-1">
+            <span>Total</span>
+            <span>{fmtCurrency(tx.total)}</span>
+          </div>
+          {tx.paidAmount && (
+            <div className="flex justify-between">
+              <span>Paid</span>
+              <span>{fmtCurrency(tx.paidAmount)}</span>
+            </div>
+          )}
+          {tx.changeAmount && (
+            <div className="flex justify-between">
+              <span>Change</span>
+              <span>{fmtCurrency(tx.changeAmount)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* GCash confirm/cancel actions */}
+        {tx.paymentType === "GCash" && tx.paymentStatus === "pending" && !tx.isVoided && (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1 min-h-[44px]"
+              disabled={gcashActionLoading !== null}
+              onClick={() => handleGcashConfirm(tx.id)}
+            >
+              {gcashActionLoading === "confirm" ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
+              Confirm Payment
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 min-h-[44px] text-status-critical hover:text-status-critical"
+              disabled={gcashActionLoading !== null}
+              onClick={() => handleGcashCancel(tx.id)}
+            >
+              {gcashActionLoading === "cancel" ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <XCircle className="h-4 w-4 mr-2" />
+              )}
+              Cancel Payment
+            </Button>
+          </div>
+        )}
+
+        {/* Void info section */}
+        {tx.isVoided && (
+          <Alert variant="destructive">
+            <Ban className="h-4 w-4" />
+            <AlertTitle>Transaction Voided</AlertTitle>
+            <AlertDescription>
+              <p>Reason: {tx.voidReason}</p>
+              <p>By: {tx.voidedByName}</p>
+              {tx.voidedAt && (
+                <p>On: {format(new Date(tx.voidedAt), "MMM d, yyyy h:mm a")}</p>
+              )}
+              <p className="text-xs mt-1 opacity-75">Stock and ingredients were restored.</p>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Void button */}
+        {!tx.isVoided && session?.user?.permVoid && (
+          <div className="pt-2 border-t">
+            <Button
+              variant="destructive"
+              size="sm"
+              className="min-h-[44px]"
+              data-testid="void-button"
+              onClick={() => setShowVoidModal(true)}
+            >
+              <Ban className="h-4 w-4 mr-2" />
+              Void Transaction
+            </Button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Transactions</h1>
@@ -514,18 +782,21 @@ export default function TransactionsPage() {
       )}
 
       {/* Quick Filters */}
-      <ToggleGroup
-        type="single"
-        variant="outline"
-        size="sm"
-        value={activeQuickFilter || ""}
-        onValueChange={(v) => handleQuickFilterChange(v || null)}
-        aria-label="Quick date filters"
-      >
-        {quickFilterOptions.map((o) => (
-          <ToggleGroupItem key={o.value} value={o.value}>{o.label}</ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={activeQuickFilter || ""}
+          onValueChange={(v) => handleQuickFilterChange(v || null)}
+          aria-label="Quick date filters"
+          className="min-h-[44px]"
+        >
+          {quickFilterOptions.map((o) => (
+            <ToggleGroupItem key={o.value} value={o.value} className="min-h-[44px] md:min-h-0">{o.label}</ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
 
       {/* Advanced Filters */}
       <Collapsible>
@@ -596,11 +867,11 @@ export default function TransactionsPage() {
                 </div>
 
                 <div className="flex items-end gap-2">
-                  <Button onClick={handleSearch} disabled={loading}>
+                  <Button onClick={handleSearch} disabled={loading} className="min-h-[44px] md:min-h-0">
                     <Search className="h-4 w-4 mr-2" />
                     {loading ? "..." : "Search"}
                   </Button>
-                  <Button variant="outline" onClick={clearFilters}>
+                  <Button variant="outline" onClick={clearFilters} className="min-h-[44px] md:min-h-0">
                     Clear
                   </Button>
                 </div>
@@ -648,227 +919,31 @@ export default function TransactionsPage() {
             </Button>
           )
         }
+        mobileCardRender={renderTransactionCard}
       />
 
-      {/* Detail Dialog */}
-      <Dialog open={!!viewTransaction} onOpenChange={() => setViewTransaction(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Order #{viewTransaction?.orderNumber}</DialogTitle>
-          </DialogHeader>
-          {viewTransaction && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-muted-foreground">Date:</div>
-                <div>
-                  {format(new Date(viewTransaction.createdAt), "MMM d, yyyy h:mm a")}
-                </div>
-                <div className="text-muted-foreground">Customer:</div>
-                <div>{viewTransaction.customer?.name || "Walk-in"}</div>
-                <div className="text-muted-foreground">Cashier:</div>
-                <div className="flex items-center gap-2">
-                  {viewTransaction.user?.fullname && (
-                    <Avatar size="sm">
-                      <AvatarFallback>
-                        {viewTransaction.user.fullname
-                          .split(" ")
-                          .map((w) => w[0])
-                          .join("")
-                          .toUpperCase()
-                          .slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <span>{viewTransaction.user?.fullname || "Unknown"}</span>
-                </div>
-                <div className="text-muted-foreground">Till:</div>
-                <div>{viewTransaction.tillNumber}</div>
-                <div className="text-muted-foreground">Payment:</div>
-                <div className="flex items-center gap-2">
-                  <span>{viewTransaction.paymentType || "-"}</span>
-                  {viewTransaction.paymentStatus === "pending" && (
-                    <Badge variant="outline" className="text-status-warning border-status-warning/30 text-xs">
-                      Pending
-                    </Badge>
-                  )}
-                  {viewTransaction.paymentStatus === "confirmed" && (
-                    <Badge variant="outline" className="text-status-ok border-status-ok/30 text-xs">
-                      Confirmed
-                    </Badge>
-                  )}
-                  {viewTransaction.paymentStatus === "cancelled" && (
-                    <Badge variant="outline" className="text-status-critical border-status-critical/30 text-xs">
-                      Cancelled
-                    </Badge>
-                  )}
-                </div>
-                {/* GCash proof photo */}
-                {viewTransaction.paymentType === "GCash" && viewTransaction.gcashPhotoPath && (
-                  <>
-                    <div className="text-muted-foreground">Proof:</div>
-                    <div>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={viewTransaction.gcashPhotoPath}
-                        alt="GCash payment proof"
-                        className="rounded border max-h-32 cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => window.open(viewTransaction.gcashPhotoPath!, "_blank")}
-                      />
-                    </div>
-                  </>
-                )}
-                {/* GCash reference (for legacy/non-photo entries) */}
-                {viewTransaction.paymentType === "GCash" && viewTransaction.paymentInfo && !viewTransaction.paymentInfo.startsWith("photo:") && (
-                  <>
-                    <div className="text-muted-foreground">Ref:</div>
-                    <div className="font-mono text-xs truncate max-w-48">{viewTransaction.paymentInfo}</div>
-                  </>
-                )}
-                {/* Split payment breakdown */}
-                {viewTransaction.paymentType === "Split" && viewTransaction.paymentInfo && (
-                  <>
-                    <div className="text-muted-foreground">Split:</div>
-                    <div className="text-xs">
-                      {(() => {
-                        try {
-                          const split = JSON.parse(viewTransaction.paymentInfo)
-                          return split.components?.map((c: { method: string; amount: number; reference?: string }, i: number) => (
-                            <div key={i}>
-                              {c.method}: {fmtCurrency(c.amount)}
-                              {c.reference && <span className="text-muted-foreground ml-1">({c.reference})</span>}
-                            </div>
-                          ))
-                        } catch {
-                          return viewTransaction.paymentInfo
-                        }
-                      })()}
-                    </div>
-                  </>
-                )}
-                {viewTransaction.refNumber && (
-                  <>
-                    <div className="text-muted-foreground">Ref #:</div>
-                    <div>{viewTransaction.refNumber}</div>
-                  </>
-                )}
-              </div>
-
-              <div className="border rounded p-3 space-y-2">
-                <div className="font-medium">Items</div>
-                {viewTransaction.items.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span>
-                      {item.quantity}x {item.productName}
-                    </span>
-                    <span>{fmtCurrency(item.price)}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t pt-2 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>{fmtCurrency(viewTransaction.subtotal)}</span>
-                </div>
-                {viewTransaction.discount &&
-                  parseFloat(viewTransaction.discount) > 0 && (
-                    <div className="flex justify-between text-status-critical">
-                      <span>Discount</span>
-                      <span>-{fmtCurrency(viewTransaction.discount)}</span>
-                    </div>
-                  )}
-                {viewTransaction.taxAmount &&
-                  parseFloat(viewTransaction.taxAmount) > 0 && (
-                    <div className="flex justify-between">
-                      <span>Tax</span>
-                      <span>{fmtCurrency(viewTransaction.taxAmount)}</span>
-                    </div>
-                  )}
-                <div className="flex justify-between font-bold text-base pt-1">
-                  <span>Total</span>
-                  <span>{fmtCurrency(viewTransaction.total)}</span>
-                </div>
-                {viewTransaction.paidAmount && (
-                  <div className="flex justify-between">
-                    <span>Paid</span>
-                    <span>{fmtCurrency(viewTransaction.paidAmount)}</span>
-                  </div>
-                )}
-                {viewTransaction.changeAmount && (
-                  <div className="flex justify-between">
-                    <span>Change</span>
-                    <span>{fmtCurrency(viewTransaction.changeAmount)}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* GCash confirm/cancel actions */}
-              {viewTransaction.paymentType === "GCash" && viewTransaction.paymentStatus === "pending" && !viewTransaction.isVoided && (
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    disabled={gcashActionLoading !== null}
-                    onClick={() => handleGcashConfirm(viewTransaction.id)}
-                  >
-                    {gcashActionLoading === "confirm" ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                    )}
-                    Confirm Payment
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-status-critical hover:text-status-critical"
-                    disabled={gcashActionLoading !== null}
-                    onClick={() => handleGcashCancel(viewTransaction.id)}
-                  >
-                    {gcashActionLoading === "cancel" ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <XCircle className="h-4 w-4 mr-2" />
-                    )}
-                    Cancel Payment
-                  </Button>
-                </div>
-              )}
-
-              {/* Void info section */}
-              {viewTransaction.isVoided && (
-                <Alert variant="destructive">
-                  <Ban className="h-4 w-4" />
-                  <AlertTitle>Transaction Voided</AlertTitle>
-                  <AlertDescription>
-                    <p>Reason: {viewTransaction.voidReason}</p>
-                    <p>By: {viewTransaction.voidedByName}</p>
-                    {viewTransaction.voidedAt && (
-                      <p>On: {format(new Date(viewTransaction.voidedAt), "MMM d, yyyy h:mm a")}</p>
-                    )}
-                    <p className="text-xs mt-1 opacity-75">Stock and ingredients were restored.</p>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Void button */}
-              {!viewTransaction.isVoided && session?.user?.permVoid && (
-                <div className="pt-2 border-t">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    data-testid="void-button"
-                    onClick={() => setShowVoidModal(true)}
-                  >
-                    <Ban className="h-4 w-4 mr-2" />
-                    Void Transaction
-                  </Button>
-                </div>
-              )}
+      {/* Detail: Sheet on mobile, Dialog on desktop */}
+      {isMobile ? (
+        <Sheet open={!!viewTransaction} onOpenChange={() => setViewTransaction(null)}>
+          <SheetContent side="right" className="w-full sm:max-w-full p-0">
+            <SheetHeader className="border-b px-4 py-3">
+              <SheetTitle>Order #{viewTransaction?.orderNumber}</SheetTitle>
+            </SheetHeader>
+            <div className="overflow-y-auto flex-1 px-4 py-4">
+              {viewTransaction && renderTransactionDetail(viewTransaction)}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={!!viewTransaction} onOpenChange={() => setViewTransaction(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Order #{viewTransaction?.orderNumber}</DialogTitle>
+            </DialogHeader>
+            {viewTransaction && renderTransactionDetail(viewTransaction)}
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Void Confirmation Modal */}
       <Dialog open={showVoidModal} onOpenChange={(open) => {

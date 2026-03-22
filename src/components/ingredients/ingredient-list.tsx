@@ -122,7 +122,7 @@ function IngredientList({
           className="flex-1"
         />
       ) : (
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="flex flex-col">
             {filtered.map((ingredient) => {
               const isSelected = ingredient.id === selectedId
@@ -132,7 +132,7 @@ function IngredientList({
                   type="button"
                   onClick={() => onSelect(ingredient)}
                   className={cn(
-                    "flex items-center gap-3 border-b px-4 py-3 text-left transition-colors",
+                    "flex items-center gap-3 border-b px-4 py-3 text-left transition-colors min-h-[44px]",
                     "hover:bg-muted/50",
                     isSelected && "bg-accent"
                   )}

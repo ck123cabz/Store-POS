@@ -473,3 +473,36 @@
     min-height: 44px;
   }
 }
+
+/* Dynamic Type support — prevent fixed-height clipping on larger text sizes */
+.min-h-dynamic {
+  min-height: max(2.75rem, 1lh + 1rem);
+}
+.min-h-dynamic-sm {
+  min-height: max(2.25rem, 1lh + 0.5rem);
+}
+.min-h-dynamic-lg {
+  min-height: max(3rem, 1lh + 1.25rem);
+}
+
+/* Convenience shorthand: safe-area bottom padding for sticky/fixed bottom elements */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile form input zoom prevention — iOS Safari auto-zooms inputs < 16px */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="search"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}

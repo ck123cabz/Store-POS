@@ -21,7 +21,7 @@ export function Header() {
   useEffect(() => setMounted(true), [])
 
   return (
-    <header className="sticky top-0 z-40 h-16 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex items-center justify-between px-4">
+    <header className="sticky top-0 z-40 h-14 md:h-16 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex items-center justify-between px-4">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 !h-4" />

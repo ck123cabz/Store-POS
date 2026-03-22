@@ -122,7 +122,7 @@ export default function WeeklyScorecardPage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6 max-w-3xl mx-auto">
+      <div className="p-4 sm:p-6 space-y-6 max-w-3xl mx-auto">
         {/* Breadcrumb skeleton */}
         <Skeleton className="h-4 w-48" />
         {/* Header skeleton */}
@@ -190,10 +190,10 @@ export default function WeeklyScorecardPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-6 max-w-3xl mx-auto">
       {/* Breadcrumb */}
       <Breadcrumb>
-        <BreadcrumbList>
+        <BreadcrumbList className="flex-wrap">
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
               <Link href="/analytics">Analytics</Link>
@@ -207,7 +207,7 @@ export default function WeeklyScorecardPage() {
       </Breadcrumb>
 
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1">
           <h1 className="text-2xl font-bold">Weekly Scorecard</h1>
           <p className="text-muted-foreground">10-Lever tracking for the week</p>
@@ -216,7 +216,7 @@ export default function WeeklyScorecardPage() {
           type="date"
           value={weekStart}
           onChange={(e) => setWeekStart(e.target.value)}
-          className="w-40"
+          className="w-full sm:w-40"
         />
       </div>
 
@@ -328,7 +328,7 @@ export default function WeeklyScorecardPage() {
               <CardTitle className="text-lg">Focus & Reflection</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>This Week&apos;s Focus (Lever)</Label>
                   <Select

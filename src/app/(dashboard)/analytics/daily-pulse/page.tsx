@@ -90,7 +90,7 @@ export default function DailyPulsePage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6 max-w-2xl mx-auto">
+      <div className="p-4 sm:p-6 space-y-6 max-w-2xl mx-auto">
         {/* Breadcrumb skeleton */}
         <Skeleton className="h-4 w-40" />
         {/* Header skeleton */}
@@ -156,10 +156,10 @@ export default function DailyPulsePage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-6 max-w-2xl mx-auto">
       {/* Breadcrumb */}
       <Breadcrumb>
-        <BreadcrumbList>
+        <BreadcrumbList className="flex-wrap">
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
               <Link href="/analytics">Analytics</Link>
@@ -173,7 +173,7 @@ export default function DailyPulsePage() {
       </Breadcrumb>
 
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1">
           <h1 className="text-2xl font-bold">Daily Pulse</h1>
           <p className="text-muted-foreground">Quick 2-minute end-of-day check-in</p>
@@ -182,7 +182,7 @@ export default function DailyPulsePage() {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="w-40"
+          className="w-full sm:w-40"
         />
       </div>
 
@@ -196,15 +196,15 @@ export default function DailyPulsePage() {
             <CardContent className="grid grid-cols-3 gap-4">
               <div>
                 <Label className="text-xs text-muted-foreground">Revenue</Label>
-                <p className="text-xl font-bold">₱{data.revenue.toLocaleString()}</p>
+                <p className="text-lg sm:text-xl font-bold font-mono tabular-nums">₱{data.revenue.toLocaleString()}</p>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Transactions</Label>
-                <p className="text-xl font-bold">{data.transactions}</p>
+                <p className="text-lg sm:text-xl font-bold font-mono tabular-nums">{data.transactions}</p>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Avg Ticket</Label>
-                <p className="text-xl font-bold">₱{data.avgTicket}</p>
+                <p className="text-lg sm:text-xl font-bold font-mono tabular-nums">₱{data.avgTicket}</p>
               </div>
             </CardContent>
           </Card>
@@ -214,7 +214,7 @@ export default function DailyPulsePage() {
             <CardHeader>
               <CardTitle className="text-lg">Upsell Tracking</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Upsells Attempted</Label>
                 <Input
@@ -241,7 +241,7 @@ export default function DailyPulsePage() {
             <CardHeader>
               <CardTitle className="text-lg">Context</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Weather</Label>
                 <Select

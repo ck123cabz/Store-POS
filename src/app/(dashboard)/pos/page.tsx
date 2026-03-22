@@ -501,7 +501,7 @@ export default function POSPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] gap-0">
+      <div className="flex flex-col md:flex-row h-[calc(100vh-3.5rem)] md:h-[calc(100vh-4rem)] gap-0 overflow-hidden">
         {/* Product grid skeleton */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header bar skeleton */}
@@ -521,10 +521,10 @@ export default function POSPage() {
           </div>
           {/* Product cards skeleton */}
           <div className="flex-1 px-4 py-2">
-            <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
+            <div className="grid gap-2 sm:gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
               {Array.from({ length: 12 }).map((_, i) => (
                 <div key={i} className="rounded-lg border p-3 space-y-3">
-                  <Skeleton className="h-28 w-full rounded-md" />
+                  <Skeleton className="h-20 sm:h-28 w-full rounded-md" />
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-5 w-16" />
                 </div>
@@ -572,7 +572,7 @@ export default function POSPage() {
   const cartItemCount = cart.items.length
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] gap-0">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-3.5rem)] md:h-[calc(100vh-4rem)] gap-0 overflow-hidden">
       {/* Product Grid Section */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header bar */}
@@ -649,7 +649,7 @@ export default function POSPage() {
         </div>
 
         {/* Products — extra bottom padding on mobile for floating cart bar */}
-        <ScrollArea className={cn("flex-1 px-4 py-4", cartItemCount > 0 && "pb-20 md:pb-4")}>
+        <ScrollArea className={cn("flex-1 min-h-0 px-4 py-4", cartItemCount > 0 && "pb-20 md:pb-4")}>
           <ProductGrid
             products={products}
             categories={categories}
@@ -660,7 +660,7 @@ export default function POSPage() {
       </div>
 
       {/* Desktop Cart Sidebar — hidden on mobile */}
-      <div className="hidden md:block flex-shrink-0 border-l bg-background md:w-[380px] lg:w-[420px]">
+      <div className="hidden md:block flex-shrink-0 border-l bg-background md:w-[380px] lg:w-[420px] h-full overflow-hidden">
         <Cart
           cart={cart}
           subtotal={subtotal}

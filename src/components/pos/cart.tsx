@@ -132,7 +132,7 @@ export function Cart({
       </div>
 
       {/* Cart Items */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="px-4 py-2">
           {cart.items.length === 0 ? (
             <EmptyState

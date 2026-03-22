@@ -1,25 +1,24 @@
 <!--
 Sync Impact Report
 ==================
-Version Change: N/A → 1.0.0 (Initial creation)
+Version Change: 1.0.0 → 1.0.1 (Factual corrections)
 
-Added Sections:
-- Principle I: Test-First Development
-- Principle II: Security-First
-- Principle III: Pragmatic Simplicity
-- Principle IV: Data Integrity
-- Principle V: RESTful API Standards
-- Section: Technology Constraints
-- Section: Development Workflow
-- Section: Governance
+Modified Sections:
+- Principle III: Pragmatic Simplicity — rationale corrected from
+  "jQuery + Express" to "Next.js App Router"
+- Principle V: RESTful API Standards — corrected "Express API routes"
+  to "Next.js App Router API routes"; fixed error response format
+  from { error: true, message: string } to { error: string }
+
+Added Sections: None
+Removed Sections: None
 
 Templates Status:
-- .specify/templates/plan-template.md - Constitution Check section references principles ✅ compatible
-- .specify/templates/spec-template.md - Requirements format aligns ✅ compatible
-- .specify/templates/tasks-template.md - TDD workflow references align ✅ compatible
+- .specify/templates/plan-template.md — Constitution Check section ✅ compatible
+- .specify/templates/spec-template.md — Requirements format ✅ compatible
+- .specify/templates/tasks-template.md — TDD workflow references ✅ compatible
 
 Deferred Items: None
-
 Follow-up TODOs: None
 ==================
 -->
@@ -74,7 +73,7 @@ Code SHOULD be as simple as possible while allowing reasonable forward-thinking 
 **Exceptions:** Reasonable architecture patterns (MVC, services layer) are permitted when they
 improve maintainability without adding unnecessary abstraction layers.
 
-**Rationale:** The existing codebase uses straightforward jQuery + Express patterns. Maintaining
+**Rationale:** The existing codebase uses straightforward Next.js App Router patterns. Maintaining
 simplicity reduces onboarding time and debugging complexity.
 
 ### IV. Data Integrity
@@ -94,12 +93,12 @@ Inconsistencies can cause revenue loss, audit failures, and operational problems
 
 ### V. RESTful API Standards
 
-All Express API routes MUST follow consistent conventions:
+All Next.js App Router API routes MUST follow consistent conventions:
 
 - **HTTP Methods:** Use appropriate verbs (GET=read, POST=create, PUT/PATCH=update, DELETE=remove)
 - **Status Codes:** Return correct HTTP status codes (200 success, 201 created, 400 bad request,
   401 unauthorized, 404 not found, 500 server error)
-- **Error Responses:** Return consistent error format: `{ error: true, message: string }`
+- **Error Responses:** Return consistent error format: `{ error: string }`
 - **Success Responses:** Return consistent success format with relevant data
 - **Route Naming:** Use plural nouns for resources (`/api/users`, `/api/transactions`)
 
@@ -160,4 +159,4 @@ MUST align with these principles.
 - Complexity beyond these guidelines MUST be documented with justification
 - See CLAUDE.md for runtime development guidance specific to this codebase
 
-**Version**: 1.0.0 | **Ratified**: 2025-01-26 | **Last Amended**: 2025-01-26
+**Version**: 1.0.1 | **Ratified**: 2025-01-26 | **Last Amended**: 2026-03-15

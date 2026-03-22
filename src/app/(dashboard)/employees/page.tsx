@@ -579,6 +579,43 @@ export default function EmployeesPage() {
             emptyIcon={<Briefcase className="h-10 w-10" />}
             emptyTitle="No employees found"
             emptyDescription="Add your first employee to get started."
+            mobileCardRender={(e) => {
+              const initials = getInitials(e.firstName, e.lastName)
+              return (
+                <Card className="p-3 shadow-none">
+                  <div className="flex items-center gap-3">
+                    <Avatar size="sm">
+                      <AvatarFallback>{initials}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium truncate">
+                          {e.firstName} {e.lastName}
+                        </span>
+                        {getStatusBadge(e.employmentStatus)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {e.position || "No position"}
+                        {e.phone && ` \u00B7 ${e.phone}`}
+                      </div>
+                      <div className="text-xs text-muted-foreground font-mono tabular-nums mt-0.5">
+                        {fmtCurrency(e.hourlyRate)}/hr
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0" onClick={(ev) => ev.stopPropagation()}>
+                      <Link href={`/employees/${e.id}`}>
+                        <Button size="icon" variant="ghost" className="min-h-11 min-w-11" aria-label={`View ${e.firstName} ${e.lastName}`}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Button size="icon" variant="ghost" onClick={() => openForm(e)} className="min-h-11 min-w-11" aria-label={`Edit ${e.firstName} ${e.lastName}`}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )
+            }}
           />
         </>
       )}

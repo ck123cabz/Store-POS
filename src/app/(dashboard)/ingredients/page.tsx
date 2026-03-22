@@ -81,7 +81,7 @@ export default function IngredientsPage() {
   const showDetail = !isMobile || mobileView === "detail"
 
   return (
-    <div className="flex h-[calc(100dvh-64px)]">
+    <div className="flex h-[calc(100dvh-64px)] overflow-hidden">
       {/* Left panel – ingredient list */}
       {showList && (
         <div className="w-full md:w-[300px] shrink-0 md:border-r flex flex-col">
@@ -100,7 +100,7 @@ export default function IngredientsPage() {
           </div>
 
           {/* Scrollable ingredient list */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <IngredientList
               ingredients={ingredients}
               selectedId={selectedIngredient?.id ?? null}
@@ -113,7 +113,7 @@ export default function IngredientsPage() {
 
       {/* Right panel – ingredient detail */}
       {showDetail && (
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 h-full overflow-hidden">
           <IngredientDetail
             ingredient={selectedIngredient}
             onEdit={(ing) => openPanel(ing)}

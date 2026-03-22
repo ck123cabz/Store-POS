@@ -74,8 +74,8 @@ export async function POST(request: NextRequest) {
       factor: Number(c.factor),
     }))
 
-    // Build transaction operations
-    const operations = []
+    // Pre-compute updates (unit conversions) before entering the transaction
+    const updates: { ingredientId: number; actualInBaseUnits: number; ingredient: typeof ingredients[0]; count: CountItem }[] = []
     let skippedCount = 0
 
     for (const count of discrepancies) {
@@ -102,22 +102,23 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Update ingredient quantity (stockQty is always in base units)
-      operations.push(
-        prisma.ingredient.update({
-          where: { id: count.ingredientId },
+      updates.push({ ingredientId: count.ingredientId, actualInBaseUnits, ingredient, count })
+    }
+
+    // Execute all operations in an interactive transaction with extended timeout
+    await prisma.$transaction(async (tx) => {
+      for (const { ingredientId, actualInBaseUnits, ingredient, count } of updates) {
+        await tx.ingredient.update({
+          where: { id: ingredientId },
           data: {
             stockQty: actualInBaseUnits,
             lastUpdated: new Date(),
           },
         })
-      )
 
-      // Create history entry (values in base units to match stockQty)
-      operations.push(
-        prisma.ingredientHistory.create({
+        await tx.ingredientHistory.create({
           data: {
-            ingredientId: count.ingredientId,
+            ingredientId,
             ingredientName: ingredient.name,
             changeId,
             field: "stockQty",
@@ -130,18 +131,13 @@ export async function POST(request: NextRequest) {
             userName,
           },
         })
-      )
-    }
+      }
 
-    // Delete the user's draft after successful submit
-    operations.push(
-      prisma.inventoryCountDraft.deleteMany({
+      // Delete the user's draft after successful submit
+      await tx.inventoryCountDraft.deleteMany({
         where: { userId },
       })
-    )
-
-    // Execute all operations in a transaction
-    await prisma.$transaction(operations)
+    }, { timeout: 30000 })
 
     await logAudit({
       entity: "inventory_count", entityId: null, action: "inventory_count",

@@ -29,7 +29,7 @@ export default async function DashboardLayout({
         <AppSidebar />
         <SidebarInset>
           <Header />
-          <main id="main-content" className="flex-1">{children}</main>
+          <main id="main-content" className="flex-1 min-h-0">{children}</main>
         </SidebarInset>
         <OnboardingTour />
       </SidebarProvider>

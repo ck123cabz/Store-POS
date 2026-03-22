@@ -124,7 +124,7 @@ export function ProductCards({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-4">
       {products.map((product) => {
         const stock = getStockConfig(product.availability.status)
         const hasImage = !!product.image
@@ -139,6 +139,7 @@ export function ProductCards({
               "group rounded-lg border text-left transition-all overflow-hidden",
               "hover:shadow-sm hover:border-border/80",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "min-h-[44px]",
               isSelected && "ring-2 ring-primary border-primary"
             )}
           >

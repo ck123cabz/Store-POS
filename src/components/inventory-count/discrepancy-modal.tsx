@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogFooter,
+} from "@/components/ui/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -150,7 +150,7 @@ function DiscrepancyForm({
               <button
                 key={r.value}
                 type="button"
-                className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[44px] ${
                   reason === r.value
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input bg-background text-foreground hover:bg-muted"
@@ -187,14 +187,14 @@ function DiscrepancyForm({
         )}
       </div>
 
-      <DialogFooter>
+      <ResponsiveDialogFooter>
         <Button variant="ghost" onClick={onClose}>
           Cancel
         </Button>
         <Button onClick={handleSubmit} disabled={!canSubmit}>
           Confirm Count
         </Button>
-      </DialogFooter>
+      </ResponsiveDialogFooter>
     </>
   )
 }
@@ -225,18 +225,18 @@ export function DiscrepancyModal({
   const initialNote = currentNote || ""
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{ingredientName}</DialogTitle>
-          <DialogDescription>
+    <ResponsiveDialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <ResponsiveDialogContent className="sm:max-w-md">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>{ingredientName}</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
             Expected:{" "}
             <span className="font-mono tabular-nums font-medium">
               {expected}
             </span>{" "}
             {unit}
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
 
         {open && (
           <DiscrepancyForm
@@ -250,7 +250,7 @@ export function DiscrepancyModal({
             initialNote={initialNote}
           />
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
