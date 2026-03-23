@@ -486,6 +486,7 @@ export default function TransactionsPage() {
         if (tx.isVoided) return <StatusDot variant="critical" label="Voided" />
         if (tx.paymentStatus === "cancelled") return <StatusDot variant="critical" label="Cancelled" />
         if (tx.paymentStatus === "pending") return <StatusDot variant="warning" label="GCash Pending" />
+        if (tx.status === 1 && tx.paymentType === "Tab") return <StatusDot variant="info" label="On Tab" />
         if (tx.status === 1) return <StatusDot variant="ok" label="Completed" />
         if (tx.refNumber) return <StatusDot variant="info" label="On Hold" />
         return <StatusDot variant="warning" label="Pending" />
@@ -500,6 +501,7 @@ export default function TransactionsPage() {
     if (tx.isVoided) return { variant: "critical", label: "Voided" }
     if (tx.paymentStatus === "cancelled") return { variant: "critical", label: "Cancelled" }
     if (tx.paymentStatus === "pending") return { variant: "warning", label: "GCash Pending" }
+    if (tx.status === 1 && tx.paymentType === "Tab") return { variant: "info", label: "On Tab" }
     if (tx.status === 1) return { variant: "ok", label: "Completed" }
     if (tx.refNumber) return { variant: "info", label: "On Hold" }
     return { variant: "warning", label: "Pending" }
