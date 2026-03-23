@@ -23,6 +23,10 @@ vi.mock('@/lib/prisma', () => ({
       findMany: vi.fn(),
       count: vi.fn(),
     },
+    auditLog: {
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
   },
 }))
 
@@ -95,7 +99,10 @@ describe('Audit Log API - /api/audit-log', () => {
         .mockResolvedValueOnce([{ source: 'sale' }] as never) // sources query
         .mockResolvedValueOnce([{ userId: 1, userName: 'Test Admin' }] as never) // users query
       vi.mocked(prisma.ingredientHistory.count).mockResolvedValue(1)
-      const request = createTestRequest('/api/audit-log') as NextRequest
+      // Querying logType=ingredient to isolate ingredient-only path
+      const request = createTestRequest('/api/audit-log', {
+        searchParams: { logType: 'ingredient' },
+      }) as NextRequest
 
       // Act
       const response = await GET(request)
@@ -107,6 +114,7 @@ describe('Audit Log API - /api/audit-log', () => {
       expect(body).toHaveProperty('total')
       expect(body).toHaveProperty('page')
       expect(body).toHaveProperty('filters')
+      expect(body.logType).toBe('ingredient')
       expect(Array.isArray(body.logs)).toBe(true)
     })
 
@@ -120,7 +128,7 @@ describe('Audit Log API - /api/audit-log', () => {
         .mockResolvedValueOnce([]) // users query
       vi.mocked(prisma.ingredientHistory.count).mockResolvedValue(100)
       const request = createTestRequest('/api/audit-log', {
-        searchParams: { page: '2', limit: '25' },
+        searchParams: { page: '2', limit: '25', logType: 'ingredient' },
       }) as NextRequest
 
       // Act
@@ -150,7 +158,7 @@ describe('Audit Log API - /api/audit-log', () => {
         .mockResolvedValueOnce([])
       vi.mocked(prisma.ingredientHistory.count).mockResolvedValue(0)
       const request = createTestRequest('/api/audit-log', {
-        searchParams: { source: 'sale' },
+        searchParams: { source: 'sale', logType: 'ingredient' },
       }) as NextRequest
 
       // Act
@@ -176,7 +184,7 @@ describe('Audit Log API - /api/audit-log', () => {
         .mockResolvedValueOnce([])
       vi.mocked(prisma.ingredientHistory.count).mockResolvedValue(0)
       const request = createTestRequest('/api/audit-log', {
-        searchParams: { userId: '1' },
+        searchParams: { userId: '1', logType: 'ingredient' },
       }) as NextRequest
 
       // Act
@@ -203,6 +211,7 @@ describe('Audit Log API - /api/audit-log', () => {
       vi.mocked(prisma.ingredientHistory.count).mockResolvedValue(0)
       const request = createTestRequest('/api/audit-log', {
         searchParams: {
+          logType: 'ingredient',
           dateFrom: '2024-01-01',
           dateTo: '2024-01-31',
         },
@@ -229,7 +238,9 @@ describe('Audit Log API - /api/audit-log', () => {
       const session = createMockSession()
       vi.mocked(auth).mockResolvedValue(session as unknown as ReturnType<typeof auth>)
       vi.mocked(prisma.ingredientHistory.findMany).mockRejectedValue(new Error('Database error'))
-      const request = createTestRequest('/api/audit-log') as NextRequest
+      const request = createTestRequest('/api/audit-log', {
+        searchParams: { logType: 'ingredient' },
+      }) as NextRequest
 
       // Act
       const response = await GET(request)

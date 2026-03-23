@@ -113,6 +113,8 @@ async function main() {
     where: { id: 1 },
     update: {
       permVoid: true,
+      permAuditLog: true,
+      permReports: true,
     },
     create: {
       id: 1,
@@ -124,6 +126,8 @@ async function main() {
       permTransactions: true,
       permUsers: true,
       permSettings: true,
+      permReports: true,
+      permAuditLog: true,
       permVoid: true,
       status: '',
       position: 'Owner',

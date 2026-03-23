@@ -485,6 +485,7 @@ export default function AuditLogPage() {
   const isMobile = useIsMobile()
   const [data, setData] = useState<AuditData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
 
   // View mode — default to timeline on mobile for better readability
@@ -512,6 +513,7 @@ export default function AuditLogPage() {
 
   const fetchLogs = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams()
       params.append("page", page.toString())
@@ -526,9 +528,16 @@ export default function AuditLogPage() {
       const res = await fetch(`/api/audit-log?${params}`)
       if (res.ok) {
         setData(await res.json())
+      } else if (res.status === 403) {
+        setError("You don't have permission to view the audit log.")
+      } else if (res.status === 401) {
+        setError("You must be signed in to view the audit log.")
+      } else {
+        setError("Failed to load audit log.")
       }
-    } catch (error) {
-      console.error("Failed to fetch audit log:", error)
+    } catch (err) {
+      console.error("Failed to fetch audit log:", err)
+      setError("Failed to connect to server.")
     } finally {
       setLoading(false)
     }
@@ -695,8 +704,15 @@ export default function AuditLogPage() {
         )}
       </div>
 
+      {/* Error banner */}
+      {error && !loading && (
+        <div className="rounded-md border border-status-critical/30 bg-status-critical/10 px-4 py-3 text-sm text-status-critical">
+          {error}
+        </div>
+      )}
+
       {/* Summary */}
-      {data && !loading && (
+      {data && !loading && !error && (
         <p className="text-sm text-muted-foreground">
           Showing {data.logs.length} of {data.total} entries
         </p>
