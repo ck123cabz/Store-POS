@@ -148,7 +148,7 @@ export function ProductGrid({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full min-w-0 overflow-x-hidden">
       {/* Search input - flat design, no shadows */}
       <div className="flex items-center gap-3">
         <form onSubmit={handleSearch} className="relative flex-1">
@@ -262,7 +262,7 @@ export function ProductGrid({
           className="py-16"
         />
       ) : (
-        <div className="grid gap-2 sm:gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
+        <div className="grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
           {filteredProducts.map((product) => (
             <ProductCard
               key={product.id}
