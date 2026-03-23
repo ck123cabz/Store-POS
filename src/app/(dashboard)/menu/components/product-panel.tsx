@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Pencil, Loader2, Info, Minus, ChefHat, Package } from "lucide-react"
+import { Pencil, Loader2, Info, Minus, ChefHat, Package, XIcon, ImageIcon } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,14 @@ import {
   DetailPanelContent,
   DetailPanelFooter,
 } from "@/components/ui/detail-panel"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { EmptyState } from "@/components/ui/empty-state"
+import {
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -134,6 +142,54 @@ function marginColorClass(marginPercent: number): string {
   if (marginPercent >= 65) return "text-status-ok"
   if (marginPercent >= 50) return "text-status-warning"
   return "text-status-critical"
+}
+
+function MetricCard({
+  label,
+  value,
+  highlight,
+  valueClassName,
+  className,
+}: {
+  label: string
+  value: string
+  highlight?: boolean
+  valueClassName?: string
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border p-3 text-center",
+        highlight && "bg-status-ok/10 border-status-ok/30",
+        className
+      )}
+    >
+      <p className={cn("text-lg font-semibold font-mono tabular-nums", valueClassName)}>
+        {value}
+      </p>
+      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+    </div>
+  )
+}
+
+/** Renders the colored margin badge pill for the compact header */
+function MarginBadge({ marginPercent, compact }: { marginPercent: number; compact?: boolean }) {
+  const badgeColor =
+    marginPercent >= 50
+      ? "bg-status-ok/15 text-status-ok border-status-ok/30"
+      : marginPercent >= 30
+        ? "bg-status-warning/15 text-status-warning border-status-warning/30"
+        : "bg-status-critical/15 text-status-critical border-status-critical/30"
+
+  return (
+    <Badge
+      variant="secondary"
+      className={cn("shrink-0 border", badgeColor, compact && "text-[10px]")}
+    >
+      {marginPercent.toFixed(0)}% margin
+    </Badge>
+  )
 }
 
 function StatusActions({
@@ -1101,73 +1157,94 @@ export function ProductPanel({
       : null
 
   const viewContentInner = (
-    <div className="space-y-6">
-      {/* Product Image */}
-      {product.image ? (
-        <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
-          <Image
-            src={getImageSrc(product.image)}
-            alt={product.name}
-            fill
-            className="object-cover"
-            unoptimized={isDataUrl(product.image)}
+    <Tabs defaultValue="overview">
+      <TabsList className="w-full grid grid-cols-4">
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="recipe">Recipe</TabsTrigger>
+        <TabsTrigger value="costs">Costs</TabsTrigger>
+        <TabsTrigger value="image">Image</TabsTrigger>
+      </TabsList>
+
+      {/* ── OVERVIEW TAB ── */}
+      <TabsContent value="overview" className="space-y-4 mt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <MetricCard
+            label="Price"
+            value={formatCurrency(product.price)}
+          />
+          <MetricCard
+            label="Total Cost"
+            value={product.trueCost != null ? formatCurrency(product.trueCost) : "-"}
+          />
+          <MetricCard
+            label="Margin"
+            value={
+              product.trueMarginPercent != null
+                ? `${product.trueMarginPercent.toFixed(0)}%`
+                : "-"
+            }
+            highlight={product.trueMarginPercent != null && product.trueMarginPercent >= 50}
+            valueClassName={
+              product.trueMarginPercent != null
+                ? marginColorClass(product.trueMarginPercent)
+                : undefined
+            }
+          />
+          <MetricCard
+            label="Can Make"
+            value={
+              product.availability.maxProducible != null
+                ? `${product.availability.maxProducible}`
+                : "\u221E"
+            }
           />
         </div>
-      ) : (
-        <div className="aspect-video w-full rounded-md bg-muted flex items-center justify-center text-muted-foreground text-sm">
-          No image
-        </div>
-      )}
 
-      {/* Pricing Row */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium">Pricing</h3>
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-xl font-semibold font-mono tabular-nums">
-              {formatCurrency(product.price)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">Price</p>
-          </div>
-          <div>
-            <p className="text-xl font-semibold font-mono tabular-nums">
-              {product.trueCost != null ? formatCurrency(product.trueCost) : "-"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">Cost</p>
-          </div>
-          <div>
-            <p
-              className={cn(
-                "text-xl font-semibold font-mono tabular-nums",
-                product.trueMarginPercent != null &&
-                  marginColorClass(product.trueMarginPercent)
-              )}
-            >
-              {product.trueMarginPercent != null
-                ? `${product.trueMarginPercent.toFixed(0)}%`
-                : "-"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Margin{" "}
-              {targetMargin && (
-                <span className="text-muted-foreground">
-                  (target: {targetMargin}%)
-                </span>
-              )}
-            </p>
-          </div>
-        </div>
-      </div>
+        {/* Limiting ingredient note */}
+        {product.availability.limitingIngredientDetails && (
+          <p className="text-xs text-muted-foreground">
+            Limited by{" "}
+            <span className="font-medium text-foreground">
+              {product.availability.limitingIngredientDetails.name}
+            </span>{" "}
+            ({product.availability.limitingIngredientDetails.have} left, need{" "}
+            {product.availability.limitingIngredientDetails.needPerUnit}/unit)
+          </p>
+        )}
 
-      {/* Recipe Section */}
-      {product.recipeItems && product.recipeItems.length > 0 && (
-        <>
-          <Separator />
+        {/* Stock issues */}
+        {allIssues.length > 0 && (
+          <div className="space-y-2 pt-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-status-warning">
+              Stock Issues
+            </p>
+            <ul className="space-y-1.5">
+              {allIssues.map((issue) => (
+                <li key={issue.id} className="text-sm flex items-center justify-between">
+                  <StatusDot
+                    variant={issue.status === "missing" ? "critical" : "warning"}
+                    label={issue.name}
+                  />
+                  <span className="text-muted-foreground font-mono tabular-nums">
+                    {issue.status === "missing"
+                      ? `need ${issue.needPerUnit}/unit`
+                      : `${issue.have} left`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </TabsContent>
+
+      {/* ── RECIPE TAB ── */}
+      <TabsContent value="recipe" className="mt-4">
+        {product.recipeItems && product.recipeItems.length > 0 ? (
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-medium">
-                Recipe ({product.recipeItems.length})
-              </h3>
+              <p className="text-sm font-medium">
+                Ingredients ({product.recipeItems.length})
+              </p>
               {foodCost != null && (
                 <span className="text-xs text-muted-foreground font-mono tabular-nums">
                   Food Cost: {formatCurrency(foodCost)}
@@ -1176,9 +1253,7 @@ export function ProductPanel({
             </div>
             <div className="space-y-1.5">
               {product.recipeItems.map((item) => {
-                const issue = allIssues.find(
-                  (i) => i.id === item.ingredient.id
-                )
+                const issue = allIssues.find((i) => i.id === item.ingredient.id)
                 return (
                   <div
                     key={item.id}
@@ -1192,15 +1267,11 @@ export function ProductPanel({
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-muted-foreground font-mono tabular-nums">
-                        {formatCurrency(
-                          item.quantity * item.ingredient.costPerBaseUnit
-                        )}
+                        {formatCurrency(item.quantity * item.ingredient.costPerBaseUnit)}
                       </span>
                       {issue ? (
                         <StatusDot
-                          variant={
-                            issue.status === "missing" ? "critical" : "warning"
-                          }
+                          variant={issue.status === "missing" ? "critical" : "warning"}
                           label={
                             issue.status === "missing"
                               ? `Need ${issue.needPerUnit}/unit`
@@ -1217,104 +1288,102 @@ export function ProductPanel({
               })}
             </div>
           </div>
-        </>
-      )}
+        ) : (
+          <EmptyState
+            icon={<ChefHat className="h-10 w-10" />}
+            title="No recipe"
+            description="Edit this product to add ingredients."
+          />
+        )}
+      </TabsContent>
 
-      {/* Stock Summary */}
-      <Separator />
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium">Stock Summary</h3>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Can make</span>
-            <span className="font-medium font-mono tabular-nums">
-              {product.availability.maxProducible != null
-                ? `${product.availability.maxProducible} units`
-                : "Unlimited"}
+      {/* ── COSTS TAB ── */}
+      <TabsContent value="costs" className="mt-4">
+        <div className="rounded-md bg-muted/50 p-4 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Food Cost</span>
+            <span className="font-mono tabular-nums">
+              {foodCost != null ? formatCurrency(foodCost) : "-"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Labor Cost</span>
+            <span className="font-mono tabular-nums">
+              {laborCost > 0 ? formatCurrency(laborCost) : "-"}
+            </span>
+          </div>
+          {product.prepTime != null && product.prepTime > 0 && (
+            <p className="text-xs text-muted-foreground pl-2">
+              {product.prepTime} min @ {formatCurrency(hourlyLaborRate)}/hr
+            </p>
+          )}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Overhead</span>
+            <span className="font-mono tabular-nums">
+              {product.overheadCost ? formatCurrency(product.overheadCost) : "-"}
             </span>
           </div>
 
-          {product.availability.limitingIngredientDetails && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Limited by</span>
-              <span className="text-muted-foreground text-right">
-                {product.availability.limitingIngredientDetails.name} (
-                <span className="font-mono tabular-nums">
-                  {product.availability.limitingIngredientDetails.have}
-                </span>{" "}
-                left, need{" "}
-                <span className="font-mono tabular-nums">
-                  {product.availability.limitingIngredientDetails.needPerUnit}
-                </span>
-                /unit)
+          <Separator className="my-2" />
+
+          <div className="flex items-center justify-between text-sm font-semibold">
+            <span>Total Cost</span>
+            <span className="font-mono tabular-nums">
+              {product.trueCost != null ? formatCurrency(product.trueCost) : "-"}
+            </span>
+          </div>
+
+          <Separator className="my-2" />
+
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Price</span>
+            <span className="font-mono tabular-nums">{formatCurrency(product.price)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Margin</span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono tabular-nums">
+                {product.trueMargin != null ? formatCurrency(product.trueMargin) : "-"}
               </span>
-            </div>
-          )}
-
-          {allIssues.length > 0 && (
-            <div className="pt-2 border-t space-y-1.5">
-              <p className="text-sm font-medium">
-                Issues ({allIssues.length})
-              </p>
-              <ul className="space-y-1">
-                {allIssues.map((issue) => (
-                  <li
-                    key={issue.id}
-                    className="text-sm flex justify-between items-center"
-                  >
-                    <StatusDot
-                      variant={
-                        issue.status === "missing" ? "critical" : "warning"
-                      }
-                      label={issue.name}
-                    />
-                    <span className="text-muted-foreground font-mono tabular-nums">
-                      {issue.status === "missing"
-                        ? `need ${issue.needPerUnit}/unit`
-                        : `${issue.have} left`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Labor & Overhead */}
-      {(product.prepTime || product.overheadCost) && (
-        <>
-          <Separator />
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium">Labor & Overhead</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {product.prepTime != null && product.prepTime > 0 && (
-                <div>
-                  <p className="text-lg font-medium font-mono tabular-nums">
-                    {product.prepTime} min
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Prep time (
-                    <span className="font-mono tabular-nums">
-                      {formatCurrency(laborCost)}
-                    </span>
-                    )
-                  </p>
-                </div>
-              )}
-              {product.overheadCost != null && product.overheadCost > 0 && (
-                <div>
-                  <p className="text-lg font-medium font-mono tabular-nums">
-                    {formatCurrency(product.overheadCost)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Overhead</p>
-                </div>
+              {product.trueMarginPercent != null && (
+                <span
+                  className={cn(
+                    "font-mono tabular-nums font-medium",
+                    marginColorClass(product.trueMarginPercent)
+                  )}
+                >
+                  {product.trueMarginPercent.toFixed(1)}%
+                </span>
               )}
             </div>
           </div>
-        </>
-      )}
-    </div>
+          <p className="text-xs text-muted-foreground pt-1">
+            Target: {targetMargin}%
+          </p>
+        </div>
+      </TabsContent>
+
+      {/* ── IMAGE TAB ── */}
+      <TabsContent value="image" className="mt-4">
+        {product.image ? (
+          <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
+            <Image
+              src={getImageSrc(product.image)}
+              alt={product.name}
+              fill
+              className="object-cover"
+              unoptimized={isDataUrl(product.image)}
+            />
+          </div>
+        ) : (
+          <EmptyState
+            icon={<ImageIcon className="h-10 w-10" />}
+            title="No image"
+            description="Edit this product to upload an image."
+          />
+        )}
+      </TabsContent>
+    </Tabs>
   )
 
   const viewFooter = (
@@ -1329,17 +1398,47 @@ export function ProductPanel({
   if (isMobile) {
     return (
       <>
-        {/* Mobile: Edit button bar */}
-        <div className="flex items-center justify-between border-b px-5 py-3">
-          <div className="min-w-0">
+        {/* Mobile compact header */}
+        <div className="flex items-center gap-3 border-b px-4 py-3">
+          {/* Thumbnail */}
+          {product.image ? (
+            <div className="relative size-10 rounded-lg overflow-hidden bg-muted shrink-0">
+              <Image
+                src={getImageSrc(product.image)}
+                alt={product.name}
+                fill
+                className="object-cover"
+                unoptimized={isDataUrl(product.image)}
+              />
+            </div>
+          ) : (
+            <div className="size-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Package className="size-4 text-muted-foreground" />
+            </div>
+          )}
+
+          {/* Name + category */}
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-semibold truncate">
+              {product.name}
+              <span className="ml-2 font-mono tabular-nums text-sm font-normal text-muted-foreground">
+                {formatCurrency(product.price)}
+              </span>
+            </p>
             <p className="text-xs text-muted-foreground truncate">{product.categoryName}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onEdit}>
-            <Pencil className="h-4 w-4 mr-1.5" />
-            Edit
+
+          {/* Margin badge */}
+          {product.trueMarginPercent != null && (
+            <MarginBadge marginPercent={product.trueMarginPercent} compact />
+          )}
+
+          {/* Edit button */}
+          <Button variant="ghost" size="sm" onClick={onEdit} className="shrink-0">
+            <Pencil className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-4">
           {viewContentInner}
         </div>
         <div className="border-t bg-background p-4 shrink-0">
@@ -1351,17 +1450,57 @@ export function ProductPanel({
 
   return (
     <>
-      <DetailPanelHeader
-        title={product.name}
-        description={product.categoryName}
-        actions={
-          <Button variant="ghost" size="sm" onClick={onEdit}>
-            <Pencil className="h-4 w-4 mr-1.5" />
-            Edit
-          </Button>
-        }
-      />
-      <DetailPanelContent className="space-y-6">
+      {/* Compact avatar header */}
+      <div className="flex items-center gap-3 border-b px-5 py-3.5">
+        {/* Thumbnail */}
+        {product.image ? (
+          <div className="relative size-10 rounded-lg overflow-hidden bg-muted shrink-0">
+            <Image
+              src={getImageSrc(product.image)}
+              alt={product.name}
+              fill
+              className="object-cover"
+              unoptimized={isDataUrl(product.image)}
+            />
+          </div>
+        ) : (
+          <div className="size-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+            <Package className="size-4 text-muted-foreground" />
+          </div>
+        )}
+
+        {/* Name + category */}
+        <div className="flex-1 min-w-0">
+          <DialogTitle className="text-base font-semibold truncate">
+            {product.name}
+            <span className="ml-2 font-mono tabular-nums text-sm font-normal text-muted-foreground">
+              {formatCurrency(product.price)}
+            </span>
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground truncate">
+            {product.categoryName}
+          </DialogDescription>
+        </div>
+
+        {/* Margin badge */}
+        {product.trueMarginPercent != null && (
+          <MarginBadge marginPercent={product.trueMarginPercent} />
+        )}
+
+        {/* Edit button */}
+        <Button variant="ghost" size="sm" onClick={onEdit} className="shrink-0">
+          <Pencil className="h-4 w-4 mr-1.5" />
+          Edit
+        </Button>
+
+        {/* Close button */}
+        <DialogClose className="ring-offset-background focus:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none shrink-0 ml-1">
+          <XIcon className="size-4" />
+          <span className="sr-only">Close</span>
+        </DialogClose>
+      </div>
+
+      <DetailPanelContent>
         {viewContentInner}
       </DetailPanelContent>
       <DetailPanelFooter>
