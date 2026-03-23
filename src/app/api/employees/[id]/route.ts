@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
+import { isValidTransition } from "@/lib/employee-status"
 
 export async function GET(
   request: NextRequest,
@@ -64,6 +65,41 @@ export async function PUT(
       }
     }
 
+    // Fetch current employee to check status transitions
+    const currentEmployee = await prisma.employee.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!currentEmployee) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 })
+    }
+
+    const newStatus = typeof body.employmentStatus === "string" ? body.employmentStatus.trim() : "Active"
+    const statusChanging = currentEmployee.employmentStatus !== newStatus
+
+    // Validate status transition
+    if (statusChanging) {
+      if (!isValidTransition(currentEmployee.employmentStatus, newStatus)) {
+        return NextResponse.json(
+          { error: `Invalid status transition from ${currentEmployee.employmentStatus} to ${newStatus}` },
+          { status: 400 }
+        )
+      }
+
+      // Block status change if employee has active shift
+      if (currentEmployee.employmentStatus === "Active" && newStatus !== "Active") {
+        const activeShift = await prisma.shiftLog.findFirst({
+          where: { employeeId: parseInt(id), clockOut: null },
+        })
+        if (activeShift) {
+          return NextResponse.json(
+            { error: "Cannot change status while employee has an active shift. Please clock out first." },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     const employee = await prisma.employee.update({
       where: { id: parseInt(id) },
       data: {
@@ -73,7 +109,7 @@ export async function PUT(
         email: typeof body.email === "string" ? body.email.trim() : "",
         position,
         hourlyRate,
-        employmentStatus: typeof body.employmentStatus === "string" ? body.employmentStatus.trim() : "Active",
+        employmentStatus: newStatus,
         startDate: body.startDate ? new Date(body.startDate) : undefined,
         endDate: body.endDate ? new Date(body.endDate) : null,
         userId,
@@ -81,11 +117,40 @@ export async function PUT(
       },
     })
 
-    await logAudit({
-      entity: "employee", entityId: employee.id, action: "update",
-      summary: `Updated employee '${employee.firstName} ${employee.lastName}'`,
-      userId: null, userName: null,
-    })
+    // Auto-manage linked user account on status change
+    if (statusChanging && employee.userId) {
+      try {
+        if (newStatus !== "Active") {
+          await prisma.user.update({
+            where: { id: employee.userId },
+            data: { status: "Disabled" },
+          })
+        } else {
+          await prisma.user.update({
+            where: { id: employee.userId },
+            data: { status: "Logged Out" },
+          })
+        }
+      } catch {
+        // User may have been independently deleted — log warning but don't fail
+        console.warn(`[employee-update] Could not update linked user ${employee.userId} status`)
+      }
+    }
+
+    if (statusChanging) {
+      await logAudit({
+        entity: "employee", entityId: employee.id, action: "status_change",
+        changes: { employmentStatus: { old: currentEmployee.employmentStatus, new: newStatus } },
+        summary: `Changed employee '${employee.firstName} ${employee.lastName}' status from ${currentEmployee.employmentStatus} to ${newStatus}`,
+        userId: null, userName: null,
+      })
+    } else {
+      await logAudit({
+        entity: "employee", entityId: employee.id, action: "update",
+        summary: `Updated employee '${employee.firstName} ${employee.lastName}'`,
+        userId: null, userName: null,
+      })
+    }
 
     return NextResponse.json(employee)
   } catch (error) {

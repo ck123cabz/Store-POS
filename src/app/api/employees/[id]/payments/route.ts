@@ -9,8 +9,31 @@ export async function GET(
   const { id } = await params
 
   try {
+    const { searchParams } = new URL(request.url)
+    const from = searchParams.get("from")
+    const to = searchParams.get("to")
+
+    // Validate date params if provided
+    if (from && isNaN(new Date(from).getTime())) {
+      return NextResponse.json({ error: "Invalid 'from' date format" }, { status: 400 })
+    }
+    if (to && isNaN(new Date(to).getTime())) {
+      return NextResponse.json({ error: "Invalid 'to' date format" }, { status: 400 })
+    }
+    if (from && to && new Date(from) > new Date(to)) {
+      return NextResponse.json({ error: "'from' date must be before 'to' date" }, { status: 400 })
+    }
+
+    const where: Record<string, unknown> = { employeeId: parseInt(id) }
+    if (from) {
+      where.periodStart = { ...(where.periodStart as object || {}), gte: new Date(from) }
+    }
+    if (to) {
+      where.periodEnd = { ...(where.periodEnd as object || {}), lte: new Date(to) }
+    }
+
     const payments = await prisma.paymentRecord.findMany({
-      where: { employeeId: parseInt(id) },
+      where,
       orderBy: { createdAt: "desc" },
     })
 

@@ -49,6 +49,10 @@ import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { StatusDot } from "@/components/ui/status-dot"
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { EmployeeSidePanel } from "@/components/employees/employee-side-panel"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { getValidNextStates } from "@/lib/employee-status"
 
 interface Employee {
   id: number
@@ -120,10 +124,15 @@ const emptyFormData: EmployeeFormData = {
 
 export default function EmployeesPage() {
   const { currencySymbol } = useSettings()
+  const isMobile = useIsMobile()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [clockedIn, setClockedIn] = useState<ClockedInShift[]>([])
   const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplate[]>([])
   const [loading, setLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [hoursThisPeriod, setHoursThisPeriod] = useState<number | null>(null)
+  const [payrollDue, setPayrollDue] = useState<number | null>(null)
+  const [pendingPaymentsCount, setPendingPaymentsCount] = useState<number>(0)
   const [view, setView] = useState<"dashboard" | "list">("dashboard")
   const [formOpen, setFormOpen] = useState(false)
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null)
@@ -131,6 +140,9 @@ export default function EmployeesPage() {
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("Active")
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [panelOpen, setPanelOpen] = useState(false)
   const [formData, setFormData] = useState<EmployeeFormData>(emptyFormData)
   const [allUsers, setAllUsers] = useState<SimpleUser[]>([])
 
@@ -151,13 +163,19 @@ export default function EmployeesPage() {
 
   const fetchStats = useCallback(async () => {
     try {
+      setStatsLoading(true)
       const res = await fetch("/api/employees/stats")
       if (res.ok) {
         const data = await res.json()
         setClockedIn(data.clockedIn || [])
+        setHoursThisPeriod(data.hoursThisPeriod ?? 0)
+        setPayrollDue(data.payrollDue ?? 0)
+        setPendingPaymentsCount(data.pendingPayments ?? 0)
       }
     } catch {
       // Stats are non-critical
+    } finally {
+      setStatsLoading(false)
     }
   }, [])
 
@@ -194,8 +212,6 @@ export default function EmployeesPage() {
   const activeCount = employees.filter(
     (e) => e.employmentStatus === "Active"
   ).length
-
-  const pendingPayments = 0 // Will be populated from stats endpoint
 
   // Users available for linking: not already linked to another employee
   const linkedUserIds = new Set(
@@ -338,6 +354,7 @@ export default function EmployeesPage() {
 
   // Filtered employees for list view
   const filteredEmployees = employees.filter((e) => {
+    if (statusFilter !== "All" && e.employmentStatus !== statusFilter) return false
     if (!search) return true
     const fullName = `${e.firstName} ${e.lastName}`.toLowerCase()
     return fullName.includes(search.toLowerCase())
@@ -482,11 +499,17 @@ export default function EmployeesPage() {
               label="Active Employees"
               value={activeCount.toString()}
             />
-            <SummaryCard label="Hours This Period" value={"\u2014"} />
-            <SummaryCard label="Payroll Due" value={"\u2014"} />
+            <SummaryCard
+              label="Hours This Period"
+              value={statsLoading ? "\u2026" : `${(hoursThisPeriod ?? 0).toFixed(1)}`}
+            />
+            <SummaryCard
+              label="Payroll Due"
+              value={statsLoading ? "\u2026" : fmtCurrency(payrollDue ?? 0)}
+            />
             <SummaryCard
               label="Pending Payments"
-              value={pendingPayments.toString()}
+              value={statsLoading ? "\u2026" : pendingPaymentsCount.toString()}
             />
           </SummaryCardGrid>
 
@@ -590,13 +613,25 @@ export default function EmployeesPage() {
       {/* List View */}
       {view === "list" && (
         <>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Input
               placeholder="Search employees..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
             />
+            <ToggleGroup
+              type="single"
+              value={statusFilter}
+              onValueChange={(val) => { if (val) setStatusFilter(val) }}
+              size="sm"
+              variant="outline"
+            >
+              <ToggleGroupItem value="Active">Active</ToggleGroupItem>
+              <ToggleGroupItem value="Inactive">Inactive</ToggleGroupItem>
+              <ToggleGroupItem value="Terminated">Terminated</ToggleGroupItem>
+              <ToggleGroupItem value="All">All</ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
           <DataTable
@@ -604,7 +639,12 @@ export default function EmployeesPage() {
             data={filteredEmployees}
             rowKey={(e) => e.id}
             onRowClick={(e) => {
-              window.location.href = `/employees/${e.id}`
+              if (isMobile) {
+                window.location.href = `/employees/${e.id}`
+              } else {
+                setSelectedEmployee(e)
+                setPanelOpen(true)
+              }
             }}
             loading={loading}
             emptyIcon={<Briefcase className="h-10 w-10" />}
@@ -753,9 +793,16 @@ export default function EmployeesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                    <SelectItem value="Terminated">Terminated</SelectItem>
+                    <SelectItem value={editEmployee.employmentStatus} disabled>
+                      {editEmployee.employmentStatus} (current)
+                    </SelectItem>
+                    {getValidNextStates(editEmployee.employmentStatus).map(
+                      (status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      )
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -799,6 +846,14 @@ export default function EmployeesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Employee Side Panel */}
+      <EmployeeSidePanel
+        employee={selectedEmployee}
+        open={panelOpen}
+        onOpenChange={setPanelOpen}
+        formatCurrency={fmtCurrency}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

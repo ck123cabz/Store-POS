@@ -23,6 +23,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null
         }
 
+        if (user.status === "Disabled") {
+          return null
+        }
+
         const passwordMatch = await bcrypt.compare(
           credentials.password as string,
           user.password

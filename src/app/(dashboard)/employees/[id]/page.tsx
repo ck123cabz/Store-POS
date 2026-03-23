@@ -36,6 +36,8 @@ import {
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/format-currency"
 import { useSettings } from "@/hooks/use-settings"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
+import { getValidNextStates } from "@/lib/employee-status"
 
 interface Employee {
   id: number
@@ -180,6 +182,56 @@ export default function EmployeeDetailPage() {
   const [paymentForm, setPaymentForm] =
     useState<PaymentFormData>(emptyPaymentForm)
 
+  // Date range for filtering shifts and payments
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(() => {
+    const to = new Date()
+    const from = new Date()
+    from.setDate(from.getDate() - 14)
+    from.setHours(0, 0, 0, 0)
+    return { from, to }
+  })
+
+  const dateRangePresets = [
+    {
+      label: "Last 7 days",
+      getValue: () => {
+        const to = new Date()
+        const from = new Date()
+        from.setDate(from.getDate() - 7)
+        from.setHours(0, 0, 0, 0)
+        return { from, to }
+      },
+    },
+    {
+      label: "Last 14 days",
+      getValue: () => {
+        const to = new Date()
+        const from = new Date()
+        from.setDate(from.getDate() - 14)
+        from.setHours(0, 0, 0, 0)
+        return { from, to }
+      },
+    },
+    {
+      label: "Last 30 days",
+      getValue: () => {
+        const to = new Date()
+        const from = new Date()
+        from.setDate(from.getDate() - 30)
+        from.setHours(0, 0, 0, 0)
+        return { from, to }
+      },
+    },
+    {
+      label: "This month",
+      getValue: () => {
+        const to = new Date()
+        const from = new Date(to.getFullYear(), to.getMonth(), 1)
+        return { from, to }
+      },
+    },
+  ]
+
   const fmtCurrency = (value: string | number | null | undefined) =>
     formatCurrency(value, currencySymbol)
 
@@ -201,25 +253,31 @@ export default function EmployeeDetailPage() {
 
   const fetchShifts = useCallback(async () => {
     try {
-      const res = await fetch(`/api/employees/${id}/shifts`)
+      const params = new URLSearchParams()
+      if (dateRange.from) params.set("from", dateRange.from.toISOString())
+      if (dateRange.to) params.set("to", dateRange.to.toISOString())
+      const res = await fetch(`/api/employees/${id}/shifts?${params}`)
       if (res.ok) {
         setShifts(await res.json())
       }
     } catch {
       // Non-critical
     }
-  }, [id])
+  }, [id, dateRange])
 
   const fetchPayments = useCallback(async () => {
     try {
-      const res = await fetch(`/api/employees/${id}/payments`)
+      const params = new URLSearchParams()
+      if (dateRange.from) params.set("from", dateRange.from.toISOString())
+      if (dateRange.to) params.set("to", dateRange.to.toISOString())
+      const res = await fetch(`/api/employees/${id}/payments?${params}`)
       if (res.ok) {
         setPayments(await res.json())
       }
     } catch {
       // Non-critical
     }
-  }, [id])
+  }, [id, dateRange])
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -252,7 +310,6 @@ export default function EmployeeDetailPage() {
     .sort(
       (a, b) => new Date(b.clockIn).getTime() - new Date(a.clockIn).getTime()
     )
-    .slice(0, 10)
 
   const totalHours = shifts.reduce(
     (sum, s) => sum + calcHours(s.clockIn, s.clockOut, s.breakMinutes),
@@ -646,6 +703,20 @@ export default function EmployeeDetailPage() {
         </div>
       </Card>
 
+      {/* Date Range Filter */}
+      <div className="flex items-center gap-2">
+        <DateRangePicker
+          from={dateRange.from}
+          to={dateRange.to}
+          onChange={(range) => {
+            if (range.from && range.to) {
+              setDateRange({ from: range.from, to: range.to })
+            }
+          }}
+          presets={dateRangePresets}
+        />
+      </div>
+
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Recent Shifts */}
@@ -671,7 +742,7 @@ export default function EmployeeDetailPage() {
             <div className="divide-y divide-border/60">
               {recentShifts.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
-                  No shifts recorded yet
+                  No shifts found for {formatDateShort(dateRange.from.toISOString())} &ndash; {formatDateShort(dateRange.to.toISOString())}
                 </div>
               ) : (
                 recentShifts.map((shift) => {
@@ -731,7 +802,7 @@ export default function EmployeeDetailPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
               <h2 className="font-semibold text-sm">Hours Summary</h2>
               <span className="ml-auto text-xs text-muted-foreground">
-                This Period
+                {formatDateShort(dateRange.from.toISOString())} &ndash; {formatDateShort(dateRange.to.toISOString())}
               </span>
             </div>
             <div className="p-4 space-y-3">
@@ -773,7 +844,11 @@ export default function EmployeeDetailPage() {
                 <Button
                   size="sm"
                   onClick={() => {
-                    setPaymentForm(emptyPaymentForm)
+                    setPaymentForm({
+                      ...emptyPaymentForm,
+                      periodStart: dateRange.from.toISOString().split("T")[0],
+                      periodEnd: dateRange.to.toISOString().split("T")[0],
+                    })
                     setPaymentOpen(true)
                   }}
                 >
@@ -921,9 +996,16 @@ export default function EmployeeDetailPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                  <SelectItem value="Terminated">Terminated</SelectItem>
+                  <SelectItem value={employee.employmentStatus} disabled>
+                    {employee.employmentStatus} (current)
+                  </SelectItem>
+                  {getValidNextStates(employee.employmentStatus).map(
+                    (status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    )
+                  )}
                 </SelectContent>
               </Select>
             </div>

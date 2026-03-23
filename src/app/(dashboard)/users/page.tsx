@@ -36,8 +36,16 @@ import { StatusDot } from "@/components/ui/status-dot"
 import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Plus, Pencil, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
+import { ROLE_PRESETS } from "@/lib/role-presets"
 
 interface User {
   id: number
@@ -86,6 +94,7 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [selectedPreset, setSelectedPreset] = useState("")
 
   const form = useForm<UserFormValues>({
     resolver: editUser ? undefined : zodResolver(userFormSchema),
@@ -120,6 +129,7 @@ export default function UsersPage() {
       permAuditLog: false,
       permVoid: user?.permVoid || false,
     })
+    setSelectedPreset("")
     setFormOpen(true)
   }
 
@@ -127,6 +137,7 @@ export default function UsersPage() {
     setFormOpen(false)
     setEditUser(null)
     form.reset(defaultFormValues)
+    setSelectedPreset("")
   }
 
   async function onSubmit(values: UserFormValues) {
@@ -389,6 +400,29 @@ export default function UsersPage() {
 
               <div className="space-y-3">
                 <span className="text-sm font-medium">Permissions</span>
+                <Select
+                  value={selectedPreset}
+                  onValueChange={(preset) => {
+                    setSelectedPreset(preset)
+                    const found = ROLE_PRESETS.find((p) => p.label === preset)
+                    if (found) {
+                      for (const [key, val] of Object.entries(found.permissions)) {
+                        form.setValue(key as keyof typeof found.permissions, val)
+                      }
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role preset..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_PRESETS.map((preset) => (
+                      <SelectItem key={preset.label} value={preset.label}>
+                        {preset.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {permissions.map(({ key, label }) => (
                   <FormField
                     key={key}
@@ -400,7 +434,10 @@ export default function UsersPage() {
                         <FormControl>
                           <Switch
                             checked={field.value}
-                            onCheckedChange={field.onChange}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked)
+                              if (selectedPreset) setSelectedPreset("")
+                            }}
                           />
                         </FormControl>
                       </FormItem>
