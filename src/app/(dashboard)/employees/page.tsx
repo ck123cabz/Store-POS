@@ -39,6 +39,7 @@ import {
   Eye,
   LayoutDashboard,
   List,
+  LinkIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/format-currency"
@@ -47,6 +48,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
 import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { StatusDot } from "@/components/ui/status-dot"
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox"
 
 interface Employee {
   id: number
@@ -97,6 +99,12 @@ interface ShiftTemplate {
   assignmentCount?: number
 }
 
+interface SimpleUser {
+  id: number
+  username: string
+  fullname: string
+}
+
 const emptyFormData: EmployeeFormData = {
   firstName: "",
   lastName: "",
@@ -124,6 +132,7 @@ export default function EmployeesPage() {
   const [deleting, setDeleting] = useState(false)
   const [search, setSearch] = useState("")
   const [formData, setFormData] = useState<EmployeeFormData>(emptyFormData)
+  const [allUsers, setAllUsers] = useState<SimpleUser[]>([])
 
   const fmtCurrency = (value: string | number | null | undefined) =>
     formatCurrency(value, currencySymbol)
@@ -163,11 +172,23 @@ export default function EmployeesPage() {
     }
   }, [])
 
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/users")
+      if (res.ok) {
+        setAllUsers(await res.json())
+      }
+    } catch {
+      // Users list is non-critical — user linking is optional
+    }
+  }, [])
+
   useEffect(() => {
     fetchEmployees()
     fetchStats()
     fetchShiftTemplates()
-  }, [fetchEmployees, fetchStats, fetchShiftTemplates])
+    fetchUsers()
+  }, [fetchEmployees, fetchStats, fetchShiftTemplates, fetchUsers])
 
   // Summary calculations
   const activeCount = employees.filter(
@@ -175,6 +196,16 @@ export default function EmployeesPage() {
   ).length
 
   const pendingPayments = 0 // Will be populated from stats endpoint
+
+  // Users available for linking: not already linked to another employee
+  const linkedUserIds = new Set(
+    employees
+      .filter((e) => e.userId != null && e.id !== editEmployee?.id)
+      .map((e) => e.userId!)
+  )
+  const userOptions: ComboboxOption<number>[] = allUsers
+    .filter((u) => !linkedUserIds.has(u.id))
+    .map((u) => ({ value: u.id, label: `${u.fullname} (${u.username})` }))
 
   function openForm(employee?: Employee) {
     setEditEmployee(employee || null)
@@ -727,6 +758,25 @@ export default function EmployeesPage() {
                     <SelectItem value="Terminated">Terminated</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+            {allUsers.length > 0 && (
+              <div className="space-y-2">
+                <Label>Link to User Account</Label>
+                <Combobox<number>
+                  options={userOptions}
+                  value={formData.userId ? parseInt(formData.userId) : null}
+                  onChange={(val) =>
+                    handleInputChange("userId", val ? String(val) : "")
+                  }
+                  placeholder="None (no login access)"
+                  searchPlaceholder="Search users..."
+                  emptyMessage="No available users."
+                  icon={<LinkIcon className="h-4 w-4" />}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Link this employee to a user account for POS login access.
+                </p>
               </div>
             )}
             <div className="space-y-2">
