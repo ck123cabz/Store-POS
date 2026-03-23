@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { logAudit, auditUser } from "@/lib/audit"
-import { getSettings } from "@/lib/settings-server"
 import { type ProductStatus } from "@prisma/client"
 import {
-  calculateProductAvailability,
   calculateEnhancedRecipeAvailability,
   type EnhancedProductAvailability,
 } from "@/lib/product-availability"
@@ -27,13 +25,6 @@ export async function GET(request: NextRequest) {
         : undefined,
       include: {
         category: true,
-        linkedVariant: {
-          include: {
-            ingredient: {
-              include: { baseUnit: true },
-            },
-          },
-        },
         recipeItems: {
           include: {
             ingredient: {
@@ -45,29 +36,7 @@ export async function GET(request: NextRequest) {
       orderBy: { name: "asc" },
     })
 
-    const settings = await getSettings()
-    const criticalRatio = Number(settings.lowStockCriticalRatio)
-    const warningRatio = Number(settings.lowStockWarningRatio)
-
     const formatted = products.map((p) => {
-      // Calculate ingredient stock status if linked via variant
-      let ingredientStockStatus: "ok" | "low" | "critical" | "out" | null = null
-      let ingredientStockRatio: number | null = null
-
-      if (p.linkedVariant) {
-        const ingredient = p.linkedVariant.ingredient
-        const stockQty = Number(ingredient.stockQty)
-        const par = Number(ingredient.parLevel)
-        const ratio = par > 0 ? stockQty / par : 1
-
-        if (stockQty <= 0) ingredientStockStatus = "out"
-        else if (ratio <= criticalRatio) ingredientStockStatus = "critical"
-        else if (ratio <= warningRatio) ingredientStockStatus = "low"
-        else ingredientStockStatus = "ok"
-
-        ingredientStockRatio = par > 0 ? Math.round(ratio * 100) : null
-      }
-
       // Calculate recipe-based availability with enhanced details
       let availability: EnhancedProductAvailability
 
@@ -78,51 +47,12 @@ export async function GET(request: NextRequest) {
             ingredient: {
               id: ri.ingredient.id,
               name: ri.ingredient.name,
-              quantity: Number(ri.ingredient.stockQty), // stockQty is already in base units
-              packageSize: 1, // already base units, no conversion needed
+              quantity: Number(ri.ingredient.stockQty),
+              packageSize: 1,
               baseUnit: ri.ingredient.baseUnit.name,
             },
           }))
         )
-      } else if (p.linkedVariant) {
-        const ingredient = p.linkedVariant.ingredient
-        const basic = calculateProductAvailability({
-          id: p.id,
-          name: p.name,
-          linkedVariant: {
-            baseUnitsPerVariant: Number(p.linkedVariant.baseUnitsPerVariant),
-            ingredient: {
-              id: ingredient.id,
-              name: ingredient.name,
-              quantity: Number(ingredient.stockQty),
-              packageSize: 1,
-              baseUnit: ingredient.baseUnit.name,
-            },
-          },
-        })
-        availability = {
-          ...basic,
-          missingIngredients: basic.status === "out" ? [{
-            id: ingredient.id,
-            name: ingredient.name,
-            have: 0,
-            needPerUnit: 1,
-            status: "missing" as const,
-          }] : [],
-          lowIngredients: basic.status === "low" || basic.status === "critical" ? [{
-            id: ingredient.id,
-            name: ingredient.name,
-            have: Number(ingredient.stockQty),
-            needPerUnit: 1,
-            status: "low" as const,
-          }] : [],
-          limitingIngredientDetails: basic.limitingIngredient ? {
-            ...basic.limitingIngredient,
-            have: Number(ingredient.stockQty),
-            needPerUnit: 1,
-            status: basic.status === "out" ? "missing" as const : "low" as const,
-          } : null,
-        }
       } else {
         availability = {
           status: "available",
@@ -144,22 +74,8 @@ export async function GET(request: NextRequest) {
         quantity: p.quantity,
         trackStock: p.trackStock,
         image: p.image,
-        linkedVariantId: p.linkedVariantId,
-        needsPricing: p.needsPricing,
         status: p.status,
         requiresKitchen: p.requiresKitchen,
-        linkedIngredient: p.linkedVariant
-          ? {
-              id: p.linkedVariant.ingredient.id,
-              name: p.linkedVariant.ingredient.name,
-              quantity: Number(p.linkedVariant.ingredient.stockQty),
-              parLevel: Number(p.linkedVariant.ingredient.parLevel),
-              unit: p.linkedVariant.ingredient.baseUnit.name,
-              stockStatus: ingredientStockStatus,
-              stockRatio: ingredientStockRatio,
-            }
-          : null,
-        // Enhanced availability with all shortage details
         availability: {
           status: availability.status,
           maxProducible: availability.maxProducible,
@@ -204,8 +120,6 @@ export async function POST(request: NextRequest) {
         quantity: body.quantity || 0,
         trackStock: body.trackStock || false,
         image: body.image || "",
-        linkedVariantId: body.linkedVariantId || null,
-        needsPricing: body.needsPricing || false,
         requiresKitchen: body.requiresKitchen ?? null,
       },
     })
@@ -225,8 +139,6 @@ export async function POST(request: NextRequest) {
         quantity: product.quantity,
         trackStock: product.trackStock,
         image: product.image,
-        linkedVariantId: product.linkedVariantId,
-        needsPricing: product.needsPricing,
         requiresKitchen: product.requiresKitchen,
         status: product.status,
       },

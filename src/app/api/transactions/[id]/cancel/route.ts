@@ -96,9 +96,6 @@ export async function POST(
           const product = await tx.product.findUnique({
             where: { id: item.productId },
             include: {
-              linkedVariant: {
-                include: { ingredient: true },
-              },
               recipeItems: {
                 include: { ingredient: true },
               },
@@ -114,18 +111,6 @@ export async function POST(
               data: {
                 quantity: { increment: item.quantity },
                 weeklyUnitsSold: { decrement: item.quantity },
-              },
-            })
-          }
-
-          // Restore linked variant ingredient stock (base units)
-          if (product.linkedVariantId && product.linkedVariant) {
-            const baseUnitsToRestore = Number(product.linkedVariant.baseUnitsPerVariant) * item.quantity
-            await tx.ingredient.update({
-              where: { id: product.linkedVariant.ingredient.id },
-              data: {
-                stockQty: { increment: baseUnitsToRestore },
-                lastUpdated: new Date(),
               },
             })
           }

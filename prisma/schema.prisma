@@ -121,17 +121,12 @@ model Product {
   menuDecision      String? @map("menu_decision") // Star, Workhorse, Puzzle, Dog
   weeklyUnitsSold   Int     @default(0) @map("weekly_units_sold")
 
-  // POS-Ingredient Integration (via purchase variant)
-  linkedVariantId Int?    @unique @map("linked_variant_id")
-  needsPricing    Boolean @default(false) @map("needs_pricing")
-
   // Kitchen Order Board - override category default (null = use category setting)
   requiresKitchen Boolean? @map("requires_kitchen")
 
   // Relations
-  category      Category        @relation(fields: [categoryId], references: [id])
-  recipeItems   RecipeItem[]
-  linkedVariant PurchaseVariant? @relation("VariantProduct", fields: [linkedVariantId], references: [id])
+  category    Category     @relation(fields: [categoryId], references: [id])
+  recipeItems RecipeItem[]
 
   @@map("products")
 }
@@ -543,14 +538,6 @@ model PurchaseVariant {
   costPerVariant      Decimal @default(0) @map("cost_per_variant") @db.Decimal(10, 2)
   baseUnitsPerVariant Decimal @default(0) @map("base_units_per_variant") @db.Decimal(12, 4) // precomputed for stock conversion
 
-  // Sellable (POS integration) - each variant independently sellable
-  sellable        Boolean   @default(false)
-  sellPrice       Decimal?  @map("sell_price") @db.Decimal(10, 2)
-  linkedProductId Int?      @unique @map("linked_product_id")
-  syncStatus      String    @default("synced") @map("sync_status")
-  syncError       String?   @map("sync_error")
-  lastSyncAt      DateTime? @map("last_sync_at")
-
   // Vendor override (can differ from ingredient's default vendor)
   vendorId Int? @map("vendor_id")
 
@@ -568,7 +555,6 @@ model PurchaseVariant {
   contentUnit   Unit       @relation("VariantContentUnit", fields: [contentUnitId], references: [id])
   packageUnit   Unit       @relation("VariantPackageUnit", fields: [packageUnitId], references: [id])
   vendor        Vendor?    @relation(fields: [vendorId], references: [id])
-  linkedProduct Product?   @relation("VariantProduct")
 
   @@index([ingredientId])
   @@map("purchase_variants")

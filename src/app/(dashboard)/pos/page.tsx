@@ -53,18 +53,7 @@ interface Product {
   trackStock: boolean
   image: string
   categoryId: number
-  linkedVariantId?: number | null
-  needsPricing?: boolean
-  linkedIngredient?: {
-    id: number
-    name: string
-    quantity: number
-    parLevel: number
-    unit: string
-    stockStatus: "ok" | "low" | "critical" | "out" | null
-    stockRatio: number | null
-  } | null
-  // NEW: Ingredient-derived availability (004-ingredient-unit-system)
+  //
   availability: {
     status: "available" | "low" | "critical" | "out"
     maxProducible: number | null
@@ -482,23 +471,6 @@ export default function POSPage() {
     }
   }
 
-  const handleQuickSetPrice = async (productId: number, price: number) => {
-    try {
-      const response = await fetch(`/api/products/${productId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ price, needsPricing: false }),
-      })
-
-      if (!response.ok) throw new Error("Failed to update price")
-
-      toast.success("Price updated!")
-      fetchData()
-    } catch {
-      toast.error("Failed to update price")
-    }
-  }
-
   if (isLoading) {
     return (
       <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-4rem)] gap-0 overflow-hidden">
@@ -643,7 +615,6 @@ export default function POSPage() {
             {/* Alert Bell */}
             <POSAlertBell
               currencySymbol={settings.currencySymbol}
-              onSetPrice={handleQuickSetPrice}
             />
           </div>
         </div>

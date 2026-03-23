@@ -51,8 +51,6 @@ export const purchaseVariantSchema = z.object({
   packageQty: z.number().int().positive().default(1),
   packageUnitId: z.number().int().positive("Package unit is required"),
   costPerVariant: z.number().min(0, "Cost must be 0 or greater"),
-  sellable: z.boolean().default(false),
-  sellPrice: z.number().min(0).nullable().default(null),
   vendorId: z.number().int().positive().nullable().default(null),
   barcode: z.string().nullable().default(null),
   sku: z.string().nullable().default(null),

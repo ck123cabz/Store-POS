@@ -74,7 +74,6 @@ interface Product {
   prepTime?: number | null
   overheadCost?: number | null
   recipeItems?: RecipeItem[]
-  linkedVariantId?: number | null
   availability: {
     status: "available" | "low" | "critical" | "out"
     maxProducible: number | null
@@ -314,10 +313,8 @@ export function ProductPanel({
     name: product.name,
     price: product.price.toString(),
     categoryId: product.categoryId,
-    linkedVariantId: product.linkedVariantId ?? null as number | null,
     requiresKitchen: product.requiresKitchen ?? null as boolean | null,
   })
-  const [variantOptions, setVariantOptions] = useState<{ id: number; label: string }[]>([])
   const [recipeIngredients, setRecipeIngredients] = useState<RecipeIngredient[]>([])
   const [prepTime, setPrepTime] = useState<number>(product.prepTime ?? 0)
   const [overheadCost, setOverheadCost] = useState<number>(product.overheadCost ?? 0)
@@ -358,20 +355,6 @@ export function ProductPanel({
         unitAliases: i.unitAliases || [],
       }))
       setAvailableIngredients(ingredientsData)
-
-      // Build variant options for the linked variant combobox
-      const opts: { id: number; label: string }[] = []
-      for (const ing of ingredientsRaw || []) {
-        if (ing.purchaseVariants) {
-          for (const v of ing.purchaseVariants) {
-            opts.push({
-              id: v.id,
-              label: `${ing.name} — ${v.label} (${ing.baseUnitName || ing.baseUnit || ''})`,
-            })
-          }
-        }
-      }
-      setVariantOptions(opts)
 
       if (recipeRes.ok) {
         const recipeData = await recipeRes.json()
@@ -425,14 +408,13 @@ export function ProductPanel({
         name: product.name,
         price: product.price.toString(),
         categoryId: product.categoryId,
-        linkedVariantId: product.linkedVariantId ?? null,
         requiresKitchen: product.requiresKitchen ?? null,
       })
       setImageFile(null)
       setImagePreview(null)
       void fetchEditData()
     }
-  }, [editMode, product.name, product.price, product.categoryId, product.linkedVariantId, product.requiresKitchen, fetchEditData])
+  }, [editMode, product.name, product.price, product.categoryId, product.requiresKitchen, fetchEditData])
 
   // Calculate costs whenever recipe changes in edit mode
   useEffect(() => {
@@ -583,7 +565,6 @@ export function ProductPanel({
         name: formData.name,
         price: parseFloat(formData.price),
         categoryId: formData.categoryId,
-        linkedVariantId: formData.linkedVariantId,
         requiresKitchen: formData.requiresKitchen,
         ...(imageFilename && { image: imageFilename }),
       }
@@ -716,27 +697,6 @@ export function ProductPanel({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Linked Variant</Label>
-                <Combobox<number>
-                  options={variantOptions.map((v) => ({
-                    value: v.id,
-                    label: v.label,
-                  }))}
-                  value={formData.linkedVariantId}
-                  onChange={(v) =>
-                    setFormData((prev) => ({ ...prev, linkedVariantId: v }))
-                  }
-                  placeholder="Select variant (optional)"
-                  searchPlaceholder="Search variants..."
-                  emptyMessage="No variants found."
-                  icon={<Package className="size-4" />}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Link to a purchase variant for automatic stock tracking.
-                </p>
               </div>
 
               <div className="space-y-1.5">

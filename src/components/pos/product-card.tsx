@@ -18,7 +18,6 @@ interface ProductCardProps {
     name: string
     price: number
     image: string
-    needsPricing?: boolean
     status?: string
     availability: Availability
   }

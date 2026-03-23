@@ -441,9 +441,6 @@ export async function POST(request: Request) {
           const product = await tx.product.findUnique({
             where: { id: item.id },
             include: {
-              linkedVariant: {
-                include: { ingredient: true },
-              },
               recipeItems: {
                 include: {
                   ingredient: { include: { baseUnit: true } },
@@ -461,41 +458,6 @@ export async function POST(request: Request) {
               data: {
                 quantity: { decrement: item.quantity },
                 weeklyUnitsSold: { increment: item.quantity },
-              },
-            })
-          }
-
-          // Variant-linked products: deduct baseUnitsPerVariant from ingredient stockQty
-          if (product.linkedVariantId && product.linkedVariant) {
-            const variant = product.linkedVariant
-            const ingredient = variant.ingredient
-            const baseUnitsPerVariant = Number(variant.baseUnitsPerVariant)
-            const deduction = baseUnitsPerVariant * item.quantity
-            const oldStockQty = Number(ingredient.stockQty)
-            const newStockQty = Math.max(0, oldStockQty - deduction)
-
-            await tx.ingredient.update({
-              where: { id: ingredient.id },
-              data: {
-                stockQty: newStockQty,
-                lastUpdated: new Date(),
-              },
-            })
-
-            await tx.ingredientHistory.create({
-              data: {
-                ingredientId: ingredient.id,
-                ingredientName: ingredient.name,
-                changeId: saleChangeId,
-                field: "stockQty",
-                oldValue: oldStockQty.toString(),
-                newValue: newStockQty.toString(),
-                source: "sale",
-                reason: "sale",
-                reasonNote: `Sold ${item.quantity}x ${product.name} (Order #${orderNumber})`,
-                purchaseVariantId: variant.id,
-                userId: parseInt(session.user.id),
-                userName: session.user.name || "Unknown",
               },
             })
           }

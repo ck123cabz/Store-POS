@@ -41,7 +41,6 @@ interface Product {
   trueCost?: number | null
   trueMarginPercent?: number | null
   recipeItemCount?: number
-  linkedVariantId?: number | null
   availability: {
     status: "available" | "low" | "critical" | "out"
     maxProducible: number | null

@@ -175,9 +175,6 @@ describe('Products API - /api/products', () => {
         quantity: 0,
         trackStock: false,
         image: '',
-        linkedIngredientId: null,
-        needsPricing: false,
-        linkedIngredient: null,
       }
       vi.mocked(prisma.product.create).mockResolvedValue(newProduct as never)
       const request = createTestRequest('/api/products', {

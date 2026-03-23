@@ -41,10 +41,6 @@ function formatIngredient(i: {
     packageUnitId: number
     costPerVariant: { toNumber?: () => number } | number
     baseUnitsPerVariant: { toNumber?: () => number } | number
-    sellable: boolean
-    sellPrice: { toNumber?: () => number } | null
-    linkedProductId: number | null
-    syncStatus: string
     vendorId: number | null
     barcode: string | null
     sku: string | null
@@ -128,10 +124,6 @@ function formatIngredient(i: {
       packageUnitName: v.packageUnit?.name || null,
       costPerVariant: num(v.costPerVariant),
       baseUnitsPerVariant: num(v.baseUnitsPerVariant),
-      sellable: v.sellable,
-      sellPrice: v.sellPrice ? num(v.sellPrice) : null,
-      linkedProductId: v.linkedProductId,
-      syncStatus: v.syncStatus,
       vendorId: v.vendorId,
       barcode: v.barcode,
       sku: v.sku,
@@ -284,8 +276,6 @@ export async function POST(request: NextRequest) {
             packageUnitId: variantData.packageUnitId,
             costPerVariant: variantData.costPerVariant,
             baseUnitsPerVariant,
-            sellable: variantData.sellable,
-            sellPrice: variantData.sellPrice,
             vendorId: variantData.vendorId,
             barcode: variantData.barcode,
             sku: variantData.sku,

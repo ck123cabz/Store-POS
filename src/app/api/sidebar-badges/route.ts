@@ -37,13 +37,6 @@ export async function GET() {
     `
     const lowStockIngredients = Number(lowStockResult[0]?.count ?? 0)
 
-    // T042: Needs-pricing product count query
-    const needsPricingProducts = await prisma.product.count({
-      where: {
-        needsPricing: true,
-      },
-    })
-
     // T043: Task progress query for today
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -68,7 +61,7 @@ export async function GET() {
 
     return NextResponse.json({
       lowStockIngredients,
-      needsPricingProducts,
+      needsPricingProducts: 0,
       taskProgress: {
         completed: completedTasks,
         total: totalTasks,

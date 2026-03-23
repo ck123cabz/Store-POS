@@ -10,7 +10,6 @@ import { describe, test, expect } from "vitest";
 import {
   calculateProductAvailability,
   calculateRecipeAvailability,
-  calculateLinkedIngredientAvailability,
   calculatePossibleUnitsFromIngredient,
   getStatusFromCount,
   calculateBatchAvailability,
@@ -290,91 +289,6 @@ describe("calculateRecipeAvailability", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Linked Ingredient Product Tests (1:1)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-describe("calculateLinkedIngredientAvailability", () => {
-  test("calculates availability from total base units", () => {
-    const ingredient = createIngredient({
-      id: 5,
-      name: "Water Bottles",
-      quantity: 2, // 2 cases
-      packageSize: 12, // 12 bottles per case = 24 total
-    });
-
-    const result = calculateLinkedIngredientAvailability(ingredient);
-
-    expect(result.status).toBe("available"); // 24 > 20
-    expect(result.maxProducible).toBe(24);
-    expect(result.limitingIngredient).toEqual({
-      id: 5,
-      name: "Water Bottles",
-    });
-    expect(result.warnings).toEqual([]);
-  });
-
-  test("handles fractional package quantities", () => {
-    const ingredient = createIngredient({
-      quantity: 1.5, // 1.5 cases
-      packageSize: 12, // 18 total
-    });
-
-    const result = calculateLinkedIngredientAvailability(ingredient);
-
-    expect(result.maxProducible).toBe(18);
-    expect(result.status).toBe("low"); // 18 is in "low" range
-  });
-
-  test("returns out status when stock is zero", () => {
-    const ingredient = createIngredient({
-      quantity: 0,
-      packageSize: 12,
-    });
-
-    const result = calculateLinkedIngredientAvailability(ingredient);
-
-    expect(result.status).toBe("out");
-    expect(result.maxProducible).toBe(0);
-  });
-
-  test("returns critical status for very low stock", () => {
-    const ingredient = createIngredient({
-      quantity: 0.4, // 0.4 packs
-      packageSize: 10, // 4 total units
-    });
-
-    const result = calculateLinkedIngredientAvailability(ingredient);
-
-    expect(result.status).toBe("critical"); // 4 is in "critical" range (1-5)
-    expect(result.maxProducible).toBe(4);
-  });
-
-  test("handles invalid package size with warning", () => {
-    const ingredient = createIngredient({
-      name: "Bad Item",
-      packageSize: 0,
-    });
-
-    const result = calculateLinkedIngredientAvailability(ingredient);
-
-    expect(result.status).toBe("out");
-    expect(result.maxProducible).toBe(0);
-    expect(result.warnings).toContain("Bad Item: Invalid package size");
-  });
-
-  test("floors fractional base units", () => {
-    const ingredient = createIngredient({
-      quantity: 2.5, // 2.5 packs
-      packageSize: 3, // 7.5 total, floored to 7
-    });
-
-    const result = calculateLinkedIngredientAvailability(ingredient);
-
-    expect(result.maxProducible).toBe(7);
-    expect(result.status).toBe("low"); // 7 is in "low" range
-  });
-});
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // Main Function Tests
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -414,49 +328,21 @@ describe("calculateProductAvailability", () => {
       expect(result.limitingIngredient?.name).toBe("Buns");
     });
 
-    test("prioritizes recipeItems over linkedIngredient", () => {
-      // Product has both - recipe should take precedence
+    test("calculates availability from single-ingredient recipe", () => {
       const product: AvailabilityProduct = {
-        id: 1,
-        name: "Special Burger",
+        id: 2,
+        name: "Bottled Water",
         recipeItems: [
           createRecipeItem(
             createIngredient({
-              id: 1,
-              name: "Patty",
-              quantity: 1,
-              packageSize: 4, // 4 total = critical
+              id: 5,
+              name: "Water Bottles",
+              quantity: 3,
+              packageSize: 12, // 36 total
             }),
             1
           ),
         ],
-        linkedIngredient: createIngredient({
-          id: 99,
-          name: "Should be ignored",
-          quantity: 100,
-          packageSize: 100, // Would be 10000 if used
-        }),
-      };
-
-      const result = calculateProductAvailability(product);
-
-      // Should use recipe (4 possible) not linked (10000 possible)
-      expect(result.maxProducible).toBe(4);
-      expect(result.limitingIngredient?.name).toBe("Patty");
-    });
-  });
-
-  describe("Linked ingredient products", () => {
-    test("calculates availability from linked ingredient", () => {
-      const product: AvailabilityProduct = {
-        id: 2,
-        name: "Bottled Water",
-        linkedIngredient: createIngredient({
-          id: 5,
-          name: "Water Bottles",
-          quantity: 3,
-          packageSize: 12, // 36 total
-        }),
       };
 
       const result = calculateProductAvailability(product);
@@ -465,25 +351,6 @@ describe("calculateProductAvailability", () => {
       expect(result.status).toBe("available");
       expect(result.limitingIngredient?.name).toBe("Water Bottles");
     });
-
-    test("uses linkedIngredient when recipeItems is empty array", () => {
-      const product: AvailabilityProduct = {
-        id: 2,
-        name: "Soda",
-        recipeItems: [], // Empty array
-        linkedIngredient: createIngredient({
-          id: 6,
-          name: "Soda Cans",
-          quantity: 2,
-          packageSize: 24, // 48 total
-        }),
-      };
-
-      const result = calculateProductAvailability(product);
-
-      expect(result.maxProducible).toBe(48);
-      expect(result.limitingIngredient?.name).toBe("Soda Cans");
-    });
   });
 
   describe("Products with no ingredients", () => {
@@ -491,7 +358,7 @@ describe("calculateProductAvailability", () => {
       const product: AvailabilityProduct = {
         id: 3,
         name: "Consultation Service",
-        // No recipeItems, no linkedIngredient
+        // No recipeItems
       };
 
       const result = calculateProductAvailability(product);
@@ -502,12 +369,11 @@ describe("calculateProductAvailability", () => {
       expect(result.warnings).toEqual([]);
     });
 
-    test("returns available with null maxProducible for empty recipeItems and null linkedIngredient", () => {
+    test("returns available with null maxProducible for empty recipeItems", () => {
       const product: AvailabilityProduct = {
         id: 4,
         name: "Digital Download",
         recipeItems: [],
-        linkedIngredient: null,
       };
 
       const result = calculateProductAvailability(product);
@@ -516,12 +382,11 @@ describe("calculateProductAvailability", () => {
       expect(result.maxProducible).toBeNull();
     });
 
-    test("handles undefined recipeItems and linkedIngredient", () => {
+    test("handles undefined recipeItems", () => {
       const product: AvailabilityProduct = {
         id: 5,
         name: "Gift Card",
         recipeItems: undefined,
-        linkedIngredient: undefined,
       };
 
       const result = calculateProductAvailability(product);
@@ -557,10 +422,15 @@ describe("calculateProductAvailability", () => {
       const product: AvailabilityProduct = {
         id: 7,
         name: "Low Stock Item",
-        linkedIngredient: createIngredient({
-          quantity: 0.1, // 0.1 packs
-          packageSize: 10, // 1 total
-        }),
+        recipeItems: [
+          createRecipeItem(
+            createIngredient({
+              quantity: 0.1, // 0.1 packs
+              packageSize: 10, // 1 total base unit
+            }),
+            1
+          ),
+        ],
       };
 
       const result = calculateProductAvailability(product);
@@ -590,10 +460,15 @@ describe("calculateProductAvailability", () => {
       const product: AvailabilityProduct = {
         id: 9,
         name: "Well Stocked Item",
-        linkedIngredient: createIngredient({
-          quantity: 1000,
-          packageSize: 100, // 100,000 total
-        }),
+        recipeItems: [
+          createRecipeItem(
+            createIngredient({
+              quantity: 1000,
+              packageSize: 100, // 100,000 total
+            }),
+            1
+          ),
+        ],
       };
 
       const result = calculateProductAvailability(product);
@@ -614,18 +489,22 @@ describe("calculateBatchAvailability", () => {
       {
         id: 1,
         name: "Product A",
-        linkedIngredient: createIngredient({
-          quantity: 5,
-          packageSize: 10, // 50 total
-        }),
+        recipeItems: [
+          createRecipeItem(
+            createIngredient({ quantity: 5, packageSize: 10 }), // 50 total
+            1
+          ),
+        ],
       },
       {
         id: 2,
         name: "Product B",
-        linkedIngredient: createIngredient({
-          quantity: 0.5,
-          packageSize: 6, // 3 total
-        }),
+        recipeItems: [
+          createRecipeItem(
+            createIngredient({ quantity: 0.5, packageSize: 6 }), // 3 total
+            1
+          ),
+        ],
       },
       {
         id: 3,
@@ -654,34 +533,30 @@ describe("getProductsNeedingAttention", () => {
       {
         id: 1,
         name: "Available Product",
-        linkedIngredient: createIngredient({
-          quantity: 10,
-          packageSize: 10, // 100 total - available
-        }),
+        recipeItems: [
+          createRecipeItem(createIngredient({ quantity: 10, packageSize: 10 }), 1), // 100 total - available
+        ],
       },
       {
         id: 2,
         name: "Critical Product",
-        linkedIngredient: createIngredient({
-          quantity: 0.5,
-          packageSize: 8, // 4 total - critical
-        }),
+        recipeItems: [
+          createRecipeItem(createIngredient({ quantity: 0.5, packageSize: 8 }), 1), // 4 total - critical
+        ],
       },
       {
         id: 3,
         name: "Out of Stock Product",
-        linkedIngredient: createIngredient({
-          quantity: 0, // Out
-          packageSize: 10,
-        }),
+        recipeItems: [
+          createRecipeItem(createIngredient({ quantity: 0, packageSize: 10 }), 1), // Out
+        ],
       },
       {
         id: 4,
         name: "Low Product",
-        linkedIngredient: createIngredient({
-          quantity: 1,
-          packageSize: 15, // 15 total - low
-        }),
+        recipeItems: [
+          createRecipeItem(createIngredient({ quantity: 1, packageSize: 15 }), 1), // 15 total - low
+        ],
       },
     ];
 
@@ -713,12 +588,12 @@ describe("getProductsNeedingAttention", () => {
       {
         id: 1,
         name: "Out Product",
-        linkedIngredient: createIngredient({
-          id: 10,
-          name: "Empty Ingredient",
-          quantity: 0,
-          packageSize: 10,
-        }),
+        recipeItems: [
+          createRecipeItem(
+            createIngredient({ id: 10, name: "Empty Ingredient", quantity: 0, packageSize: 10 }),
+            1
+          ),
+        ],
       },
     ];
 

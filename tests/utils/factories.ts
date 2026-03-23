@@ -96,8 +96,6 @@ export interface ProductData {
   quantity?: number
   trackStock?: boolean
   image?: string
-  linkedIngredientId?: number | null
-  needsPricing?: boolean
   trueCost?: number | null
   trueMargin?: number | null
   isHeroItem?: boolean
@@ -115,8 +113,6 @@ export function createProduct(overrides: ProductData = {}): Required<ProductData
     quantity: overrides.quantity ?? 100,
     trackStock: overrides.trackStock ?? true,
     image: overrides.image ?? '',
-    linkedIngredientId: overrides.linkedIngredientId ?? null,
-    needsPricing: overrides.needsPricing ?? false,
     trueCost,
     trueMargin: overrides.trueMargin ?? (price - trueCost),
     isHeroItem: overrides.isHeroItem ?? false,
