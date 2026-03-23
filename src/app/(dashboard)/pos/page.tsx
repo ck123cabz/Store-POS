@@ -575,8 +575,8 @@ export default function POSPage() {
     <div className="flex flex-col md:flex-row h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-4rem)] gap-0 overflow-hidden">
       {/* Product Grid Section */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        {/* Header bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur sticky top-0 z-10">
+        {/* Header bar — fixed above scroll area via flex shrink-0 */}
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-background shrink-0 z-10">
           <div className="flex items-center gap-2">
             {/* Hold Orders Button */}
             <Button
@@ -648,8 +648,8 @@ export default function POSPage() {
           </div>
         </div>
 
-        {/* Products — native scroll on mobile, ScrollArea on desktop */}
-        <div className={cn("flex-1 min-h-0 overflow-y-auto px-4 py-4", cartItemCount > 0 && "pb-20 md:pb-4")}>
+        {/* Products — scrollable area, contained to prevent iOS scroll chaining */}
+        <div className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4", cartItemCount > 0 && "pb-20 md:pb-4")}>
           <ProductGrid
             products={products}
             categories={categories}
