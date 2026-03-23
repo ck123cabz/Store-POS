@@ -179,6 +179,8 @@ Test files:
 - PostgreSQL with Prisma ORM (5 new models, 2 model extensions) (009-cost-calc-system)
 - TypeScript 5.x + React 19, Next.js 16 (App Router), Tailwind CSS 4.x, Radix UI, shadcn/ui, Recharts, Lucide React icons (010-mobile-optimization)
 - N/A (no data changes — PostgreSQL with Prisma ORM unchanged) (010-mobile-optimization)
+- TypeScript 5.x, React 19, Next.js 16 (App Router) + Tailwind CSS 4.x, Radix UI, shadcn/ui components, Lucide React icons, date-fns (011-transactions-ui)
+- N/A (frontend-only refactor; PostgreSQL + Prisma unchanged) (011-transactions-ui)
 
 ## Recent Changes
 - 001-ui-refinement: Added TypeScript 5.x, React 19.2.3, Next.js 16.1.4 + Tailwind CSS 4.x, Radix UI, shadcn/ui components, Lucide React icons
