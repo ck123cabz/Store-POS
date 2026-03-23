@@ -22,13 +22,39 @@ export async function GET(
       where.date = dateFilter
     }
 
-    const shifts = await prisma.shiftLog.findMany({
+    // Cursor-based pagination (backward-compatible)
+    const takeParam = searchParams.get("take")
+    const cursorParam = searchParams.get("cursor")
+    const isPaginated = takeParam !== null
+
+    const take = takeParam ? Math.min(parseInt(takeParam), 50) : undefined
+    const cursor = cursorParam ? parseInt(cursorParam) : undefined
+
+    const findArgs: Record<string, unknown> = {
       where,
-      include: {
-        shiftTemplate: { select: { name: true, color: true } },
-      },
+      include: { shiftTemplate: { select: { name: true, color: true } } },
       orderBy: { date: "desc" },
-    })
+    }
+
+    if (isPaginated) {
+      // Fetch one extra to determine hasMore
+      findArgs.take = (take || 10) + 1
+      if (cursor) {
+        findArgs.cursor = { id: cursor }
+        findArgs.skip = 1
+      }
+    }
+
+    const shifts = await prisma.shiftLog.findMany(findArgs as Parameters<typeof prisma.shiftLog.findMany>[0])
+
+    if (isPaginated) {
+      const pageSize = take || 10
+      const hasMore = shifts.length > pageSize
+      const page = hasMore ? shifts.slice(0, pageSize) : shifts
+      const nextCursor = hasMore ? page[page.length - 1].id : null
+
+      return NextResponse.json({ shifts: page, nextCursor, hasMore })
+    }
 
     return NextResponse.json(shifts)
   } catch {

@@ -42,6 +42,30 @@ export default function LoginPage() {
       setError("Incorrect username or password")
       toast.error("Incorrect username or password")
     } else {
+      // Check if user is employee-only (no admin permissions + linked employee)
+      try {
+        const res = await fetch("/api/my-shift")
+        if (res.ok) {
+          const data = await res.json()
+          if (data.employee) {
+            // Get fresh session to check permissions
+            const sessionRes = await fetch("/api/auth/session")
+            const session = await sessionRes.json()
+            const user = session?.user
+            const hasAdminPerms = user && (
+              user.permProducts || user.permCategories || user.permTransactions ||
+              user.permUsers || user.permSettings || user.permReports || user.permAuditLog
+            )
+            if (!hasAdminPerms) {
+              router.push("/my-shift")
+              router.refresh()
+              return
+            }
+          }
+        }
+      } catch {
+        // Fall through to default /pos routing
+      }
       router.push("/pos")
       router.refresh()
     }

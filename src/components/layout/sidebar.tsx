@@ -44,6 +44,7 @@ import {
   Sun,
   Moon,
   Briefcase,
+  Clock,
 } from "lucide-react"
 
 interface NavItem {
@@ -63,6 +64,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Sales",
     items: [
+      { href: "/my-shift", label: "My Shift", icon: Clock, permission: null },
       { href: "/pos", label: "POS", icon: ShoppingCart, permission: null },
       { href: "/orders", label: "Orders", icon: ChefHat, permission: null },
       { href: "/transactions", label: "Transactions", icon: Receipt, permission: "permTransactions" },
