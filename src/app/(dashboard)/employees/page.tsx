@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
+import { useState, useEffect, useCallback, Suspense, lazy } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,30 +29,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
-import {
-  Briefcase,
-  Plus,
-  Pencil,
-  Trash2,
-  Eye,
-  LayoutDashboard,
-  List,
-  LinkIcon,
-} from "lucide-react"
+import { Plus, LinkIcon } from "lucide-react"
 import { toast } from "sonner"
-import { formatCurrency } from "@/lib/format-currency"
-import { useSettings } from "@/hooks/use-settings"
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table"
-import { SummaryCard, SummaryCardGrid } from "@/components/ui/summary-card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { StatusDot } from "@/components/ui/status-dot"
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { EmployeeSidePanel } from "@/components/employees/employee-side-panel"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { getValidNextStates } from "@/lib/employee-status"
+import { WorkspaceTabs, type WorkspaceTab } from "@/components/employees/workspace/workspace-tabs"
+import { MobileBottomNav } from "@/components/employees/workspace/mobile-bottom-nav"
+
+// Lazy-load tab components for code splitting
+const TodayTab = lazy(() => import("@/components/employees/workspace/today-tab"))
+const TeamTab = lazy(() => import("@/components/employees/workspace/team-tab"))
+const ScheduleTab = lazy(() => import("@/components/employees/workspace/schedule-tab"))
+const TasksTab = lazy(() => import("@/components/employees/workspace/tasks-tab"))
+const PayrollTab = lazy(() => import("@/components/employees/workspace/payroll-tab"))
+const ReportsTab = lazy(() => import("@/components/employees/workspace/reports-tab"))
 
 interface Employee {
   id: number
@@ -82,27 +73,6 @@ interface EmployeeFormData {
   notes: string
 }
 
-interface ClockedInShift {
-  id: number
-  employeeId: number
-  employee: {
-    id: number
-    firstName: string
-    lastName: string
-    position: string
-  }
-  clockIn: string
-}
-
-interface ShiftTemplate {
-  id: number
-  name: string
-  startTime: string
-  endTime: string
-  color: string
-  assignmentCount?: number
-}
-
 interface SimpleUser {
   id: number
   username: string
@@ -122,96 +92,43 @@ const emptyFormData: EmployeeFormData = {
   notes: "",
 }
 
-export default function EmployeesPage() {
-  const { currencySymbol } = useSettings()
+function EmployeesPageContent() {
+  const searchParams = useSearchParams()
   const isMobile = useIsMobile()
+  const activeTab = (searchParams.get("tab") as WorkspaceTab) || "today"
+
+  // Employee CRUD state (preserved from original page)
   const [employees, setEmployees] = useState<Employee[]>([])
-  const [clockedIn, setClockedIn] = useState<ClockedInShift[]>([])
-  const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplate[]>([])
-  const [loading, setLoading] = useState(true)
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [hoursThisPeriod, setHoursThisPeriod] = useState<number | null>(null)
-  const [payrollDue, setPayrollDue] = useState<number | null>(null)
-  const [pendingPaymentsCount, setPendingPaymentsCount] = useState<number>(0)
-  const [view, setView] = useState<"dashboard" | "list">("dashboard")
   const [formOpen, setFormOpen] = useState(false)
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("Active")
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
-  const [panelOpen, setPanelOpen] = useState(false)
   const [formData, setFormData] = useState<EmployeeFormData>(emptyFormData)
   const [allUsers, setAllUsers] = useState<SimpleUser[]>([])
 
-  const fmtCurrency = (value: string | number | null | undefined) =>
-    formatCurrency(value, currencySymbol)
-
   const fetchEmployees = useCallback(async () => {
     try {
-      setLoading(true)
       const res = await fetch("/api/employees")
-      if (res.ok) {
-        setEmployees(await res.json())
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  const fetchStats = useCallback(async () => {
-    try {
-      setStatsLoading(true)
-      const res = await fetch("/api/employees/stats")
-      if (res.ok) {
-        const data = await res.json()
-        setClockedIn(data.clockedIn || [])
-        setHoursThisPeriod(data.hoursThisPeriod ?? 0)
-        setPayrollDue(data.payrollDue ?? 0)
-        setPendingPaymentsCount(data.pendingPayments ?? 0)
-      }
+      if (res.ok) setEmployees(await res.json())
     } catch {
-      // Stats are non-critical
-    } finally {
-      setStatsLoading(false)
-    }
-  }, [])
-
-  const fetchShiftTemplates = useCallback(async () => {
-    try {
-      const res = await fetch("/api/shift-templates")
-      if (res.ok) {
-        setShiftTemplates(await res.json())
-      }
-    } catch {
-      // Shift templates are non-critical
+      // Non-critical
     }
   }, [])
 
   const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch("/api/users")
-      if (res.ok) {
-        setAllUsers(await res.json())
-      }
+      if (res.ok) setAllUsers(await res.json())
     } catch {
-      // Users list is non-critical — user linking is optional
+      // Non-critical
     }
   }, [])
 
   useEffect(() => {
     fetchEmployees()
-    fetchStats()
-    fetchShiftTemplates()
     fetchUsers()
-  }, [fetchEmployees, fetchStats, fetchShiftTemplates, fetchUsers])
-
-  // Summary calculations
-  const activeCount = employees.filter(
-    (e) => e.employmentStatus === "Active"
-  ).length
+  }, [fetchEmployees, fetchUsers])
 
   // Users available for linking: not already linked to another employee
   const linkedUserIds = new Set(
@@ -315,383 +232,57 @@ export default function EmployeesPage() {
     }
   }
 
-  function getInitials(firstName: string, lastName: string) {
-    return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase()
-  }
-
-  function getStatusBadge(status: string) {
-    switch (status) {
-      case "Active":
-        return (
-          <Badge className="border-transparent bg-status-ok/15 text-status-ok">
-            Active
-          </Badge>
-        )
-      case "Inactive":
-        return (
-          <Badge className="border-transparent bg-muted text-muted-foreground">
-            Inactive
-          </Badge>
-        )
-      case "Terminated":
-        return (
-          <Badge className="border-transparent bg-status-critical/15 text-status-critical">
-            Terminated
-          </Badge>
-        )
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
-  function formatTime(dateString: string) {
-    return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-  }
-
-  // Filtered employees for list view
-  const filteredEmployees = employees.filter((e) => {
-    if (statusFilter !== "All" && e.employmentStatus !== statusFilter) return false
-    if (!search) return true
-    const fullName = `${e.firstName} ${e.lastName}`.toLowerCase()
-    return fullName.includes(search.toLowerCase())
-  })
-
-  // DataTable column definitions
-  const columns: DataTableColumn<Employee>[] = [
-    {
-      id: "name",
-      header: "Name",
-      cell: (e) => {
-        const initials = getInitials(e.firstName, e.lastName)
-        return (
-          <div className="flex items-center gap-3">
-            <Avatar size="sm">
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <span className="font-medium">
-                {e.firstName} {e.lastName}
-              </span>
-              {e.phone && (
-                <span className="text-xs text-muted-foreground">{e.phone}</span>
-              )}
-            </div>
-          </div>
-        )
-      },
-      priority: 0,
-      sortable: true,
-    },
-    {
-      id: "position",
-      header: "Position",
-      cell: (e) => e.position || "\u2014",
-      priority: 1,
-    },
-    {
-      id: "status",
-      header: "Status",
-      cell: (e) => getStatusBadge(e.employmentStatus),
-      priority: 0,
-    },
-    {
-      id: "hourlyRate",
-      header: "Rate/hr",
-      cell: (e) => (
-        <span className="font-mono tabular-nums">
-          {fmtCurrency(e.hourlyRate)}
-        </span>
-      ),
-      priority: 1,
-      align: "right",
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: (e) => (
-        <div
-          className="flex items-center gap-1"
-          onClick={(ev) => ev.stopPropagation()}
-        >
-          <Link href={`/employees/${e.id}`}>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="min-h-11 min-w-11"
-              aria-label={`View ${e.firstName} ${e.lastName}`}
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => openForm(e)}
-            className="min-h-11 min-w-11"
-            aria-label={`Edit ${e.firstName} ${e.lastName}`}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setDeleteId(e.id)}
-            className="min-h-11 min-w-11"
-            aria-label={`Delete ${e.firstName} ${e.lastName}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-      priority: 0,
-      align: "right",
-    },
-  ]
+  const tabFallback = (
+    <div className="flex items-center justify-center h-48">
+      <div className="text-sm text-muted-foreground">Loading...</div>
+    </div>
+  )
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Employees
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your team, shifts, and payroll
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-md border border-border/60">
-            <Button
-              variant={view === "dashboard" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setView("dashboard")}
-              className="rounded-r-none"
-            >
-              <LayoutDashboard className="h-4 w-4 mr-1" />
-              Dashboard
-            </Button>
-            <Button
-              variant={view === "list" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setView("list")}
-              className="rounded-l-none"
-            >
-              <List className="h-4 w-4 mr-1" />
-              List
+      <div className="p-4 md:p-6 pb-0">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              Employees
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Manage your team, shifts, and payroll
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <WorkspaceTabs activeTab={activeTab} />
+            <Button onClick={() => openForm()}>
+              <Plus className="h-4 w-4 mr-2" /> Add Employee
             </Button>
           </div>
-          <Button onClick={() => openForm()}>
-            <Plus className="h-4 w-4 mr-2" /> Add Employee
-          </Button>
         </div>
       </div>
 
-      {/* Dashboard View */}
-      {view === "dashboard" && (
-        <>
-          <SummaryCardGrid>
-            <SummaryCard
-              label="Active Employees"
-              value={activeCount.toString()}
+      {/* Tab Content */}
+      <div className="flex-1 p-4 md:p-6 overflow-auto">
+        <Suspense fallback={tabFallback}>
+          {activeTab === "today" && <TodayTab />}
+          {activeTab === "team" && (
+            <TeamTab
+              employees={employees}
+              onEdit={openForm}
+              onDelete={(id) => setDeleteId(id)}
+              onRefresh={fetchEmployees}
             />
-            <SummaryCard
-              label="Hours This Period"
-              value={statsLoading ? "\u2026" : `${(hoursThisPeriod ?? 0).toFixed(1)}`}
-            />
-            <SummaryCard
-              label="Payroll Due"
-              value={statsLoading ? "\u2026" : fmtCurrency(payrollDue ?? 0)}
-            />
-            <SummaryCard
-              label="Pending Payments"
-              value={statsLoading ? "\u2026" : pendingPaymentsCount.toString()}
-            />
-          </SummaryCardGrid>
+          )}
+          {activeTab === "schedule" && <ScheduleTab />}
+          {activeTab === "tasks" && <TasksTab />}
+          {activeTab === "payroll" && <PayrollTab />}
+          {activeTab === "reports" && <ReportsTab />}
+        </Suspense>
+      </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Currently Clocked In */}
-            <Card className="p-0 shadow-none">
-              <div className="flex items-center gap-2 p-4 border-b border-border/60">
-                <StatusDot variant="ok" pulse />
-                <h2 className="font-semibold text-sm">Currently Clocked In</h2>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {clockedIn.length} active
-                </span>
-              </div>
-              <div className="divide-y divide-border/60">
-                {clockedIn.length === 0 ? (
-                  <div className="p-6 text-center text-sm text-muted-foreground">
-                    No employees clocked in
-                  </div>
-                ) : (
-                  clockedIn.map((shift) => (
-                    <div
-                      key={shift.id}
-                      className="flex items-center gap-3 p-3 px-4"
-                    >
-                      <Avatar size="sm">
-                        <AvatarFallback>
-                          {getInitials(
-                            shift.employee.firstName,
-                            shift.employee.lastName
-                          )}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-medium text-sm truncate">
-                          {shift.employee.firstName} {shift.employee.lastName}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {shift.employee.position}
-                        </span>
-                      </div>
-                      <span className="ml-auto text-xs text-muted-foreground font-mono tabular-nums whitespace-nowrap">
-                        In at {formatTime(shift.clockIn)}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card>
+      {/* Mobile Bottom Nav */}
+      {isMobile && <MobileBottomNav activeTab={activeTab} />}
 
-            {/* Today's Shifts */}
-            <Card className="p-0 shadow-none">
-              <div className="flex items-center gap-2 p-4 border-b border-border/60">
-                <h2 className="font-semibold text-sm">Today&apos;s Shifts</h2>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {new Date().toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className="divide-y divide-border/60">
-                {shiftTemplates.length === 0 ? (
-                  <div className="p-6 text-center text-sm text-muted-foreground">
-                    No shift templates configured
-                  </div>
-                ) : (
-                  shiftTemplates.map((template) => (
-                    <div
-                      key={template.id}
-                      className="flex items-center gap-3 p-3 px-4"
-                    >
-                      <span
-                        className="size-2.5 rounded-full shrink-0"
-                        style={{
-                          backgroundColor: template.color || "var(--muted-foreground)",
-                        }}
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-medium text-sm truncate">
-                          {template.name}
-                        </span>
-                        <span className="text-xs text-muted-foreground font-mono tabular-nums">
-                          {template.startTime} &ndash; {template.endTime}
-                        </span>
-                      </div>
-                      {template.assignmentCount !== undefined && (
-                        <span className="ml-auto text-xs text-muted-foreground">
-                          {template.assignmentCount} assigned
-                        </span>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card>
-          </div>
-        </>
-      )}
-
-      {/* List View */}
-      {view === "list" && (
-        <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Input
-              placeholder="Search employees..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
-            <ToggleGroup
-              type="single"
-              value={statusFilter}
-              onValueChange={(val) => { if (val) setStatusFilter(val) }}
-              size="sm"
-              variant="outline"
-            >
-              <ToggleGroupItem value="Active">Active</ToggleGroupItem>
-              <ToggleGroupItem value="Inactive">Inactive</ToggleGroupItem>
-              <ToggleGroupItem value="Terminated">Terminated</ToggleGroupItem>
-              <ToggleGroupItem value="All">All</ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
-          <DataTable
-            columns={columns}
-            data={filteredEmployees}
-            rowKey={(e) => e.id}
-            onRowClick={(e) => {
-              if (isMobile) {
-                window.location.href = `/employees/${e.id}`
-              } else {
-                setSelectedEmployee(e)
-                setPanelOpen(true)
-              }
-            }}
-            loading={loading}
-            emptyIcon={<Briefcase className="h-10 w-10" />}
-            emptyTitle="No employees found"
-            emptyDescription="Add your first employee to get started."
-            mobileCardRender={(e) => {
-              const initials = getInitials(e.firstName, e.lastName)
-              return (
-                <Card className="p-3 shadow-none">
-                  <div className="flex items-center gap-3">
-                    <Avatar size="sm">
-                      <AvatarFallback>{initials}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium truncate">
-                          {e.firstName} {e.lastName}
-                        </span>
-                        {getStatusBadge(e.employmentStatus)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {e.position || "No position"}
-                        {e.phone && ` \u00B7 ${e.phone}`}
-                      </div>
-                      <div className="text-xs text-muted-foreground font-mono tabular-nums mt-0.5">
-                        {fmtCurrency(e.hourlyRate)}/hr
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0" onClick={(ev) => ev.stopPropagation()}>
-                      <Link href={`/employees/${e.id}`}>
-                        <Button size="icon" variant="ghost" className="min-h-11 min-w-11" aria-label={`View ${e.firstName} ${e.lastName}`}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Button size="icon" variant="ghost" onClick={() => openForm(e)} className="min-h-11 min-w-11" aria-label={`Edit ${e.firstName} ${e.lastName}`}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              )
-            }}
-          />
-        </>
-      )}
-
-      {/* Add/Edit Employee Dialog */}
+      {/* Add/Edit Employee Dialog (preserved from original) */}
       <Dialog open={formOpen} onOpenChange={closeForm}>
         <DialogContent>
           <DialogHeader>
@@ -847,15 +438,7 @@ export default function EmployeesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Employee Side Panel */}
-      <EmployeeSidePanel
-        employee={selectedEmployee}
-        open={panelOpen}
-        onOpenChange={setPanelOpen}
-        formatCurrency={fmtCurrency}
-      />
-
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation (preserved from original) */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -874,5 +457,13 @@ export default function EmployeesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+export default function EmployeesPage() {
+  return (
+    <Suspense>
+      <EmployeesPageContent />
+    </Suspense>
   )
 }

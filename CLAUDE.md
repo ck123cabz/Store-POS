@@ -183,6 +183,7 @@ Test files:
 - N/A (frontend-only refactor; PostgreSQL + Prisma unchanged) (011-transactions-ui)
 - TypeScript 5.x + Next.js 16 (App Router), React 19, Tailwind CSS 4.x, Radix UI, shadcn/ui, Prisma ORM 7.x, NextAuth.js v5, Zod, date-fns, Lucide React icons (001-employee-admin)
 - PostgreSQL with Prisma ORM (existing schema, no migrations needed) (001-employee-admin)
+- TypeScript 5.x + Next.js 16 (App Router), React 19 + Tailwind CSS 4.x, Radix UI, shadcn/ui, Recharts, date-fns, Lucide React icons, Zod (013-employee-workspace)
 
 ## Recent Changes
 - 001-ui-refinement: Added TypeScript 5.x, React 19.2.3, Next.js 16.1.4 + Tailwind CSS 4.x, Radix UI, shadcn/ui components, Lucide React icons
