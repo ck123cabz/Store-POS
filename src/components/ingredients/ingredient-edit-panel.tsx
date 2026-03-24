@@ -56,10 +56,12 @@ import {
   Info,
   Loader2,
   X,
+  Store,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatCurrency, getAvailableUnits } from "@/lib/ingredient-utils"
 import { VariantFormDialog } from "@/components/ingredients/variant-form-dialog"
+import { CreateProductDialog } from "@/components/ingredients/create-product-dialog"
 import type {
   Ingredient,
   PurchaseVariant,
@@ -213,6 +215,8 @@ export function IngredientEditPanel({
   // Variant form dialog
   const [variantDialogOpen, setVariantDialogOpen] = useState(false)
   const [editVariant, setEditVariant] = useState<PurchaseVariant | null>(null)
+  // Create product from variant dialog
+  const [createProductVariant, setCreateProductVariant] = useState<PurchaseVariant | null>(null)
 
   // UI state
   const [submitting, setSubmitting] = useState(false)
@@ -907,11 +911,6 @@ export function IngredientEditPanel({
                                 Default
                               </Badge>
                             )}
-                            {v.sellable && (
-                              <Badge className="text-[10px] px-1.5 py-0 bg-status-ok/15 text-status-ok border-0">
-                                Sellable
-                              </Badge>
-                            )}
                           </div>
                           <div className="flex gap-4 text-xs text-muted-foreground">
                             <span>
@@ -932,6 +931,16 @@ export function IngredientEditPanel({
                           )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0 ml-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="Create product from this variant"
+                            onClick={() => setCreateProductVariant(v)}
+                          >
+                            <Store className="h-3.5 w-3.5" />
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"
@@ -1400,6 +1409,23 @@ export function IngredientEditPanel({
               }
               return [...prev, saved]
             })
+          }}
+        />
+      )}
+
+      {/* Create Product from Variant Dialog */}
+      {ingredient && createProductVariant && (
+        <CreateProductDialog
+          open={!!createProductVariant}
+          onOpenChange={(open) => { if (!open) setCreateProductVariant(null) }}
+          ingredientId={ingredient.id}
+          ingredientName={ingredient.name}
+          variantId={createProductVariant.id}
+          variantLabel={createProductVariant.label}
+          costPerVariant={createProductVariant.costPerVariant}
+          baseUnitsPerVariant={createProductVariant.baseUnitsPerVariant}
+          onCreated={() => {
+            toast.success("Product created! You can find it in the Menu page.")
           }}
         />
       )}

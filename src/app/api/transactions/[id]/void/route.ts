@@ -125,13 +125,6 @@ export async function PATCH(
           const product = await tx.product.findUnique({
             where: { id: item.productId },
             include: {
-              linkedVariant: {
-                include: {
-                  ingredient: {
-                    include: { baseUnit: true },
-                  },
-                },
-              },
               recipeItems: {
                 include: {
                   ingredient: {
@@ -155,40 +148,7 @@ export async function PATCH(
             })
           }
 
-          // 3b. Restore linked variant ingredient stock
-          if (product.linkedVariantId && product.linkedVariant) {
-            const ingredient = product.linkedVariant.ingredient
-            const baseUnitsToRestore = Number(product.linkedVariant.baseUnitsPerVariant) * item.quantity
-            const oldStockQty = Number(ingredient.stockQty)
-            const newStockQty = oldStockQty + baseUnitsToRestore
-
-            await tx.ingredient.update({
-              where: { id: ingredient.id },
-              data: {
-                stockQty: newStockQty,
-                lastUpdated: new Date(),
-              },
-            })
-
-            await tx.ingredientHistory.create({
-              data: {
-                ingredientId: ingredient.id,
-                ingredientName: ingredient.name,
-                changeId: voidChangeId,
-                field: "stockQty",
-                oldValue: oldStockQty.toString(),
-                newValue: newStockQty.toString(),
-                source: "void_reversal",
-                reason: "transaction_void",
-                reasonNote: `Voided ${item.quantity}x ${product.name} (Order #${orderNumber}) — ${formattedReason}`,
-                purchaseVariantId: product.linkedVariant.id,
-                userId,
-                userName,
-              },
-            })
-          }
-
-          // 3c. Restore recipe ingredient stock
+          // 3b. Restore recipe ingredient stock
           if (product.recipeItems.length > 0) {
             for (const recipeItem of product.recipeItems) {
               const ingredient = recipeItem.ingredient

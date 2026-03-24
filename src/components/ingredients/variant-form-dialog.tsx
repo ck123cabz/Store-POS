@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -67,8 +66,6 @@ export function VariantFormDialog({
   const [packageQty, setPackageQty] = useState("1")
   const [packageUnitId, setPackageUnitId] = useState("")
   const [costPerVariant, setCostPerVariant] = useState("")
-  const [sellable, setSellable] = useState(false)
-  const [sellPrice, setSellPrice] = useState("")
   const [vendorId, setVendorId] = useState("")
   const [barcode, setBarcode] = useState("")
   const [sku, setSku] = useState("")
@@ -84,8 +81,6 @@ export function VariantFormDialog({
       setPackageQty(variant.packageQty.toString())
       setPackageUnitId(variant.packageUnitId.toString())
       setCostPerVariant(variant.costPerVariant.toString())
-      setSellable(variant.sellable)
-      setSellPrice(variant.sellPrice?.toString() || "")
       setVendorId(variant.vendorId?.toString() || "")
       setBarcode(variant.barcode || "")
       setSku(variant.sku || "")
@@ -96,8 +91,6 @@ export function VariantFormDialog({
       setPackageQty("1")
       setPackageUnitId("")
       setCostPerVariant("")
-      setSellable(false)
-      setSellPrice("")
       setVendorId("")
       setBarcode("")
       setSku("")
@@ -121,8 +114,6 @@ export function VariantFormDialog({
         packageQty: parseInt(packageQty) || 1,
         packageUnitId: parseInt(packageUnitId),
         costPerVariant: parseFloat(costPerVariant) || 0,
-        sellable,
-        sellPrice: sellable && sellPrice ? parseFloat(sellPrice) : null,
         vendorId: vendorId ? parseInt(vendorId) : null,
         barcode: barcode.trim() || null,
         sku: sku.trim() || null,
@@ -257,39 +248,6 @@ export function VariantFormDialog({
               onChange={(e) => setCostPerVariant(e.target.value)}
               placeholder="0.00"
             />
-          </div>
-
-          {/* Sellable toggle + price */}
-          <div className="space-y-3 p-3 rounded-lg border">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="var-sellable" className="cursor-pointer">
-                  Sellable
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Can this variant be sold directly to customers?
-                </p>
-              </div>
-              <Switch
-                id="var-sellable"
-                checked={sellable}
-                onCheckedChange={setSellable}
-              />
-            </div>
-            {sellable && (
-              <div className="space-y-2 pt-1">
-                <Label htmlFor="var-sell-price">Sell Price</Label>
-                <Input
-                  id="var-sell-price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={sellPrice}
-                  onChange={(e) => setSellPrice(e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-            )}
           </div>
 
           {/* Vendor override */}

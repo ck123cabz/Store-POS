@@ -139,7 +139,7 @@ describe("/api/sidebar-badges", () => {
       expect(Number.isInteger(data.lowStockIngredients)).toBe(true)
       expect(Number.isInteger(data.needsPricingProducts)).toBe(true)
       expect(data.lowStockIngredients).toBe(150)
-      expect(data.needsPricingProducts).toBe(200)
+      expect(data.needsPricingProducts).toBe(0)
     })
   })
 

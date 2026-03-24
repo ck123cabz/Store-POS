@@ -70,19 +70,6 @@ export async function GET() {
                 },
               },
             },
-            linkedVariant: {
-              select: {
-                baseUnitsPerVariant: true,
-                ingredient: {
-                  select: {
-                    id: true,
-                    name: true,
-                    stockQty: true,
-                    baseUnit: { select: { name: true } },
-                  },
-                },
-              },
-            },
           },
         },
       },
@@ -115,18 +102,6 @@ export async function GET() {
               baseUnit: ri.ingredient.baseUnit.name,
             },
           })),
-          linkedVariant: product.linkedVariant
-            ? {
-                baseUnitsPerVariant: Number(product.linkedVariant.baseUnitsPerVariant),
-                ingredient: {
-                  id: product.linkedVariant.ingredient.id,
-                  name: product.linkedVariant.ingredient.name,
-                  quantity: Number(product.linkedVariant.ingredient.stockQty),
-                  packageSize: 1,
-                  baseUnit: product.linkedVariant.ingredient.baseUnit.name,
-                },
-              }
-            : null,
         }
 
         const availability = calculateProductAvailability(availabilityProduct)

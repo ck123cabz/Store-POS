@@ -7,8 +7,6 @@ export async function GET() {
     const settings = await getSettings()
     const criticalRatio = Number(settings.lowStockCriticalRatio)
     const warningRatio = Number(settings.lowStockWarningRatio)
-    const markup = Number(settings.suggestedPriceMarkup)
-
     // Get low-stock ingredients
     const ingredients = await prisma.ingredient.findMany({
       where: { isActive: true },
@@ -44,50 +42,13 @@ export async function GET() {
         return priorityOrder[a!.priority] - priorityOrder[b!.priority]
       })
 
-    // Get products needing pricing
-    const needsPricingProducts = await prisma.product.findMany({
-      where: { needsPricing: true },
-      select: {
-        id: true,
-        name: true,
-        price: true,
-        linkedVariant: {
-          select: {
-            costPerVariant: true,
-            baseUnitsPerVariant: true,
-            label: true,
-          },
-        },
-      },
-    })
-
-    const needsPricing = needsPricingProducts.map((p) => {
-      const variantCostPerUnit = p.linkedVariant && Number(p.linkedVariant.baseUnitsPerVariant) > 0
-        ? Number(p.linkedVariant.costPerVariant) / Number(p.linkedVariant.baseUnitsPerVariant)
-        : null
-
-      return {
-        id: p.id,
-        name: p.name,
-        currentPrice: Number(p.price),
-        suggestedPrice: variantCostPerUnit
-          ? Math.ceil(variantCostPerUnit * markup * 100) / 100
-          : null,
-        ingredientCost: variantCostPerUnit,
-      }
-    })
-
     return NextResponse.json({
       lowStock: {
         count: lowStockItems.length,
         criticalCount: lowStockItems.filter((i) => i?.priority === "critical").length,
         items: lowStockItems,
       },
-      needsPricing: {
-        count: needsPricing.length,
-        items: needsPricing,
-      },
-      totalAlerts: lowStockItems.length + needsPricing.length,
+      totalAlerts: lowStockItems.length,
     })
   } catch (error) {
     console.error("Failed to fetch POS alerts:", error)

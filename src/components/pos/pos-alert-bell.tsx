@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { Bell, AlertTriangle, DollarSign, AlertCircle } from "lucide-react"
+import { Bell, AlertTriangle, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,7 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Tooltip,
   TooltipContent,
@@ -27,33 +26,20 @@ interface LowStockItem {
   stockRatio: number | null
 }
 
-interface NeedsPricingItem {
-  id: number
-  name: string
-  currentPrice: number
-  suggestedPrice: number | null
-  ingredientCost: number | null
-}
-
 interface AlertsData {
   lowStock: {
     count: number
     criticalCount: number
     items: LowStockItem[]
   }
-  needsPricing: {
-    count: number
-    items: NeedsPricingItem[]
-  }
   totalAlerts: number
 }
 
 interface POSAlertBellProps {
   currencySymbol: string
-  onSetPrice?: (productId: number, price: number) => void
 }
 
-export function POSAlertBell({ currencySymbol, onSetPrice }: POSAlertBellProps) {
+export function POSAlertBell({ currencySymbol: _currencySymbol }: POSAlertBellProps) {
   const [data, setData] = useState<AlertsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -149,101 +135,48 @@ export function POSAlertBell({ currencySymbol, onSetPrice }: POSAlertBellProps) 
           </Badge>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-96" align="end">
-        <Tabs defaultValue="lowStock">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="lowStock" className="text-xs">
-              <AlertTriangle className="h-3 w-3 mr-1" />
-              Low Stock ({data.lowStock.count})
-            </TabsTrigger>
-            <TabsTrigger value="pricing" className="text-xs">
-              <DollarSign className="h-3 w-3 mr-1" />
-              Needs Price ({data.needsPricing.count})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="lowStock" className="mt-2">
-            <div className="max-h-64 overflow-y-auto space-y-2">
-              {data.lowStock.items.slice(0, 10).map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between text-sm py-1 border-b last:border-0"
-                >
-                  <div>
-                    <span className="font-medium">{item.name}</span>
-                    <div className="text-muted-foreground text-xs">
-                      {item.quantity} / {item.parLevel} {item.unit}
-                    </div>
-                  </div>
-                  <Badge
-                    variant={item.priority === "critical" ? "destructive" : "secondary"}
-                    className={
-                      item.priority === "high"
-                        ? "bg-status-warning/15 text-status-warning"
-                        : item.priority === "medium"
-                        ? "bg-status-warning/10 text-status-warning"
-                        : ""
-                    }
-                  >
-                    {item.priority}
-                  </Badge>
+      <PopoverContent className="w-80" align="end">
+        <div className="flex items-center gap-2 mb-3">
+          <AlertTriangle className="h-4 w-4 text-status-warning" />
+          <h4 className="font-medium text-sm">Low Stock ({data.lowStock.count})</h4>
+        </div>
+        <div className="max-h-64 overflow-y-auto space-y-2">
+          {data.lowStock.items.slice(0, 10).map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between text-sm py-1 border-b last:border-0"
+            >
+              <div>
+                <span className="font-medium">{item.name}</span>
+                <div className="text-muted-foreground text-xs">
+                  {item.quantity} / {item.parLevel} {item.unit}
                 </div>
-              ))}
-              {data.lowStock.count === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  All ingredients stocked!
-                </p>
-              )}
-              {data.lowStock.count > 10 && (
-                <p className="text-xs text-muted-foreground text-center pt-2">
-                  +{data.lowStock.count - 10} more items
-                </p>
-              )}
+              </div>
+              <Badge
+                variant={item.priority === "critical" ? "destructive" : "secondary"}
+                className={
+                  item.priority === "high"
+                    ? "bg-status-warning/15 text-status-warning"
+                    : item.priority === "medium"
+                    ? "bg-status-warning/10 text-status-warning"
+                    : ""
+                }
+              >
+                {item.priority}
+              </Badge>
             </div>
-          </TabsContent>
-
-          <TabsContent value="pricing" className="mt-2">
-            <div className="max-h-64 overflow-y-auto space-y-2">
-              {data.needsPricing.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between text-sm py-2 border-b last:border-0"
-                >
-                  <div>
-                    <span className="font-medium">{item.name}</span>
-                    <div className="text-muted-foreground text-xs">
-                      Cost: {currencySymbol}
-                      {item.ingredientCost?.toFixed(2) || "N/A"}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">
-                      Current: {currencySymbol}{item.currentPrice.toFixed(2)}
-                    </div>
-                    {item.suggestedPrice && onSetPrice && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-6 text-xs mt-1"
-                        onClick={() => {
-                          onSetPrice(item.id, item.suggestedPrice!)
-                          setOpen(false)
-                        }}
-                      >
-                        Set {currencySymbol}{item.suggestedPrice.toFixed(2)}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {data.needsPricing.count === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  All products priced!
-                </p>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
+          ))}
+          {data.lowStock.count === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              All ingredients stocked!
+            </p>
+          )}
+          {data.lowStock.count > 10 && (
+            <p className="text-xs text-muted-foreground text-center pt-2">
+              +{data.lowStock.count - 10} more items
+            </p>
+          )}
+        </div>
       </PopoverContent>
     </Popover>
   )

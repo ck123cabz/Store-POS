@@ -137,8 +137,6 @@ export const mockPrismaData = {
     quantity: 10,
     trackStock: true,
     image: '',
-    linkedIngredientId: null,
-    needsPricing: false,
     category: { id: 1, name: 'Test Category' },
   },
   products: [
@@ -150,9 +148,6 @@ export const mockPrismaData = {
       quantity: 10,
       trackStock: true,
       image: '',
-      linkedIngredientId: null,
-      needsPricing: false,
-      linkedIngredient: null,
       category: { id: 1, name: 'Test Category' },
     },
     {
@@ -163,9 +158,6 @@ export const mockPrismaData = {
       quantity: 5,
       trackStock: false,
       image: '',
-      linkedIngredientId: null,
-      needsPricing: false,
-      linkedIngredient: null,
       category: { id: 1, name: 'Test Category' },
     },
   ],

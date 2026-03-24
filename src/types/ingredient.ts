@@ -45,12 +45,6 @@ export interface PurchaseVariant {
   costPerVariant: number
   baseUnitsPerVariant: number
 
-  // Sellable
-  sellable: boolean
-  sellPrice: number | null
-  linkedProductId: number | null
-  syncStatus: string
-
   // Vendor override
   vendorId: number | null
 
@@ -68,8 +62,6 @@ export interface PurchaseVariantInput {
   packageQty?: number
   packageUnitId: number
   costPerVariant: number
-  sellable?: boolean
-  sellPrice?: number | null
   vendorId?: number | null
   barcode?: string | null
   sku?: string | null

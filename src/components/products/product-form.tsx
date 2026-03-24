@@ -14,25 +14,17 @@ import {
 import { Combobox } from "@/components/ui/combobox"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
-import { Folder, Package, ChefHat } from "lucide-react"
+import { Folder, ChefHat } from "lucide-react"
 
 interface Category {
   id: number
   name: string
 }
 
-interface VariantOption {
-  id: number
-  label: string
-  ingredientName: string
-  baseUnit: string
-}
-
 interface ProductFormData {
   name: string
   price: string
   categoryId: number | null
-  linkedVariantId: number | null
   requiresKitchen: boolean
 }
 
@@ -47,50 +39,21 @@ interface ProductFormProps {
     price: number
     image: string
     categoryId: number
-    linkedVariantId?: number | null
   } | null
 }
 
 export function ProductForm({ open, onClose, onSuccess, categories, product }: ProductFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
-  const [variants, setVariants] = useState<VariantOption[]>([])
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<ProductFormData>({
     defaultValues: {
       name: "",
       price: "",
       categoryId: null,
-      linkedVariantId: null,
       requiresKitchen: false,
     },
   })
-
-  // Fetch ingredients with their purchase variants for the combobox
-  useEffect(() => {
-    if (!open) return
-    fetch("/api/ingredients")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const opts: VariantOption[] = []
-          for (const ing of data) {
-            if (ing.purchaseVariants) {
-              for (const v of ing.purchaseVariants) {
-                opts.push({
-                  id: v.id,
-                  label: v.label,
-                  ingredientName: ing.name,
-                  baseUnit: ing.baseUnitName || ing.baseUnit,
-                })
-              }
-            }
-          }
-          setVariants(opts)
-        }
-      })
-      .catch(() => {/* ingredients are optional */})
-  }, [open])
 
   // Reset form when product changes
   useEffect(() => {
@@ -99,14 +62,12 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         name: product.name,
         price: product.price.toString(),
         categoryId: product.categoryId,
-        linkedVariantId: product.linkedVariantId ?? null,
       })
     } else {
       reset({
         name: "",
         price: "",
         categoryId: null,
-        linkedVariantId: null,
         requiresKitchen: false,
       })
     }
@@ -132,7 +93,6 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
         name: data.name,
         price: parseFloat(data.price),
         categoryId: data.categoryId,
-        linkedVariantId: data.linkedVariantId || null,
         requiresKitchen: data.requiresKitchen || null,
         ...(imageFilename && { image: imageFilename }),
       }
@@ -191,25 +151,6 @@ export function ProductForm({ open, onClose, onSuccess, categories, product }: P
               emptyMessage="No categories found."
               icon={<Folder className="size-4" />}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Linked Variant</Label>
-            <Combobox<number>
-              options={variants.map((v) => ({
-                value: v.id,
-                label: `${v.ingredientName} — ${v.label} (${v.baseUnit})`,
-              }))}
-              value={watch("linkedVariantId")}
-              onChange={(v) => setValue("linkedVariantId", v)}
-              placeholder="Select variant (optional)"
-              searchPlaceholder="Search variants..."
-              emptyMessage="No variants found."
-              icon={<Package className="size-4" />}
-            />
-            <p className="text-xs text-muted-foreground">
-              Link to a purchase variant for automatic stock tracking. For recipes with multiple ingredients, use the chef hat icon in the products table.
-            </p>
           </div>
 
           <div className="space-y-2">

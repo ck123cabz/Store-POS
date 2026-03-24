@@ -92,8 +92,6 @@ export interface AvailabilityProduct {
   id: number;
   name: string;
   recipeItems?: AvailabilityRecipeItem[];
-  linkedIngredient?: AvailabilityIngredient | null;
-  linkedVariant?: { baseUnitsPerVariant: number; ingredient: AvailabilityIngredient } | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -229,51 +227,6 @@ export function calculateRecipeAvailability(
   };
 }
 
-/**
- * Calculate product availability for a linked ingredient product
- * (1:1 mapping - product is sold directly from ingredient stock)
- *
- * @param linkedIngredient - The linked ingredient
- * @returns ProductAvailability result
- */
-export function calculateLinkedIngredientAvailability(
-  linkedIngredient: AvailabilityIngredient
-): ProductAvailability {
-  const warnings: string[] = [];
-
-  // Validate ingredient data
-  if (linkedIngredient.packageSize <= 0) {
-    warnings.push(`${linkedIngredient.name}: Invalid package size`);
-    return {
-      status: "out",
-      maxProducible: 0,
-      limitingIngredient: {
-        id: linkedIngredient.id,
-        name: linkedIngredient.name,
-      },
-      warnings,
-    };
-  }
-
-  // For 1:1 linked products, maxProducible is total base units
-  const totalBaseUnits = calculateTotalBaseUnits(
-    linkedIngredient.quantity,
-    linkedIngredient.packageSize
-  );
-  const maxProducible = Math.floor(totalBaseUnits);
-  const status = getStatusFromCount(maxProducible);
-
-  return {
-    status,
-    maxProducible,
-    limitingIngredient: {
-      id: linkedIngredient.id,
-      name: linkedIngredient.name,
-    },
-    warnings,
-  };
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // Main Entry Point
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -321,29 +274,12 @@ export function calculateLinkedIngredientAvailability(
 export function calculateProductAvailability(
   product: AvailabilityProduct
 ): ProductAvailability {
-  // Priority 1: Check recipe items (multi-ingredient products)
+  // Check recipe items (multi-ingredient products)
   if (product.recipeItems && product.recipeItems.length > 0) {
     return calculateRecipeAvailability(product.recipeItems);
   }
 
-  // Priority 2: Check linked variant (sellable purchase variant)
-  if (product.linkedVariant) {
-    const variant = product.linkedVariant;
-    // Adapt to legacy interface: stockQty is already base units, packageSize=1
-    const adapted: AvailabilityIngredient = {
-      ...variant.ingredient,
-      quantity: variant.ingredient.quantity,
-      packageSize: 1,
-    };
-    return calculateLinkedIngredientAvailability(adapted);
-  }
-
-  // Priority 2b: Legacy linked ingredient
-  if (product.linkedIngredient) {
-    return calculateLinkedIngredientAvailability(product.linkedIngredient);
-  }
-
-  // Priority 3: No ingredient tracking - always available
+  // No ingredient tracking - always available
   return {
     status: "available",
     maxProducible: null,
